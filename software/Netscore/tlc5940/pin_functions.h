@@ -1,0 +1,6 @@
+#define pulse_pin(pin)            digitalWrite(pin, HIGH); digitalWrite(pin, LOW)
+#define get_pin(pin)          	  digitalRead(pin)
+#define set_pin(pin)          	  digitalWrite(pin, HIGH)
+#define clear_pin(pin)        	  digitalWrite(pin, LOW)
+#define output_pin(pin)        	  pinMode(pin, OUTPUT)
+#define pullup_pin(pin)  		  pinMode(pin, INPUT_PULLUP)
