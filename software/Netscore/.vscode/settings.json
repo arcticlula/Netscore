@@ -1,0 +1,10 @@
+{
+    "C_Cpp.intelliSenseEngine": "default",
+    "idf.espIdfPath": "/Users/luissousa/esp/esp-idf",
+    "idf.openOcdConfigs": [
+        "interface/ftdi/esp32_devkitj_v1.cfg",
+        "target/esp32s2.cfg"
+    ],
+    "idf.port": "/dev/tty.usbmodem01",
+    "idf.toolsPath": "/Users/luissousa/.espressif"
+}

@@ -1,0 +1,28 @@
+Command: ninja all
+CMake Deprecation Warning at /Users/luissousa/esp/esp-idf/components/mbedtls/mbedtls/CMakeLists.txt:21 (cmake_minimum_required):
+  Compatibility with CMake < 3.10 will be removed from a future version of
+  CMake.
+
+  Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+  to tell CMake that the project requires at least <min> but has been updated
+  to work with policies introduced by <max> or earlier.
+
+
+You have changed variables that require your cache to be deleted.
+Configure will be re-run and you may have to reset some variables.
+The following variables have changed:
+CMAKE_C_COMPILER= /opt/homebrew/bin/arm-none-eabi-gcc
+CMAKE_CXX_COMPILER= /opt/homebrew/bin/arm-none-eabi-g++
+CMAKE_C_COMPILER= /opt/homebrew/bin/arm-none-eabi-gcc
+CMAKE_CXX_COMPILER= /opt/homebrew/bin/arm-none-eabi-g++
+CMAKE_C_COMPILER= /opt/homebrew/bin/arm-none-eabi-gcc
+
+CMake Deprecation Warning at /Users/luissousa/esp/esp-idf/components/mbedtls/mbedtls/CMakeLists.txt:21 (cmake_minimum_required):
+  Compatibility with CMake < 3.10 will be removed from a future version of
+  CMake.
+
+  Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+  to tell CMake that the project requires at least <min> but has been updated
+  to work with policies introduced by <max> or earlier.
+
+

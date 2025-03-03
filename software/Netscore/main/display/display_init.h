@@ -1,0 +1,21 @@
+#pragma once
+#include "definitions.h"
+#include "misc.h"
+#include "display_helper.h"
+
+void init_display();
+void init_boot_scr();
+void init_boot2_scr();
+void init_boot3_scr();
+void init_boot4_scr();
+void init_press_scr();
+void init_menu_scr();
+void init_sport_scr();
+void init_volley();
+void init_ping_pong();
+void init_set_size_scr();
+void init_play_scr();
+void init_brilho_scr();
+void init_bat_scr();
+void init_test_scr();
+void init_off_scr();
