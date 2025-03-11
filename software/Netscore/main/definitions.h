@@ -74,9 +74,9 @@ typedef void (*callback_t)();
 
 enum {
   BOOT_SCR = 0,
-  BOOT2_SCR,
-  BOOT3_SCR,
-  BOOT4_SCR,
+  BOOT_2_SCR,
+  BOOT_3_SCR,
+  BOOT_4_SCR,
   PRESS_SCR,
   SPORT_SCR,
   MENU_SCR,
@@ -84,10 +84,14 @@ enum {
   SET_PADEL_GAME_TYPE_SCR,
   SET_PADEL_DEUCE_TYPE_SCR,
   PLAY_SCR,
+  PLAY_HOME_SET_WIN_SCR,
+  PLAY_AWAY_SET_WIN_SCR,
+  PLAY_SETS_SCORE_SCR,
   BRILHO_SCR,
   BATT_SCR,
   TEST_SCR,
   OFF_SCR,
+  OFF_2_SCR,
 };
 
 enum {
@@ -128,8 +132,13 @@ enum {
 };
 
 enum {
-  GP = 0,
-  ADV
+  TOURNAMENT = 0,
+  TIEBREAK
+};
+
+enum {
+  GOLDEN_POINT = 0,
+  ADVANTAGES
 };
 
 // Last action timestamp
@@ -157,4 +166,4 @@ typedef struct {
 } option_string_2_t;
 
 extern option_string_2_t padel_game_type_option; 
-extern option_string_2_t deuce_option; 
+extern option_string_2_t padel_deuce_option; 

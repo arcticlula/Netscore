@@ -1,3 +1,9 @@
 {
-    "cmake.sourceDirectory": "/Users/luissousa/Documents/Projects/Netscore/software/Netscore"
+    "cmake.sourceDirectory": "/Users/luissousa/Documents/Projects/Netscore/software/Netscore",
+    "idf.customExtraVars": {
+        "IDF_TARGET": "esp32s2"
+    },
+    "idf.openOcdConfigs": [
+        "board/esp32s2-kaluga-1.cfg"
+    ]
 }

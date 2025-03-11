@@ -33,8 +33,6 @@ extern "C" void app_main(void)
     init_buzzer();
 
     init_display();
-    Tlc.setUserCallback(show_display);
-    Tlc.init();
 
     init_tasks();
     

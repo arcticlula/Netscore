@@ -33,8 +33,6 @@ void reset_max_score();**/
 void set_brightness();
 void set_history();
 void get_history();
-void set_padel_history();
-void get_padel_history();
 void enable_buttons();
 void disable_buttons();
 void start_adc_timer(uint32_t interval_ms);

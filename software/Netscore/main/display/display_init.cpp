@@ -2,6 +2,9 @@
 
 void init_display() {
   init_boot_scr();
+
+  Tlc.setUserCallback(show_display);
+  Tlc.init();
 }
 
 void init_boot_scr() {
@@ -16,7 +19,7 @@ void init_boot_scr() {
   set_char(&df6.c, letters[A]);
 }
 
-void init_boot2_scr() {
+void init_boot_2_scr() {
   init_digit_wave(&dw1, 50, 50, 100, 0, 1, 500);
   init_digit_wave(&dw2, 50, 50, 100, 0, 1, 500);
   init_digit_wave(&dw5, 50, 50, 100, 0, 1, 500);
@@ -27,19 +30,19 @@ void init_boot2_scr() {
   set_char(&dw5.c, letters[L]);
   set_char(&dw6.c, letters[A]);
 
-  window = BOOT2_SCR;
+  window = BOOT_2_SCR;
 }
 
-void init_boot3_scr() {
+void init_boot_3_scr() {
   init_digit_wave(&dw1, 100, 50, 100, 0, -1, 500);
   init_digit_wave(&dw2, 100, 50, 100, 0, -1, 500);
   init_digit_wave(&dw5, 100, 50, 100, 0, -1, 500);
   init_digit_wave(&dw6, 100, 50, 100, 0, -1, 500);
 
-  window = BOOT3_SCR;
+  window = BOOT_3_SCR;
 }
 
-void init_boot4_scr() {
+void init_boot_4_scr() {
   init_digit_fade_into(&dfi1, 50, 1000);
   init_digit_fade_into(&dfi2, 50, 1000);
   init_digit_fade_into(&dfi3, 50, 1000);
@@ -54,7 +57,7 @@ void init_boot4_scr() {
   set_chars_fade_into(&dfi5, letters[L], letters[S]);
   set_chars_fade_into(&dfi6, letters[A], letters[C]);
 
-  window = BOOT4_SCR;
+  window = BOOT_4_SCR;
 }
 
 void init_press_scr() {
@@ -102,7 +105,7 @@ void init_ping_pong() {
 
 void init_padel() {
   padel_game_type_option.current = LAST;
-  deuce_option.current = LAST;
+  padel_deuce_option.current = LAST;
   init_set_padel_game_type_scr();
 }
 
@@ -124,9 +127,7 @@ void init_set_max_points_scr() {
   window = SET_MAX_SCORE_SCR;
 }
 
-void init_set_padel_game_type_scr() {
-  uint8_t positions[4];
-  
+void init_set_padel_game_type_scr() {  
   if (padel_game_type_option.current == FIRST) {
     uint8_t positions[] = {0, 5, 4, 3};
     uint8_t a[] = {2, 3, 4, 5, 0, 1};
@@ -142,23 +143,23 @@ void init_set_padel_game_type_scr() {
   }
   
   init_digit_zigzag(&dz1, 0, 20, 80, 0, -1, 500);
-  init_digit_zigzag(&dz2, 0, 20, 80, 0, 1, 400);
-  init_digit_zigzag(&dz3, 0, 20, 80, 0, 1, 400);
+  init_digit_zigzag(&dz2, 0, 60, 80, 30, 1, 500);
+  init_digit_zigzag(&dz3, 0, 60, 80, 30, 1, 500);
   window = SET_PADEL_GAME_TYPE_SCR;
 }
 
 void init_set_padel_deuce_type_scr() {
   uint8_t positions[4];
   
-  if (deuce_option.current == FIRST) {
+  if (padel_deuce_option.current == FIRST) {
     uint8_t positions[] = {0, 5, 4, 3};
-    set_char(&dw1.c, letters[deuce_option.first[0]]);
-    set_char(&dw2.c, letters[deuce_option.first[1]]);
+    set_char(&dw1.c, letters[padel_deuce_option.first[0]]);
+    set_char(&dw2.c, letters[padel_deuce_option.first[1]]);
     set_positions(&dz1.c, positions, 4);
-  } else if (deuce_option.current == LAST) {
+  } else if (padel_deuce_option.current == LAST) {
     uint8_t positions[] = {0, 1, 2, 3};
-    set_char(&dw1.c, letters[deuce_option.last[0]]);
-    set_char(&dw2.c, letters[deuce_option.last[1]]);
+    set_char(&dw1.c, letters[padel_deuce_option.last[0]]);
+    set_char(&dw2.c, letters[padel_deuce_option.last[1]]);
     set_positions(&dz1.c, positions, 4);
   }
   
@@ -169,6 +170,14 @@ void init_set_padel_deuce_type_scr() {
 void init_play_scr() {
   window = PLAY_SCR;
   set_hold_time_ms(500);
+}
+
+void init_play_set_win_scr(uint8_t team) {
+  window = team == HOME ? PLAY_HOME_SET_WIN_SCR : PLAY_AWAY_SET_WIN_SCR;
+}
+
+void init_play_sets_score_scr() {
+  window = PLAY_SETS_SCORE_SCR;
 }
 
 void init_brilho_scr() {
@@ -190,9 +199,19 @@ void init_test_scr() {
 }
 
 void init_off_scr() {
-  //uint8_t positions[] = {0, 1, 2, 3, 4, 5};
-  //setPositions(&dl1.c, positions, 6);
-  //window = OFF_SCR;
-  vTaskDelay(pdMS_TO_TICKS(1000));
+  init_digit_wave(&dw1, 50, 50, 1, 0, -1, 1000);
+  init_digit_wave(&dw2, 50, 50, 1, 0, -1, 1000);
+  init_digit_wave(&dw3, 50, 50, 1, 0, -1, 1000);
+  init_digit_wave(&dw4, 50, 50, 1, 0, -1, 1000);
+
+  set_char(&dw1.c, letters[B]);
+  set_char(&dw2.c, letters[Y]);
+  set_char(&dw5.c, letters[E]);
+  set_char(&dw6.c, letters[E]);
+
+  window = OFF_2_SCR;
+}
+
+void init_off_2_scr() {  
   gpio_set_level((gpio_num_t)LDO_LATCH, LOW);
 }

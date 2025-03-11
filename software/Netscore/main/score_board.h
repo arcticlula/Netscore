@@ -23,6 +23,8 @@ typedef enum {
 typedef struct {
     padel_points_t home_points;
     padel_points_t away_points;
+    uint8_t home_tiebreak_points;
+    uint8_t away_tiebreak_points;
     uint8_t home_games;
     uint8_t away_games;
     uint8_t home_sets;
@@ -53,12 +55,11 @@ void set_point(padel_points_t *points, padel_points_t value);
 void add_point(uint8_t team);
 void add_point_default(uint8_t team);
 void add_point_padel(uint8_t team);
+void set_padel_game_type();
+void set_padel_deuce_type();
+void set_padel_tiebreak_mode();
 void game_win(uint8_t team);
-void home_game_win();
-void away_game_win();
 void set_win(uint8_t team);
-void home_set_win();
-void away_set_win();
 void reset_points();
-void reset_score();
+void reset_games();
 void undo_point();

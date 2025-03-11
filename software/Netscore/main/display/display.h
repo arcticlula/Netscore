@@ -73,10 +73,15 @@ void show_set_max_score();
 void show_set_padel_game_type();
 void show_set_deuce_type();
 void show_play();
-void show_padel();
+void show_play_default();
+void show_play_padel();
+void show_play_padel_sets(uint8_t team);
+void show_set_win(uint8_t team);
+void show_set_lost(uint8_t team);
 void show_brightness();
 void show_battery();
 
 void show_test();
 
 void show_off();
+void show_off_2();

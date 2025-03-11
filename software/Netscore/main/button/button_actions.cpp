@@ -71,7 +71,7 @@ void button_left_click() {
       buzzer_enqueue_note(NOTE_A, 4, 100, nullptr);
       break;
     case SET_PADEL_DEUCE_TYPE_SCR:
-      deuce_option.current = FIRST;
+      padel_deuce_option.current = FIRST;
       init_set_padel_deuce_type_scr();
       buzzer_enqueue_note(NOTE_A, 4, 100, nullptr);
       break;
@@ -163,12 +163,19 @@ void button_right_click() {
       buzzer_enqueue_note(NOTE_A, 4, 100, nullptr);
       break;
     case SET_PADEL_DEUCE_TYPE_SCR:
-      deuce_option.current = LAST;
+      padel_deuce_option.current = LAST;
       init_set_padel_deuce_type_scr();
       buzzer_enqueue_note(NOTE_A, 4, 100, nullptr);
       break;
     case PLAY_SCR:
       add_point(HOME);
+      break;
+    case PLAY_HOME_SET_WIN_SCR:
+    case PLAY_AWAY_SET_WIN_SCR:
+      init_play_sets_score_scr();
+      break;
+    case PLAY_SETS_SCORE_SCR:
+      init_play_scr();
       break;
     case BRILHO_SCR:
       if(brightness_index < MAX_BRIGHT_INDEX - 1) brightness_index++;
@@ -189,9 +196,11 @@ void button_right_hold() {
       init_play_scr();
       break;
     case SET_PADEL_GAME_TYPE_SCR:
+      set_padel_game_type();
       init_set_padel_deuce_type_scr();
       break;
     case SET_PADEL_DEUCE_TYPE_SCR:
+      set_padel_deuce_type();
       init_play_scr();
       break;
     case PLAY_SCR:

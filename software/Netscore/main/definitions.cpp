@@ -13,6 +13,6 @@ uint8_t brightness[6] = {1, 10, 25, 35, 50, 63};
 uint8_t brightness_index = BRIGHT_INDEX;
 
 option_string_2_t padel_game_type_option = {{O, O}, {T, b}, LAST}; 
-option_string_2_t deuce_option = {{G, P}, {A, D}, LAST}; 
+option_string_2_t padel_deuce_option = {{G, P}, {A, D}, LAST}; 
 
 uint16_t timer_cnt = 1000;
