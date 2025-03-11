@@ -96,10 +96,11 @@ void init_melody_timer(void) {
 }
 
 void play_note(ledc_channel_t channel, uint16_t frequency, uint8_t octave) {
-  ledc_set_freq(LEDC_LOW_SPEED_MODE, LEDC_TIMER_1, frequency);
-  
+  uint16_t adjusted_frequency = frequency * (1 << (octave - 4));  // 4 is the default octave
+  ledc_set_freq(LEDC_LOW_SPEED_MODE, LEDC_TIMER_1, adjusted_frequency);
+
   // Set duty cycle to a non-zero value to make sound
-  ledc_set_duty(LEDC_LOW_SPEED_MODE, channel, 8000);  // Adjust the duty cycle as needed
+  ledc_set_duty(LEDC_LOW_SPEED_MODE, channel, 6144);  // Adjust the duty cycle as needed
   ledc_update_duty(LEDC_LOW_SPEED_MODE, channel);
 }
 
@@ -162,6 +163,7 @@ void buzzer_play(uint8_t buzzer, note_t note, uint8_t octave, int16_t duration_m
 void buzzer_enqueue_note(note_t note, uint8_t octave, int16_t duration_ms, callback_t callback) {
   melody_note_t melody_note = {
       .note = note,
+      .octave = octave,
       .duration = duration_ms,
       .callback = callback
   };
@@ -226,11 +228,11 @@ void timer_melody_callback(void *arg) {
 void melody_task(void *arg) {
   while (1) {
     if (xQueueReceive(melody_queue, &current_note, portMAX_DELAY) == pdTRUE) {
-      ESP_LOGI("buzzer", "Playing Note: %d", current_note.note);
+      //ESP_LOGI("buzzer", "Playing Note: %d", current_note.note);
 
       //uint32_t note_duration = (wholenote / abs(current_note.duration)) * ((current_note.duration < 0) ? 1.5 : 1);
       uint32_t note_duration = current_note.duration;
-      buzzer_play(A, current_note.note, 4, note_duration * 0.9);
+      buzzer_play(A, current_note.note, current_note.octave, note_duration * 0.9);
       note_done = false;
 
       // Wait for the timer to complete before fetching the next note

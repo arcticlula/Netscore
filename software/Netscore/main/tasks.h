@@ -20,10 +20,6 @@ typedef enum {
 } event_type_t;
 
 typedef struct {
-    uint8_t data[2];
-} esp_now_t;
-
-typedef struct {
     uint8_t action;
 } btn_action_t;
 

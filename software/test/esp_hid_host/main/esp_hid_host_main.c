@@ -72,6 +72,21 @@ void init_esp_now() {
     ESP_ERROR_CHECK(esp_now_add_peer(&peerInfo));
 }
 
+typedef enum {
+    BUTTON_PAIRED,
+    BUTTON_PRESS
+} esp_now_event_type_t;
+
+void send_message_esp_now() {
+    esp_now_msg_t msg;
+    msg.id = BUTTON_PAIRED;
+    //memset(msg.message, 0, sizeof(msg.message));
+    // memcpy(msg.message, data, length);  // Copy HID data into the message
+
+    esp_err_t result = esp_now_send(receiver_mac, (uint8_t*)&msg, sizeof(msg));
+    ESP_LOGI(TAG, "Sending HID data over ESP-NOW, result: %s", esp_err_to_name(result));
+}
+
 void send_hid_over_esp_now(uint8_t *data, size_t length) {
     if (length > 32) {
         ESP_LOGE(TAG, "HID data too large for ESP-NOW message");
@@ -82,7 +97,7 @@ void send_hid_over_esp_now(uint8_t *data, size_t length) {
     ESP_LOG_BUFFER_HEX(TAG, data, length);
 
     esp_now_msg_t msg;
-    msg.id = 1; // You can change this to identify different devices
+    msg.id = BUTTON_PRESS; // You can change this to identify different devices
     memset(msg.message, 0, sizeof(msg.message));
     memcpy(msg.message, data, length);  // Copy HID data into the message
 
@@ -192,6 +207,7 @@ void hid_connect_task(void *pvParameters)
 
     if (hidh_dev != NULL) {
         ESP_LOGI(TAG, "HID device opened successfully!");
+        send_message_esp_now();
     } else {
         ESP_LOGE(TAG, "Failed to open HID device");
     }

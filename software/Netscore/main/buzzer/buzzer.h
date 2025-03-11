@@ -9,6 +9,35 @@
 #include "esp_timer.h"
 #include "definitions.h"
 
+
+typedef enum {
+    NOTE_C = 262,
+    NOTE_Cs = 277,  
+    NOTE_Db = 277,
+    NOTE_D = 294,
+    NOTE_Ds = 311,  
+    NOTE_Eb = 311,
+    NOTE_E = 330,
+    NOTE_F = 349,
+    NOTE_Fs = 370,  
+    NOTE_Gb = 370,
+    NOTE_G = 392,
+    NOTE_Gs = 415,  
+    NOTE_Ab = 415,
+    NOTE_A = 440,
+    NOTE_As = 466,  
+    NOTE_Bb = 466,
+    NOTE_B = 494,
+    NONE = 0
+} note_t;
+
+typedef struct {
+    note_t note;
+    uint8_t octave;
+    int16_t duration;
+    callback_t callback;
+} melody_note_t;
+
 void init_buzzer();
 //void init_stop_timer(void);
 void init_melody_timer(void);

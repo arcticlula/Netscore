@@ -2,6 +2,8 @@
 
 #define TAG "ESP32S2_RECEIVER"
 
+uint16_t hold_time_ms = 300;
+
 void init_esp_now() {
     ESP_ERROR_CHECK(nvs_flash_init());
     ESP_ERROR_CHECK(esp_netif_init());
@@ -14,6 +16,10 @@ void init_esp_now() {
 
     ESP_ERROR_CHECK(esp_now_init());
     ESP_ERROR_CHECK(esp_now_register_recv_cb(esp_now_recv_callback));
+}
+
+void set_hold_time_ms(uint16_t time_ms) {
+    hold_time_ms = time_ms;
 }
 
 void esp_now_recv_callback(const esp_now_recv_info_t *mac_addr, const uint8_t *data, int len) {
@@ -46,7 +52,6 @@ void hold_timer_callback(void* arg) {
 
 void espnow_task(void *arg) {
     esp_now_t event;
-    static int64_t start_time; // Get start time
 
     while (1) {
         if (xQueueReceive(espnow_queue, &event, portMAX_DELAY) == pdTRUE) {
@@ -54,52 +59,67 @@ void espnow_task(void *arg) {
             int len = sizeof(event.data);
         
             if (len > 1) {
-                uint8_t report_id = data[0];
-                uint8_t button_state = data[1];
+                esp_now_event_type_t event_type = (esp_now_event_type_t)data[0];
+                switch (event_type) {
+                    case BUTTON_PAIRED:
+                        buzzer_enqueue_note(NOTE_A, 4, 500, nullptr);
+                        break;
+                    case BUTTON_PRESS:
+                        esp_now_btn_event_t button_state = (esp_now_btn_event_t)data[1];
+                        handle_button_event(button_state);
+                        break;
+                }
+
 
                 //ESP_LOGI(TAG, "Report ID: %d, Button State: 0x%02X", report_id, button_state);
         
-                switch(button_state) {
-                    case BUTTON_1_PRESS:
-                        start_time = esp_timer_get_time();
-                        last_pressed = 0;
-                        timer_bl_hold_args.arg = &last_pressed;
 
-                        esp_timer_create(&timer_bl_hold_args, &hold_timer);
-                        esp_timer_start_once(hold_timer, 300 * 1000);
-                        hold_triggered = false;
-                        ESP_LOGI(TAG, "Button 1 Pressed! Timer started.");
-                        break;
-                    case BUTTON_2_PRESS:
-                        start_time = esp_timer_get_time();
-                        last_pressed = 1;
-                        timer_bl_hold_args.arg = &last_pressed;
-    
-                        esp_timer_create(&timer_bl_hold_args, &hold_timer);
-                        esp_timer_start_once(hold_timer, 300 * 1000);
-                        hold_triggered = false;
-                        ESP_LOGI(TAG, "Button 2 Pressed! Timer started.");
-                        break;
-                    case BUTTON_RELEASE:
-                        ESP_LOGI("TIMING", "espnow_task executed in %lld ms", (esp_timer_get_time() - start_time) / 1000);
-                        if (!hold_triggered) {
-                            esp_timer_stop(hold_timer);
-                            esp_timer_delete(hold_timer);
-                            ESP_LOGI(TAG, "Button Released! Timer canceled.");
-    
-                            btn_action_event.action = last_pressed == 0 ? BUTTON_RIGHT_CLICK : BUTTON_LEFT_CLICK;
-                            xQueueSend(button_action_queue, &btn_action_event, portMAX_DELAY);
-                        }
-                        else {
-                            ESP_LOGI(TAG, "ignored");
-                            hold_triggered = false;
-                        }
-                        break;
-                    default:
-                        ESP_LOGI(TAG, "Unknown Button Event: 0x%02X", button_state);
-                        break;
-                }
             }
         }
+    }
+}
+
+void handle_button_event(esp_now_btn_event_t button_state) {
+    static int64_t start_time; // Get start time
+
+    switch(button_state) {
+        case BUTTON_1_PRESS:
+            start_time = esp_timer_get_time();
+            last_pressed = 0;
+            timer_bl_hold_args.arg = &last_pressed;
+
+            esp_timer_create(&timer_bl_hold_args, &hold_timer);
+            esp_timer_start_once(hold_timer, hold_time_ms * 1000);
+            hold_triggered = false;
+            ESP_LOGI(TAG, "Button 1 Pressed! Timer started.");
+            break;
+        case BUTTON_2_PRESS:
+            start_time = esp_timer_get_time();
+            last_pressed = 1;
+            timer_bl_hold_args.arg = &last_pressed;
+
+            esp_timer_create(&timer_bl_hold_args, &hold_timer);
+            esp_timer_start_once(hold_timer, hold_time_ms * 1000);
+            hold_triggered = false;
+            ESP_LOGI(TAG, "Button 2 Pressed! Timer started.");
+            break;
+        case BUTTON_RELEASE:
+            ESP_LOGI("TIMING", "espnow_task executed in %lld ms", (esp_timer_get_time() - start_time) / 1000);
+            if (!hold_triggered) {
+                esp_timer_stop(hold_timer);
+                esp_timer_delete(hold_timer);
+                ESP_LOGI(TAG, "Button Released! Timer canceled.");
+
+                btn_action_event.action = last_pressed == 0 ? BUTTON_RIGHT_CLICK : BUTTON_LEFT_CLICK;
+                xQueueSend(button_action_queue, &btn_action_event, portMAX_DELAY);
+            }
+            else {
+                ESP_LOGI(TAG, "ignored");
+                hold_triggered = false;
+            }
+            break;
+        default:
+            ESP_LOGI(TAG, "Unknown Button Event: 0x%02X", button_state);
+            break;
     }
 }

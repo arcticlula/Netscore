@@ -14,7 +14,8 @@
 
 extern "C" void app_main(void)
 {
-    init_tasks();
+    //while(!gpio_get_level((gpio_num_t)BUTTON_LEFT_PIN) && !gpio_get_level((gpio_num_t)BUTTON_RIGHT_PIN));
+
     init_gpio();
 
     init_esp_now();
@@ -32,8 +33,11 @@ extern "C" void app_main(void)
     init_buzzer();
 
     init_display();
-    Tlc.setUserCallback(showDisplay);
+    Tlc.setUserCallback(show_display);
     Tlc.init();
+
+    init_tasks();
+    
     set_brightness();
 
     while (1) {

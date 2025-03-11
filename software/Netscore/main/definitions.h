@@ -69,161 +69,8 @@
 #define MUX_B_DD_2 9
 #define MUX_B_SD 10
 
-typedef enum {
-  NOTE_C = 262,
-  NOTE_Cs = 277,  
-  NOTE_Db = 277,
-  NOTE_D = 294,
-  NOTE_Ds = 311,  
-  NOTE_Eb = 311,
-  NOTE_E = 330,
-  NOTE_F = 349,
-  NOTE_Fs = 370,  
-  NOTE_Gb = 370,
-  NOTE_G = 392,
-  NOTE_Gs = 415,  
-  NOTE_Ab = 415,
-  NOTE_A = 440,
-  NOTE_As = 466,  
-  NOTE_Bb = 466,
-  NOTE_B = 494,
-  NONE = 0
-} note_t;
-
 typedef void (*timer_callback_t)(void *arg);
 typedef void (*callback_t)();
-
-typedef struct {
-  note_t note;
-  int16_t duration;
-  callback_t callback;
-} melody_note_t;
-
-typedef struct {
-    uint8_t home_points;
-    uint8_t away_points;
-    uint8_t home_sets;
-    uint8_t away_sets;
-} score_t;
-
-typedef struct {
-    uint8_t current;
-    uint8_t min;
-    uint8_t max;
-} max_score_t;
-
-typedef struct {
-  uint8_t character;
-  uint8_t size;
-  uint8_t positions[8];
-} digit_character_t;
-
-typedef struct {
-    digit_character_t c;
-    int8_t direction;
-    double value;
-    double min;
-    double max;
-    double background;
-    uint32_t time_ms;
-} digit_wave_t;
-
-typedef struct {
-    digit_character_t c;
-    int8_t channel;  
-    int8_t direction;
-    double min;
-    double max;
-    double background;
-    uint32_t time_ms;
-    uint16_t cnt;
-} digit_loop_t;
-
-typedef struct {
-    digit_character_t c;
-    int8_t channel;  
-    int8_t direction;
-    double min;
-    double max;
-    double background;
-    uint32_t time_ms;
-    uint16_t cnt;
-} digit_zigzag_t;
-
-typedef struct {
-    digit_character_t c;
-    int8_t channel;  
-    int8_t direction;
-    double value;
-    uint32_t time_ms;
-    uint16_t cnt;
-    double positions_value[8];
-} digit_fade_t;
-
-typedef struct {
-    digit_character_t c1;
-    digit_character_t c2;
-    double value;
-    uint32_t time_ms;
-    uint16_t cnt;
-    double positions_dir[8];
-    double positions_value[8];
-} digit_fade_into_t;
-
-const uint8_t digits[11] = {
-    0b00111111, // 0: segments a, b, c, d, e, f
-    0b00000110, // 1: segments b, c
-    0b01011011, // 2: segments a, b, d, e, g
-    0b01001111, // 3: segments a, b, c, d, g
-    0b01100110, // 4: segments b, c, f, g
-    0b01101101, // 5: segments a, c, d, f, g
-    0b01111101, // 6: segments a, c, d, e, f, g
-    0b00000111, // 7: segments a, b, c
-    0b01111111, // 8: segments a, b, c, d, e, f, g
-    0b01101111,  // 9: segments a, b, c, d, f, g
-    0
-};
-
-const uint8_t letters[27] = {
-    0,
-    0b01110111, // A: segments a, b, c, e, f, g
-    0b01111111, // B: segments c, d, e, f, g (like 'b' in lowercase)
-    0b00111001, // C: segments a, d, e, f
-    0b01011110, // D: segments b, c, d, e, g (like 'd' in lowercase)
-    0b01111001, // E: segments a, d, e, f, g
-    0b01110001, // F: segments a, e, f, g
-    0b00111101, // G: segments a, c, d, e, f
-    0b01110110, // H: segments b, c, e, f, g
-    0b00000110, // I: segments b, c
-    0b00011110, // J: segments b, c, d, e
-    0b01110110, // K: approximated as H (7-segment can't distinguish)
-    0b00111000, // L: segments d, e, f
-    0b00010101, // M: approximated (7-segment can't display a proper M)
-    0b00110111, // N: approximated (7-segment can't display a proper N)
-    0b00111111, // O: segments a, b, c, d, e, f
-    0b01110011, // P: segments a, b, e, f, g
-    0b01100111, // Q: approximated as 'A' with g turned on
-    0b01010000, // R: 'r' in lowercase
-    0b01101101, // S: segments a, c, d, f, g
-    0b01111000, // T: segments d, e, f, g
-    0b00111110, // U: segments b, c, d, e, f
-    0b00111110, // V: approximated as U (7-segment can't distinguish)
-    0b00011101, // W: approximated (7-segment can't display a proper W)
-    0b01110110, // X: approximated as H
-    0b01101110, // Y: segments b, c, d, f, g
-    0b01011011  // Z: segments a, b, d, e, g
-};
-
-const uint8_t bitCountLUT[256] = {
-    0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4, 1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5,
-    1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5, 2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
-    1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5, 2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
-    2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6, 3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
-    1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5, 2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
-    2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6, 3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
-    2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6, 3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
-    3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7, 4, 5, 5, 6, 5, 6, 6, 7, 5, 6, 6, 7, 6, 7, 7, 8
-};
 
 enum {
   BOOT_SCR = 0,
@@ -233,7 +80,9 @@ enum {
   PRESS_SCR,
   SPORT_SCR,
   MENU_SCR,
-  SET_SIZE_SCR,
+  SET_MAX_SCORE_SCR,
+  SET_PADEL_GAME_TYPE_SCR,
+  SET_PADEL_DEUCE_TYPE_SCR,
   PLAY_SCR,
   BRILHO_SCR,
   BATT_SCR,
@@ -263,37 +112,6 @@ enum {
 };
 
 enum {
-  BLANK = 0,
-  A,
-  B,
-  C,
-  D,
-  E,
-  F,
-  G,
-  H,
-  I,
-  J,
-  K,
-  L,
-  M,
-  N,
-  O,
-  P,
-  Q,
-  R,
-  S,
-  T,
-  U,
-  V,
-  W,
-  X,
-  Y,
-  Z
-};
-
-
-enum {
   HOME = 0,
   AWAY
 };
@@ -304,12 +122,22 @@ enum {
   UNDO
 };
 
+enum {
+  FIRST = 0,
+  LAST
+};
+
+enum {
+  GP = 0,
+  ADV
+};
+
 // Last action timestamp
 extern uint32_t last_action;
 
 // Current screen
 extern int8_t window;
-// Current aport
+// Current sport
 extern int8_t sport;
 // Selected options
 extern int8_t menu;
@@ -320,18 +148,13 @@ extern uint8_t brightness_index;
 
 extern float displays[MUX_NUM][6]; //2 arrays of 6 (Number of 7Seg per display)
 
-// Score
-extern max_score_t max_score; 
-
-extern score_t score;
-extern score_t score_history[255];
-extern uint8_t score_index;
-
 extern uint16_t timer_cnt;
 
-// Digits
-extern digit_wave_t dw1, dw2, dw3, dw4, dw5, dw6;
-extern digit_zigzag_t dz1;
-extern digit_loop_t dl1;
-extern digit_fade_t df1, df2, df3, df4, df5, df6;
-extern digit_fade_into_t dfi1, dfi2, dfi3, dfi4, dfi5, dfi6;
+typedef struct {
+  uint8_t first[2];
+  uint8_t last[2];
+  uint8_t current;
+} option_string_2_t;
+
+extern option_string_2_t padel_game_type_option; 
+extern option_string_2_t deuce_option; 

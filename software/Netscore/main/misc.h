@@ -19,13 +19,6 @@
 extern uint8_t brightness[6];
 extern uint8_t brightness_index;
 
-// Score
-extern max_score_t max_score;
-
-extern score_t score;
-extern score_t score_history[255];
-extern uint8_t score_index;
-
 void init_gpio();
 /**void get_preferences();
 void reset_preferences();
@@ -40,6 +33,8 @@ void reset_max_score();**/
 void set_brightness();
 void set_history();
 void get_history();
+void set_padel_history();
+void get_padel_history();
 void enable_buttons();
 void disable_buttons();
 void start_adc_timer(uint32_t interval_ms);

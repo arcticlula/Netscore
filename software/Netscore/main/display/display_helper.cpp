@@ -1,9 +1,9 @@
 #include "display_helper.h"
 
-void showCharacter(uint8_t side, uint8_t offset_ch, uint8_t character, uint8_t val, bool has_dot, uint16_t time_ms) {
+void show_character(uint8_t side, uint8_t offset_ch, uint8_t character, uint8_t val, bool has_dot, uint16_t time_ms) {
   if (val == BLANK) return;
 
-  uint16_t value = round(getBrightness(val));
+  uint16_t value = round(get_brightness(val));
   static int8_t direction = -1;
   static uint16_t dot_value = value;
 
@@ -34,42 +34,38 @@ void showCharacter(uint8_t side, uint8_t offset_ch, uint8_t character, uint8_t v
   }
 }
 
-void showDigit(uint8_t side, uint8_t offset_ch, uint8_t digit, uint8_t value, bool has_dot, uint16_t time_ms) {
-  showCharacter(side, offset_ch, digits[digit], value, has_dot, time_ms);
+void show_digit(uint8_t side, uint8_t offset_ch, uint8_t digit, uint8_t value, bool has_dot, uint16_t time_ms) {
+  show_character(side, offset_ch, numbers[digit], value, has_dot, time_ms);
 }
 
-void showLetter(uint8_t side, uint8_t offset_ch, uint8_t character, uint8_t value, bool has_dot, uint16_t time_ms) {
-  showCharacter(side, offset_ch, letters[character], value, has_dot, time_ms);
+void show_letter(uint8_t side, uint8_t offset_ch, uint8_t character, uint8_t value, bool has_dot, uint16_t time_ms) {
+  show_character(side, offset_ch, letters[character], value, has_dot, time_ms);
 }
 
-void showText(uint8_t side, uint8_t l_1, uint8_t l_2, uint8_t l_3, uint8_t l_4, uint8_t l_5, uint8_t l_6, uint8_t value) {
+void show_text(uint8_t side, uint8_t l_1, uint8_t l_2, uint8_t l_3, uint8_t l_4, uint8_t l_5, uint8_t l_6, uint8_t value) {
   switch(current_mux) {
     case 0:
       //1
-      showLetter(side, 0, l_1, value);
+      show_letter(side, 0, l_1, value);
       //5
-      showLetter(side, 8, l_5, value);
+      show_letter(side, 8, l_5, value);
       break;
     case 1:
       //2
-      showLetter(side, 0, l_2, value);
+      show_letter(side, 0, l_2, value);
       //6
-      showLetter(side, 8, l_6, value);
+      show_letter(side, 8, l_6, value);
       break;
     case 2:
       //3
-      showLetter(side, 0, l_3, value);
+      show_letter(side, 0, l_3, value);
       //4
-      showLetter(side, 8, l_4, value);
+      show_letter(side, 8, l_4, value);
       break;
   }
 }
 
-void showWave(uint8_t side, uint8_t offset_ch, digit_wave_t *digit) {
-  showWave(side, offset_ch, digit, nullptr);
-}
-
-void showWave(uint8_t side, uint8_t offset_ch, digit_wave_t *digit, void (*callback)()) {
+void show_wave(uint8_t side, uint8_t offset_ch, digit_wave_t *digit, void (*callback)()) {
   double time = digit->time_ms / (2 * MUX_NUM); //only called every x time, x is the number of mux outputs, the 2 is bc only called every 2ms
   uint16_t value = round(digit->value);
   uint16_t background = round(digit->background);
@@ -95,8 +91,8 @@ void showWave(uint8_t side, uint8_t offset_ch, digit_wave_t *digit, void (*callb
   //Serial.printf("Value: %d, Ratio: %.2f, Direction: %d\n", digit->value, ratio, digit->direction);
 }
 
-void showZigZag(uint8_t side, uint8_t offset_ch, digit_zigzag_t *digit) {
-  static uint8_t last_ch = digit->c.size - 1;
+void show_zigzag(uint8_t side, uint8_t offset_ch, digit_zigzag_t *digit, void (*callback)()) {
+  uint8_t last_ch = digit->c.size - 1;
   uint16_t max = round(digit->max);
   uint16_t min = round(digit->min);
   uint16_t background = round(digit->background);
@@ -109,12 +105,24 @@ void showZigZag(uint8_t side, uint8_t offset_ch, digit_zigzag_t *digit) {
   else digit->cnt++;
 
   if (digit->channel < 0) {
-    digit->direction = 1;
-    digit->channel = 1;
+    if(callback) {
+      digit->channel = last_ch;
+      callback();
+    }
+    else {
+      digit->channel = 0;
+      digit->direction = 1;
+    }
   }
   else if (digit->channel > last_ch) {
-    digit->direction = -1;
-    digit->channel = last_ch - 1;
+    if(callback) {
+      digit->channel = 0;
+      callback();
+    }
+    else {
+      digit->channel = last_ch - 1;
+      digit->direction = -1;
+    }
   }
 
   //Serial.printf("Value: %.2f, Ratio: %.2f, Direction: %d\n", value, ratio, direction);
@@ -136,11 +144,7 @@ void showZigZag(uint8_t side, uint8_t offset_ch, digit_zigzag_t *digit) {
   }
 }
 
-void showFadeIn(uint8_t side, uint8_t offset_ch, digit_fade_t *digit) {
-  showFadeIn(side, offset_ch, digit, nullptr);
-}
-
-void showFadeIn(uint8_t side, uint8_t offset_ch, digit_fade_t *digit, void (*callback)()) {
+void show_fade_in(uint8_t side, uint8_t offset_ch, digit_fade_t *digit, void (*callback)()) {
   static double time = digit->time_ms / (2 * MUX_NUM * digit->c.size); //only called every x time, x is the number of mux outputs, the 2 is bc only called every 2ms
   double ratio = (double)(digit->value / time);
 
@@ -167,11 +171,7 @@ void showFadeIn(uint8_t side, uint8_t offset_ch, digit_fade_t *digit, void (*cal
   }
 }
 
-void showFadeInto(uint8_t side, uint8_t offset_ch, digit_fade_into_t *digit) {
-  showFadeInto(side, offset_ch, digit, nullptr);
-}
-
-void showFadeInto(uint8_t side, uint8_t offset_ch, digit_fade_into_t *digit, void (*callback)()) {
+void show_fade_into(uint8_t side, uint8_t offset_ch, digit_fade_into_t *digit, void (*callback)()) {
   static double time = digit->time_ms / (2 * MUX_NUM); //only called every x time, x is the number of mux outputs, the 2 is bc only called every 2ms
   double ratio = (double)(digit->value / time);
   //Serial.printf("Ratio: %f", ratio);
@@ -197,19 +197,19 @@ void showFadeInto(uint8_t side, uint8_t offset_ch, digit_fade_into_t *digit, voi
   //Serial.printf("\n");
 }
 
-void setChar(digit_character_t *digit, uint8_t character) {
+void set_char(digit_character_t *digit, uint8_t character) {
   digit->character = character;
   digit->size = bitCountLUT[character];
-  getBitPositions(character, digit->positions, &digit->size);
+  get_bit_positions(character, digit->positions, &digit->size);
 }
 
-void setCharsFadeInto(digit_fade_into_t *digit, uint8_t character, uint8_t character2) {
+void set_chars_fade_into(digit_fade_into_t *digit, uint8_t character, uint8_t character2) {
   digit->c1.character = character;
   digit->c2.character = character2;
   digit->c1.size = bitCountLUT[character];
   digit->c2.size = bitCountLUT[character2];
-  getBitPositions(character, digit->c1.positions, &digit->c1.size);
-  getBitPositions(character2, digit->c2.positions, &digit->c2.size);
+  get_bit_positions(character, digit->c1.positions, &digit->c1.size);
+  get_bit_positions(character2, digit->c2.positions, &digit->c2.size);
 
   //bool pos_diff = digit->target_value > digit->value ? true : false;
   //uint16_t diff = pos_diff ? digit->target_value - digit->value : digit->value - digit->target_value;
@@ -233,7 +233,7 @@ void setCharsFadeInto(digit_fade_into_t *digit, uint8_t character, uint8_t chara
   }
 }
 
-void getBitPositions(uint8_t value, uint8_t *positions, uint8_t *size) {
+void get_bit_positions(uint8_t value, uint8_t *positions, uint8_t *size) {
     *size = 0; // Initialize size to 0
     for (uint8_t bit = 0; bit < 8; bit++) {
         if (value & (1 << bit)) {
@@ -242,31 +242,31 @@ void getBitPositions(uint8_t value, uint8_t *positions, uint8_t *size) {
     }
 }
 
-void setPositions(digit_character_t *digit, uint8_t *positions, uint8_t size) {
+void set_positions(digit_character_t *digit, uint8_t *positions, uint8_t size) {
   digit->size = size;
   for (int i = 0; i < size; i++) {
       digit->positions[i] = positions[i];
   }
 }
 
-double getBrightness(uint8_t value) {
+double get_brightness(uint8_t value) {
   return (double)(value * MAX_VALUE) / 100;
 }
 
 void init_digit_wave(digit_wave_t *d, uint8_t value, uint8_t min, uint8_t max, uint8_t background, int8_t direction, uint16_t time_ms) {
-  d->value = getBrightness(value);
-  d->min = getBrightness(min);
-  d->max = getBrightness(max);
-  d->background = getBrightness(background);
+  d->value = get_brightness(value);
+  d->min = get_brightness(min);
+  d->max = get_brightness(max);
+  d->background = get_brightness(background);
   d->direction = direction;
   d->time_ms = time_ms;
 }
 
 void init_digit_loop(digit_loop_t *d, uint8_t channel, uint8_t min, uint8_t max, uint8_t background, int8_t direction, uint16_t time_ms) {
   d->channel = channel;
-  d->min = getBrightness(min);
-  d->max = getBrightness(max);
-  d->background = getBrightness(background);
+  d->min = get_brightness(min);
+  d->max = get_brightness(max);
+  d->background = get_brightness(background);
   d->direction = direction;
   d->time_ms = time_ms;
   d->cnt = 0;
@@ -274,9 +274,9 @@ void init_digit_loop(digit_loop_t *d, uint8_t channel, uint8_t min, uint8_t max,
 
 void init_digit_zigzag(digit_zigzag_t *d, uint8_t channel, uint8_t min, uint8_t max, uint8_t background, int8_t direction, uint16_t time_ms) {
   d->channel = channel;
-  d->min = getBrightness(min);
-  d->max = getBrightness(max);
-  d->background = getBrightness(background);
+  d->min = get_brightness(min);
+  d->max = get_brightness(max);
+  d->background = get_brightness(background);
   d->direction = direction;
   d->time_ms = time_ms;
   d->cnt = 0;
@@ -284,7 +284,7 @@ void init_digit_zigzag(digit_zigzag_t *d, uint8_t channel, uint8_t min, uint8_t 
 
 void init_digit_fade(digit_fade_t *d, uint8_t value, int8_t direction, uint16_t time_ms) {
   d->channel = 0;
-  d->value = getBrightness(value);
+  d->value = get_brightness(value);
   d->direction = direction;
   d->time_ms = time_ms;
   d->cnt = 0;
@@ -295,7 +295,7 @@ void init_digit_fade(digit_fade_t *d, uint8_t value, int8_t direction, uint16_t 
 }
 
 void init_digit_fade_into(digit_fade_into_t *d, uint8_t value, uint16_t time_ms) {
-  d->value = getBrightness(value);
+  d->value = get_brightness(value);
   d->time_ms = time_ms;
   d->cnt = 0;
 

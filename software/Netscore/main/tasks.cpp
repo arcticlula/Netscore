@@ -18,7 +18,7 @@ void init_tasks(void) {
     xTaskCreate(display_update_task, "display_update_task", 4096, NULL, 4, &display_update_task_handle);
     //xTaskCreate(button_task, "button_task", 4096, NULL, 4, &button_task_handle);
 
-    xTaskCreate(espnow_task, "espnow_task", 2048, NULL, 4, NULL);
+    xTaskCreate(espnow_task, "espnow_task", 2048, NULL, 5, NULL);
     xTaskCreate(button_action_task, "button_action_task", 4096, NULL, 3, NULL);
     xTaskCreate(melody_task, "melody_task", 8192, NULL, 4, NULL);
     //xTaskCreate(adc_task, "adc_task", 4096, NULL, 2, NULL);

@@ -1,7 +1,7 @@
 {
     "version":            "1.2",
     "project_name":       "esp_hid_host",
-    "project_version":    "9095efd-dirty",
+    "project_version":    "d0967d88-dirty",
     "project_path":       "/Users/luissousa/Documents/Projects/Netscore/software/test/esp_hid_host",
     "idf_path":           "/Users/luissousa/esp/esp-idf",
     "build_dir":          "/Users/luissousa/Documents/Projects/Netscore/software/test/esp_hid_host/build",

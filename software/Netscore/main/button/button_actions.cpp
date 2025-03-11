@@ -28,7 +28,7 @@ void button_action_task(void *arg) {
             button_right_hold();
             break;
       }
-      last_action = (uint32_t)(esp_timer_get_time() / 1000ULL);
+      //last_action = (uint32_t)(esp_timer_get_time() / 1000ULL);
     }
   }
 }
@@ -53,18 +53,30 @@ void button_left_click() {
     case MENU_SCR:
       menu--;
       if(menu < MENU_PLAY) { menu = MENU_OFF; }
+      buzzer_enqueue_note(NOTE_B, 4, 100, nullptr);
       break;
     case SPORT_SCR:
       sport--;
       if(sport < SPORT_VOLLEY) { sport = SPORT_PADEL; }
-      break;
-    case SET_SIZE_SCR:
-      max_score.current = max_score.min;
-      init_set_size_scr();
       buzzer_enqueue_note(NOTE_B, 4, 100, nullptr);
       break;
+    case SET_MAX_SCORE_SCR:
+      max_score.current = max_score.min;
+      init_set_max_points_scr();
+      buzzer_enqueue_note(NOTE_B, 4, 100, nullptr);
+      break;
+    case SET_PADEL_GAME_TYPE_SCR:
+      padel_game_type_option.current = FIRST;
+      init_set_padel_game_type_scr();
+      buzzer_enqueue_note(NOTE_A, 4, 100, nullptr);
+      break;
+    case SET_PADEL_DEUCE_TYPE_SCR:
+      deuce_option.current = FIRST;
+      init_set_padel_deuce_type_scr();
+      buzzer_enqueue_note(NOTE_A, 4, 100, nullptr);
+      break;
     case PLAY_SCR:
-      add_point(HOME);
+      add_point(AWAY);
       break;
     case BRILHO_SCR:
       if(brightness_index > 0) brightness_index--;
@@ -82,14 +94,17 @@ void button_left_hold() {
     case SPORT_SCR:
       init_menu_scr();
       break;
-    case SET_SIZE_SCR:
+    case SET_MAX_SCORE_SCR:
       init_sport_scr();
       break;
+    case SET_PADEL_GAME_TYPE_SCR:
+      init_sport_scr();
+      break;
+    case SET_PADEL_DEUCE_TYPE_SCR:
+      init_set_padel_game_type_scr();
+      break;
     case PLAY_SCR:
-      gpio_set_level((gpio_num_t)LED_PIN, LOW);
       undo_point();
-      buzzer_enqueue_note(NOTE_C, 4, 100, nullptr);
-      buzzer_enqueue_note(NOTE_A, 4, 100, nullptr);
       //buzzer_play_melody(NULL, UNDO, NULL);
       break;
     case BRILHO_SCR:
@@ -125,22 +140,35 @@ void button_right_click() {
     case PRESS_SCR:
       set_side(SIDE_A);
       init_menu_scr();
+      buzzer_enqueue_note(NOTE_A, 4, 100, nullptr);
       break;
     case MENU_SCR:
       menu++;
       if(menu > MENU_OFF) { menu = MENU_PLAY; }
+      buzzer_enqueue_note(NOTE_A, 4, 100, nullptr);
       break;
     case SPORT_SCR:
       sport++;
       if(sport > SPORT_PADEL) { sport = SPORT_VOLLEY; }
+      buzzer_enqueue_note(NOTE_A, 4, 100, nullptr);
       break;
-    case SET_SIZE_SCR:
+    case SET_MAX_SCORE_SCR:
       max_score.current = max_score.max;
-      init_set_size_scr();
+      init_set_max_points_scr();
+      buzzer_enqueue_note(NOTE_A, 4, 100, nullptr);
+      break;
+    case SET_PADEL_GAME_TYPE_SCR:
+      padel_game_type_option.current = LAST;
+      init_set_padel_game_type_scr();
+      buzzer_enqueue_note(NOTE_A, 4, 100, nullptr);
+      break;
+    case SET_PADEL_DEUCE_TYPE_SCR:
+      deuce_option.current = LAST;
+      init_set_padel_deuce_type_scr();
       buzzer_enqueue_note(NOTE_A, 4, 100, nullptr);
       break;
     case PLAY_SCR:
-      add_point(AWAY);
+      add_point(HOME);
       break;
     case BRILHO_SCR:
       if(brightness_index < MAX_BRIGHT_INDEX - 1) brightness_index++;
@@ -157,13 +185,17 @@ void button_right_hold() {
     case SPORT_SCR:
       enter_sport_option();
       break;
-    case SET_SIZE_SCR:
+    case SET_MAX_SCORE_SCR:
+      init_play_scr();
+      break;
+    case SET_PADEL_GAME_TYPE_SCR:
+      init_set_padel_deuce_type_scr();
+      break;
+    case SET_PADEL_DEUCE_TYPE_SCR:
       init_play_scr();
       break;
     case PLAY_SCR:
       undo_point();
-      buzzer_enqueue_note(NOTE_C, 4, 100, nullptr);
-      buzzer_enqueue_note(NOTE_A, 4, 100, nullptr);
       //buzzer_play_melody(NULL, UNDO, NULL);
       break;
     case BRILHO_SCR:
@@ -259,7 +291,7 @@ void enter_sport_option() {
       init_ping_pong();
       break;
     case SPORT_PADEL:
-      //init_set_size_scr();
+      init_padel();
       break;
   }
 }

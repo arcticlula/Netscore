@@ -116,20 +116,41 @@ void set_brightness() {
 }
 
 void set_history() {
-  score_index++;
-  score_history[score_index].home_points = score.home_points;
-  score_history[score_index].away_points = score.away_points;
-  score_history[score_index].home_sets = score.home_sets;
-  score_history[score_index].away_sets = score.away_sets;
+  score_history_index++;
+  score_history[score_history_index].home_points = score.home_points;
+  score_history[score_history_index].away_points = score.away_points;
+  score_history[score_history_index].home_sets = score.home_sets;
+  score_history[score_history_index].away_sets = score.away_sets;
 }
 
 void get_history() {
-  score_index--;
-  score_t scr = score_history[score_index];
+  score_history_index--;
+  score_t scr = score_history[score_history_index];
   score.home_points = scr.home_points;
   score.away_points = scr.away_points;
   score.home_sets = scr.home_sets;
   score.away_sets = scr.away_sets;
+}
+
+void set_padel_history() {
+  padel_score_history_index++;
+  padel_score_history[padel_score_history_index].home_points = padel_score.home_points;
+  padel_score_history[padel_score_history_index].away_points = padel_score.away_points;
+  padel_score_history[padel_score_history_index].home_games = padel_score.home_games;
+  padel_score_history[padel_score_history_index].away_games = padel_score.away_games;
+  padel_score_history[padel_score_history_index].home_sets = padel_score.home_sets;
+  padel_score_history[padel_score_history_index].away_sets = padel_score.away_sets;
+}
+
+void get_padel_history() {
+  padel_score_history_index--;
+  padel_score_t scr = padel_score_history[padel_score_history_index];
+  padel_score.home_points = scr.home_points;
+  padel_score.away_points = scr.away_points;
+  padel_score.home_games = scr.home_games;
+  padel_score.away_games = scr.away_games;
+  padel_score.home_sets = scr.home_sets;
+  padel_score.away_sets = scr.away_sets;
 }
 
 void enable_buttons() {
@@ -166,7 +187,6 @@ void init_adc(void) {
 }
 
 void start_adc_timer(uint32_t interval_ms) {
-  gpio_set_level((gpio_num_t)LED_PIN, LOW);
   TimerHandle_t adc_timer = xTimerCreate(
     "ADC Timer",                  
     pdMS_TO_TICKS(interval_ms),   

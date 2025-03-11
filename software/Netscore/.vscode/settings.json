@@ -6,5 +6,12 @@
         "target/esp32s2.cfg"
     ],
     "idf.port": "/dev/tty.usbmodem01",
-    "idf.toolsPath": "/Users/luissousa/.espressif"
+    "idf.toolsPath": "/Users/luissousa/.espressif",
+    "files.associations": {
+        "limits": "cpp",
+        "chrono": "cpp",
+        "random": "cpp",
+        "semaphore": "cpp"
+    },
+    "idf.flashType": "JTAG"
 }
