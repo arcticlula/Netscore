@@ -1,4 +1,4 @@
-#include "display_helper.h"
+#include "display_api.h"
 
 void show_character(uint8_t side, uint8_t offset_ch, uint8_t character, uint8_t val, bool has_dot, uint16_t time_ms) {
   if (val == BLANK) return;
@@ -34,8 +34,8 @@ void show_character(uint8_t side, uint8_t offset_ch, uint8_t character, uint8_t 
   }
 }
 
-void show_digit(uint8_t side, uint8_t offset_ch, uint8_t digit, uint8_t value, bool has_dot, uint16_t time_ms) {
-  show_character(side, offset_ch, numbers[digit], value, has_dot, time_ms);
+void show_number(uint8_t side, uint8_t offset_ch, uint8_t number, uint8_t value, bool has_dot, uint16_t time_ms) {
+  show_character(side, offset_ch, numbers[number], value, has_dot, time_ms);
 }
 
 void show_letter(uint8_t side, uint8_t offset_ch, uint8_t character, uint8_t value, bool has_dot, uint16_t time_ms) {
@@ -63,6 +63,10 @@ void show_text(uint8_t side, uint8_t l_1, uint8_t l_2, uint8_t l_3, uint8_t l_4,
       show_letter(side, 8, l_4, value);
       break;
   }
+}
+
+void show_text(uint8_t side, uint8_t text[6], uint8_t value) {
+  show_text(side, text[0], text[1], text[2], text[3], text[4], text[5], value);
 }
 
 void show_wave(uint8_t side, uint8_t offset_ch, digit_wave_t *digit, void (*callback)()) {
@@ -172,7 +176,7 @@ void show_fade_in(uint8_t side, uint8_t offset_ch, digit_fade_t *digit, void (*c
 }
 
 void show_fade_into(uint8_t side, uint8_t offset_ch, digit_fade_into_t *digit, void (*callback)()) {
-  static double time = digit->time_ms / (2 * MUX_NUM); //only called every x time, x is the number of mux outputs, the 2 is bc only called every 2ms
+  double time = digit->time_ms / (2 * MUX_NUM); //only called every x time, x is the number of mux outputs, the 2 is bc only called every 2ms
   double ratio = (double)(digit->value / time);
   //Serial.printf("Ratio: %f", ratio);
 
@@ -201,6 +205,14 @@ void set_char(digit_character_t *digit, uint8_t character) {
   digit->character = character;
   digit->size = bitCountLUT[character];
   get_bit_positions(character, digit->positions, &digit->size);
+}
+
+void set_number(digit_character_t *digit, uint8_t number) {
+  set_char(digit, numbers[number]);
+}
+
+void set_letter(digit_character_t *digit, uint8_t letter) {
+  set_char(digit, letters[letter]);
 }
 
 void set_chars_fade_into(digit_fade_into_t *digit, uint8_t character, uint8_t character2) {

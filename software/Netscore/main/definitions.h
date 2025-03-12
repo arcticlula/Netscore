@@ -72,7 +72,7 @@
 typedef void (*timer_callback_t)(void *arg);
 typedef void (*callback_t)();
 
-enum {
+typedef enum {
   BOOT_SCR = 0,
   BOOT_2_SCR,
   BOOT_3_SCR,
@@ -80,6 +80,7 @@ enum {
   PRESS_SCR,
   SPORT_SCR,
   MENU_SCR,
+  MENU_TRANSITION_SCR,
   SET_MAX_SCORE_SCR,
   SET_PADEL_GAME_TYPE_SCR,
   SET_PADEL_DEUCE_TYPE_SCR,
@@ -92,28 +93,28 @@ enum {
   TEST_SCR,
   OFF_SCR,
   OFF_2_SCR,
-};
+} screen_t;
 
-enum {
+typedef enum {
   SPORT_VOLLEY = 0,
   SPORT_PING_PONG,
   SPORT_PADEL
-};
+} sport_menu_options_t;
 
-enum {
+typedef enum {
   MENU_PLAY = 0,
   MENU_BRILHO,
   MENU_BATT,
   MENU_TEST,
   MENU_OFF
-};
+} menu_options_t;
 
-enum {
+typedef enum {
   SIDE_A = 0,
   SIDE_B,
   SIDE_BOTH,
   SIDE_NONE
-};
+} side_t;
 
 enum {
   HOME = 0,
@@ -164,6 +165,8 @@ typedef struct {
   uint8_t last[2];
   uint8_t current;
 } option_string_2_t;
+
+extern uint8_t menu_options[5][6];
 
 extern option_string_2_t padel_game_type_option; 
 extern option_string_2_t padel_deuce_option; 

@@ -15,15 +15,18 @@ const uint8_t bitCountLUT[256] = {
 };
 
 void show_character(uint8_t side, uint8_t offset_ch, uint8_t character, uint8_t val, bool has_dot = false, uint16_t time_ms = 0);
-void show_digit(uint8_t side, uint8_t offset_ch, uint8_t digit, uint8_t value, bool has_dot = false, uint16_t time_ms = 0);
-void show_letter(uint8_t side, uint8_t offset_ch, uint8_t character, uint8_t value, bool has_dot = false, uint16_t time_ms = 0);
+void show_number(uint8_t side, uint8_t offset_ch, uint8_t number, uint8_t value, bool has_dot = false, uint16_t time_ms = 0);
+void show_letter(uint8_t side, uint8_t offset_ch, uint8_t letter, uint8_t value, bool has_dot = false, uint16_t time_ms = 0);
 void show_text(uint8_t side, uint8_t l_1, uint8_t l_2, uint8_t l_3, uint8_t l_4, uint8_t l_5, uint8_t l_6, uint8_t value);
+void show_text(uint8_t side, uint8_t letters[6], uint8_t value);
 void show_wave(uint8_t side, uint8_t offset_ch, digit_wave_t *digit, void (*callback)() = nullptr);
 void show_zigzag(uint8_t side, uint8_t offset_ch, digit_zigzag_t *digit, void (*callback)() = nullptr);
 void show_fade_in(uint8_t side, uint8_t offset_ch, digit_fade_t *digit, void (*callback)() = nullptr);
 void show_fade_into(uint8_t side, uint8_t offset_ch, digit_fade_into_t *digit, void (*callback)() = nullptr);
 
 void set_char(digit_character_t *digit, uint8_t character);
+void set_number(digit_character_t *digit, uint8_t number);
+void set_letter(digit_character_t *digit, uint8_t letter);
 void set_chars_fade_into(digit_fade_into_t *digit, uint8_t character, uint8_t character2);
 
 void get_bit_positions(uint8_t value, uint8_t *positions, uint8_t *size);

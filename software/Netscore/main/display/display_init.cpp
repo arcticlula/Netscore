@@ -13,10 +13,10 @@ void init_boot_scr() {
   init_digit_fade(&df5, 50, 1, 700);
   init_digit_fade(&df6, 50, 1, 800);
 
-  set_char(&df1.c, letters[L]);
-  set_char(&df2.c, letters[U]);
-  set_char(&df5.c, letters[L]);
-  set_char(&df6.c, letters[A]);
+  set_letter(&df1.c, L);
+  set_letter(&df2.c, U);
+  set_letter(&df5.c, L);
+  set_letter(&df6.c, A);
 }
 
 void init_boot_2_scr() {
@@ -25,10 +25,10 @@ void init_boot_2_scr() {
   init_digit_wave(&dw5, 50, 50, 100, 0, 1, 500);
   init_digit_wave(&dw6, 50, 50, 100, 0, 1, 500);
 
-  set_char(&dw1.c, letters[L]);
-  set_char(&dw2.c, letters[U]);
-  set_char(&dw5.c, letters[L]);
-  set_char(&dw6.c, letters[A]);
+  set_letter(&dw1.c, L);
+  set_letter(&dw2.c, U);
+  set_letter(&dw5.c, L);
+  set_letter(&dw6.c, A);
 
   window = BOOT_2_SCR;
 }
@@ -69,11 +69,11 @@ void init_press_scr() {
 
   init_digit_zigzag(&dz1, 0, 20, 80, 0, -1, 500);
 
-  set_char(&dw1.c, letters[P]);
-  set_char(&dw2.c, letters[R]);
-  set_char(&dw3.c, letters[E]);
-  set_char(&dw4.c, letters[S]);
-  set_char(&dw5.c, letters[S]);
+  set_letter(&dw1.c, P);
+  set_letter(&dw2.c, R);
+  set_letter(&dw3.c, E);
+  set_letter(&dw4.c, S);
+  set_letter(&dw5.c, S);
 
   uint8_t positions[] = {0, 5, 4, 3};
   set_positions(&dz1.c, positions, 4);
@@ -83,6 +83,24 @@ void init_press_scr() {
 
 void init_menu_scr() {
   window = MENU_SCR;
+}
+
+void init_menu_transition_scr(uint8_t current_option, uint8_t next_option) {
+  init_digit_fade_into(&dfi1, 50, 200);
+  init_digit_fade_into(&dfi2, 50, 200);
+  init_digit_fade_into(&dfi3, 50, 200);
+  init_digit_fade_into(&dfi4, 50, 200);
+  init_digit_fade_into(&dfi5, 50, 200);
+  init_digit_fade_into(&dfi6, 50, 200);
+
+  set_chars_fade_into(&dfi1, letters[menu_options[current_option][0]], letters[menu_options[next_option][0]]);
+  set_chars_fade_into(&dfi2, letters[menu_options[current_option][1]], letters[menu_options[next_option][1]]);
+  set_chars_fade_into(&dfi3, letters[menu_options[current_option][2]], letters[menu_options[next_option][2]]);
+  set_chars_fade_into(&dfi4, letters[menu_options[current_option][3]], letters[menu_options[next_option][3]]);
+  set_chars_fade_into(&dfi5, letters[menu_options[current_option][4]], letters[menu_options[next_option][4]]);
+  set_chars_fade_into(&dfi6, letters[menu_options[current_option][5]], letters[menu_options[next_option][5]]);
+
+  window = MENU_TRANSITION_SCR;
 }
 
 void init_sport_scr() {
@@ -112,8 +130,8 @@ void init_padel() {
 void init_set_max_points_scr() {
   init_digit_zigzag(&dz1, 0, 20, 80, 0, -1, 500);
 
-  set_char(&dw1.c, numbers[max_score.current / 10]);
-  set_char(&dw2.c, numbers[max_score.current % 10]);
+  set_number(&dw1.c, max_score.current / 10);
+  set_number(&dw2.c, max_score.current % 10);
 
   if(max_score.current == max_score.max) {
     uint8_t positions[] = {0, 5, 4, 3};
@@ -137,8 +155,8 @@ void init_set_padel_game_type_scr() {
     set_positions(&dz3.c, b, 6);
   } else if (padel_game_type_option.current == LAST) {
     uint8_t positions[] = {0, 1, 2, 3};
-    set_char(&dw1.c, letters[padel_game_type_option.last[0]]);
-    set_char(&dw2.c, letters[padel_game_type_option.last[1]]);
+    set_letter(&dw1.c, padel_game_type_option.last[0]);
+    set_letter(&dw2.c, padel_game_type_option.last[1]);
     set_positions(&dz1.c, positions, 4);
   }
   
@@ -153,13 +171,13 @@ void init_set_padel_deuce_type_scr() {
   
   if (padel_deuce_option.current == FIRST) {
     uint8_t positions[] = {0, 5, 4, 3};
-    set_char(&dw1.c, letters[padel_deuce_option.first[0]]);
-    set_char(&dw2.c, letters[padel_deuce_option.first[1]]);
+    set_letter(&dw1.c, padel_deuce_option.first[0]);
+    set_letter(&dw2.c, padel_deuce_option.first[1]);
     set_positions(&dz1.c, positions, 4);
   } else if (padel_deuce_option.current == LAST) {
     uint8_t positions[] = {0, 1, 2, 3};
-    set_char(&dw1.c, letters[padel_deuce_option.last[0]]);
-    set_char(&dw2.c, letters[padel_deuce_option.last[1]]);
+    set_letter(&dw1.c, padel_deuce_option.last[0]);
+    set_letter(&dw2.c, padel_deuce_option.last[1]);
     set_positions(&dz1.c, positions, 4);
   }
   
@@ -199,19 +217,19 @@ void init_test_scr() {
 }
 
 void init_off_scr() {
-  init_digit_wave(&dw1, 50, 50, 1, 0, -1, 1000);
-  init_digit_wave(&dw2, 50, 50, 1, 0, -1, 1000);
-  init_digit_wave(&dw3, 50, 50, 1, 0, -1, 1000);
-  init_digit_wave(&dw4, 50, 50, 1, 0, -1, 1000);
+  init_digit_wave(&dw1, 50, 1, 50, 0, -1, 2000);
+  init_digit_wave(&dw2, 50, 1, 50, 0, -1, 2000);
+  init_digit_wave(&dw5, 50, 1, 50, 0, -1, 2000);
+  init_digit_wave(&dw6, 50, 1, 50, 0, -1, 2000);
 
-  set_char(&dw1.c, letters[B]);
-  set_char(&dw2.c, letters[Y]);
-  set_char(&dw5.c, letters[E]);
-  set_char(&dw6.c, letters[E]);
-
-  window = OFF_2_SCR;
+  set_letter(&dw1.c, B);
+  set_letter(&dw2.c, Y);
+  set_letter(&dw5.c, E);
+  set_letter(&dw6.c, E);
+  window = OFF_SCR;
 }
 
 void init_off_2_scr() {  
   gpio_set_level((gpio_num_t)LDO_LATCH, LOW);
+  window = OFF_2_SCR;
 }

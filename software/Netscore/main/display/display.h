@@ -63,11 +63,7 @@ void show_sport();
 void show_sport_ping_pong();
 
 void show_menu();
-void show_menu_play();
-void show_menu_brightness();
-void show_menu_battery();
-void show_menu_test();
-void show_menu_off();
+void show_menu_transition();
 
 void show_set_max_score();
 void show_set_padel_game_type();

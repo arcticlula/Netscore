@@ -17,7 +17,7 @@ typedef struct {
 } esp_now_t;
 
 typedef enum {
-  BUTTON_PAIRED,
+  BUTTON_STATUS,
   BUTTON_PRESS
 } esp_now_event_type_t;
 
@@ -32,4 +32,5 @@ void set_hold_time_ms(uint16_t time_ms);
 void esp_now_recv_callback(const esp_now_recv_info_t *mac_addr, const uint8_t *data, int len);
 void hold_timer_callback(void* arg);
 void espnow_task(void *arg);
-void handle_button_event(esp_now_btn_event_t button_state);
+void handle_button_status_event();
+void handle_button_press_event(esp_now_btn_event_t button_state);

@@ -16,3 +16,11 @@ option_string_2_t padel_game_type_option = {{O, O}, {T, b}, LAST};
 option_string_2_t padel_deuce_option = {{G, P}, {A, D}, LAST}; 
 
 uint16_t timer_cnt = 1000;
+
+uint8_t menu_options[5][6] = { 
+    {P, L, BLANK, BLANK, A, Y},
+    {B, R, I, L, H, O},
+    {B, A, BLANK, BLANK, T, T},
+    {T, E, BLANK, BLANK, S, T},
+    {O, F, BLANK, BLANK, F, BLANK} 
+};

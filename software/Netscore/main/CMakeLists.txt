@@ -3,7 +3,7 @@ idf_component_register(
     "button/input.cpp"
     "button/button_actions.cpp"
     "buzzer/buzzer.cpp" 
-    "display/display_definitions.cpp" "display/display_helper.cpp" "display/display_init.cpp" "display/display.cpp" "display/tlc5940/tlc5940.cpp" 
+    "display/display_definitions.cpp" "display/display_api.cpp" "display/display_init.cpp" "display/display.cpp" "display/tlc5940/tlc5940.cpp" 
     "spi/spi.cpp" 
     "wifi/esp-now.cpp" 
     "misc.cpp"

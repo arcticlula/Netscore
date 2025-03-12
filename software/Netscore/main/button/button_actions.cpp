@@ -49,10 +49,12 @@ void playWinMelody() {
 
 // Add Home Point
 void button_left_click() {
+  uint8_t current_menu_option = menu;
   switch(window) {
     case MENU_SCR:
       menu--;
       if(menu < MENU_PLAY) { menu = MENU_OFF; }
+      init_menu_transition_scr(current_menu_option, menu);
       buzzer_enqueue_note(NOTE_B, 4, 100, nullptr);
       break;
     case SPORT_SCR:
@@ -136,6 +138,7 @@ void button_left_dbl_click() {
 
 // Add Away Point
 void button_right_click() {
+  uint8_t current_menu_option = menu;
   switch(window) {
     case PRESS_SCR:
       set_side(SIDE_A);
@@ -145,6 +148,7 @@ void button_right_click() {
     case MENU_SCR:
       menu++;
       if(menu > MENU_OFF) { menu = MENU_PLAY; }
+      init_menu_transition_scr(current_menu_option, menu);
       buzzer_enqueue_note(NOTE_A, 4, 100, nullptr);
       break;
     case SPORT_SCR:

@@ -2,7 +2,7 @@
 #include "definitions.h"
 #include "misc.h"
 #include "display_definitions.h"
-#include "display_helper.h"
+#include "display_api.h"
 
 void init_display();
 void init_boot_scr();
@@ -11,6 +11,7 @@ void init_boot_3_scr();
 void init_boot_4_scr();
 void init_press_scr();
 void init_menu_scr();
+void init_menu_transition_scr(uint8_t current_option, uint8_t next_option);
 void init_sport_scr();
 void init_volley();
 void init_ping_pong();

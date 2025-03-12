@@ -61,25 +61,27 @@ void espnow_task(void *arg) {
             if (len > 1) {
                 esp_now_event_type_t event_type = (esp_now_event_type_t)data[0];
                 switch (event_type) {
-                    case BUTTON_PAIRED:
-                        buzzer_enqueue_note(NOTE_A, 4, 500, nullptr);
+                    case BUTTON_STATUS:
+                        handle_button_status_event();
                         break;
                     case BUTTON_PRESS:
                         esp_now_btn_event_t button_state = (esp_now_btn_event_t)data[1];
-                        handle_button_event(button_state);
+                        handle_button_press_event(button_state);
                         break;
                 }
-
-
                 //ESP_LOGI(TAG, "Report ID: %d, Button State: 0x%02X", report_id, button_state);
-        
-
             }
         }
     }
 }
 
-void handle_button_event(esp_now_btn_event_t button_state) {
+void handle_button_status_event() { 
+    buzzer_enqueue_note(NOTE_A, 4, 300, nullptr);
+    buzzer_enqueue_note(NOTE_D, 4, 200, nullptr);
+    if(window == PRESS_SCR) init_menu_scr();
+}
+
+void handle_button_press_event(esp_now_btn_event_t button_state) {
     static int64_t start_time; // Get start time
 
     switch(button_state) {

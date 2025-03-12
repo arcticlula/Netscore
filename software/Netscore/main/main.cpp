@@ -9,7 +9,7 @@
 #include "button/input.h"
 #include "button/button_actions.h"
 
-#include "display/display_helper.h"
+#include "display/display_api.h"
 #include "display/display.h"
 
 extern "C" void app_main(void)
