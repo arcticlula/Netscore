@@ -1,0 +1,44 @@
+Designator,Val,Package,Mid X,Mid Y,Rotation,Layer
+BZ1,Buzzer,Buzzer_TDK_PS1240P02BT_D12.2mm_H6.5mm,100.0,-93.999999,180.0,top
+C1,C,C_0603_1608Metric_Pad1.08x0.95mm_HandSolder,92.195,-107.0,0.0,bottom
+C2,0.1uF,C_0805_2012Metric_Pad1.18x1.45mm_HandSolder,143.395,-88.9,0.0,bottom
+C3,0.1uF,C_0805_2012Metric_Pad1.18x1.45mm_HandSolder,56.595,-88.9,180.0,bottom
+CA1,Conn_01x04_Pin,PinHeader_1x04_P1.27mm_Vertical,70.93,-84.9,90.0,top
+CA2,Conn_01x04_Pin,PinHeader_1x04_P1.27mm_Vertical,129.07,-84.9,-90.0,top
+D1,D,D_SOD-323_HandSoldering,100.0,-93.7,90.0,bottom
+DD1,Conn_01x10_Pin,PinSocket_1x10_P1.27mm_Vertical,88.72,-84.9,90.0,top
+DD2,Conn_01x10_Pin,PinSocket_1x10_P1.27mm_Vertical,111.28,-84.9,-90.0,top
+PWR1,Conn_01x04_Pin,PinHeader_1x04_P1.27mm_Vertical,63.305,-84.9,90.0,top
+PWR2,Conn_01x04_Pin,PinHeader_1x04_P1.27mm_Vertical,136.695,-84.9,-90.0,top
+PWR3,Conn_01x04_Pin,PinHeader_1x04_P1.27mm_Vertical,63.305,-110.0,90.0,top
+PWR4,Conn_01x04_Pin,PinHeader_1x04_P1.27mm_Vertical,136.695,-110.0,-90.0,top
+Q1,AO3400A,SOT-23,67.9625,-97.2375,0.0,bottom
+Q2,AO3401A,SOT-23,60.0375,-99.4,0.0,bottom
+Q3,AO3400A,SOT-23,130.1625,-97.2375,0.0,bottom
+Q4,AO3401A,SOT-23,124.1625,-98.1375,0.0,bottom
+Q5,AO3400A,SOT-23,113.7,-98.3,0.0,bottom
+Q6,AO3401A,SOT-23,108.0625,-99.2,0.0,bottom
+Q7,AO3400A,SOT-23,89.9375,-90.45,0.0,bottom
+R1,10K,R_0603_1608Metric_Pad0.98x0.95mm_HandSolder,73.9625,-97.25,270.0,bottom
+R10,1k,R_0603_1608Metric_Pad0.98x0.95mm_HandSolder,102.0875,-90.5,180.0,bottom
+R11,1k,R_0603_1608Metric_Pad0.98x0.95mm_HandSolder,143.295,-92.2,0.0,bottom
+R12,100k,R_0603_1608Metric_Pad0.98x0.95mm_HandSolder,144.1955,-104.0,90.0,bottom
+R13,1k,R_0603_1608Metric_Pad0.98x0.95mm_HandSolder,56.695,-92.2,180.0,bottom
+R14,100k,R_0603_1608Metric_Pad0.98x0.95mm_HandSolder,55.795,-104.0,90.0,bottom
+R2,10K,R_0603_1608Metric_Pad0.98x0.95mm_HandSolder,65.3,-101.3,180.0,bottom
+R3,10K,R_0603_1608Metric_Pad0.98x0.95mm_HandSolder,136.1625,-97.4125,270.0,bottom
+R4,651,R_0603_1608Metric_Pad0.98x0.95mm_HandSolder,95.495,-109.4,0.0,bottom
+R5,10K,R_0603_1608Metric_Pad0.98x0.95mm_HandSolder,127.5,-101.3,180.0,bottom
+R6,10K,R_0603_1608Metric_Pad0.98x0.95mm_HandSolder,118.0,-98.3125,270.0,bottom
+R7,10K,R_0603_1608Metric_Pad0.98x0.95mm_HandSolder,112.0,-103.0,90.0,bottom
+R8,200,R_0603_1608Metric_Pad0.98x0.95mm_HandSolder,93.9125,-94.0,180.0,bottom
+R9,100k,R_0603_1608Metric_Pad0.98x0.95mm_HandSolder,93.5,-90.4,270.0,bottom
+SW1,SW_Push,Button_12x12x7.3,49.3,-97.4,-90.0,top
+SW2,SW_Push,Button_12x12x7.3,150.7,-97.4,90.0,top
+SW_C1,Conn_01x03_Pin,PinHeader_1x03_P1.27mm_Vertical,77.92,-84.9,90.0,top
+SW_C2,Conn_01x03_Pin,PinHeader_1x03_P1.27mm_Vertical,122.08,-84.9,-90.0,top
+U1,TLC5940PWP,HTSSOP-28-1EP_4.4x9.7mm_P0.65mm_EP3.4x9.5mm_Mask2.4x6.17mm_ThermalVias,100.0,-103.0,270.0,bottom
+U2,7Seg 2Dig 0.56in,7Seg 0.56In Double,68.9,-97.38,90.0,top
+U3,GS-S2011AB,GS-2011AB,87.0,-100.0,0.0,top
+U4,7Seg 2Dig 0.56in,7Seg 0.56In Double,131.08,-97.38,90.0,top
+U5,GS-S2011AB,GS-2011AB,113.0,-100.0,0.0,top
