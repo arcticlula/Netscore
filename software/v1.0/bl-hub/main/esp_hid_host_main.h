@@ -46,7 +46,8 @@ typedef enum {
 typedef enum {
     BUTTON_STATUS,
     BUTTON_ACTION,
-    BUTTON_HOLD_TIME
+    BUTTON_HOLD_TIME,
+    RECONNECT_REQUEST
 } esp_now_event_type_t;
 
 typedef enum {
@@ -76,9 +77,22 @@ typedef struct {
     uint16_t message;
 } __attribute__((packed)) esp_now_msg_t;
 
+typedef enum {
+    BUTTON_STATE_RELEASED,
+    BUTTON_STATE_PRESSED,
+    BUTTON_STATE_HOLD
+} button_state_t;
+
 typedef struct {
-    button_t button_id;       
-    esp_now_device_t device_id; 
+    esp_timer_handle_t timer;
+    button_state_t state;
+    esp_now_device_t device_id;
+    button_t button_id;
+    int64_t press_time;
+} button_context_t;
+
+typedef struct {
+    button_context_t *context;
 } hold_timer_args_t;
 
 static char *bda2str(uint8_t *bda, char *str, size_t size);
