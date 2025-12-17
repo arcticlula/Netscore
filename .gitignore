@@ -4,3 +4,5 @@
 *.zip
 ._*
 .vscode/**/*
+/software/v1.0/bl-hub/.cache
+/software/v1.0/bl-hub/.vscode
