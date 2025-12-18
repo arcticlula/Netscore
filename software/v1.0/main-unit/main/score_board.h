@@ -10,6 +10,7 @@ typedef struct {
     uint8_t away_points;
     uint8_t home_sets;
     uint8_t away_sets;
+    action_t action;
 } score_t;
 
 typedef enum {
@@ -29,6 +30,7 @@ typedef struct {
     uint8_t away_games;
     uint8_t home_sets;
     uint8_t away_sets;
+    action_t action;
     bool golden_point;
     bool endless;
     bool tiebreak;
@@ -62,4 +64,5 @@ void game_win(uint8_t team);
 void set_win(uint8_t team);
 void reset_points();
 void reset_games();
-void undo_point();
+void reset_score();
+void undo_point(uint8_t team);

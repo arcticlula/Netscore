@@ -3,6 +3,7 @@
 #include "math.h"
 #include "display_init.h"
 #include "misc.h"
+#include "score_board.h"
 
 const uint8_t numbers[11] = {
     0b00111111, // 0
@@ -72,10 +73,14 @@ void show_play();
 void show_play_default();
 void show_play_padel();
 void show_play_padel_sets(uint8_t team);
-void show_set_win(uint8_t team);
-void show_set_lost(uint8_t team);
+void show_play_result(uint8_t team);
+void show_play_result_default(uint8_t team);
+void show_play_result_padel(uint8_t team);
+void show_win_text(uint8_t team);
+void show_lost_text(uint8_t team);
 void show_brightness();
 void show_battery();
+void show_device_battery();
 
 void show_test();
 

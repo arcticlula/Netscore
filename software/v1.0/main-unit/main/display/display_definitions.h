@@ -59,9 +59,18 @@ typedef struct {
     double positions_value[8];
 } digit_fade_into_t;
 
+typedef struct {
+    int8_t direction;
+    double value;
+    double min;
+    double max;
+    uint32_t time_ms;
+} digit_dot_t;
+
 // Digits
 extern digit_wave_t dw1, dw2, dw3, dw4, dw5, dw6;
 extern digit_zigzag_t dz1, dz2, dz3;
 extern digit_loop_t dl1;
 extern digit_fade_t df1, df2, df3, df4, df5, df6;
 extern digit_fade_into_t dfi1, dfi2, dfi3, dfi4, dfi5, dfi6;
+extern digit_dot_t dd1, dd2;

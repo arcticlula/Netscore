@@ -1,45 +1,22 @@
 #include "display_api.h"
 
-void show_character(uint8_t side, uint8_t offset_ch, uint8_t character, uint8_t val, bool has_dot, uint16_t time_ms) {
+void show_character(uint8_t side, uint8_t offset_ch, uint8_t character, uint8_t val) {
   if (val == BLANK) return;
 
   uint16_t value = round(get_brightness(val));
-  static int8_t direction = -1;
-  static uint16_t dot_value = value;
 
   for (uint8_t channel = 0; channel < 7; channel++) {
     int on = (character >> channel) & 1;
     Tlc.set(offset_ch + channel, on == 1 ? value : 0, side);
   }
-
-  if (has_dot) {
-    if (time_ms > 0) {
-      double time = time_ms / 2; // Only called every x time
-      double ratio = (double)value / time;
-
-      dot_value += direction * ratio;
-
-      if (dot_value <= 0) {
-        direction = 1;
-        dot_value = 0;
-      } else if (dot_value >= value) {
-        direction = -1;
-        dot_value = value;
-      }
-
-      Tlc.set(offset_ch + 7, dot_value, side);
-    } else {
-      Tlc.set(offset_ch + 7, value, side);
-    }
-  }
 }
 
-void show_number(uint8_t side, uint8_t offset_ch, uint8_t number, uint8_t value, bool has_dot, uint16_t time_ms) {
-  show_character(side, offset_ch, numbers[number], value, has_dot, time_ms);
+void show_number(uint8_t side, uint8_t offset_ch, uint8_t number, uint8_t value) {
+  show_character(side, offset_ch, numbers[number], value);
 }
 
-void show_letter(uint8_t side, uint8_t offset_ch, uint8_t character, uint8_t value, bool has_dot, uint16_t time_ms) {
-  show_character(side, offset_ch, letters[character], value, has_dot, time_ms);
+void show_letter(uint8_t side, uint8_t offset_ch, uint8_t character, uint8_t value) {
+  show_character(side, offset_ch, letters[character], value);
 }
 
 void show_text(uint8_t side, uint8_t l_1, uint8_t l_2, uint8_t l_3, uint8_t l_4, uint8_t l_5, uint8_t l_6, uint8_t value) {
@@ -201,6 +178,27 @@ void show_fade_into(uint8_t side, uint8_t offset_ch, digit_fade_into_t *digit, v
   //Serial.printf("\n");
 }
 
+void show_dot(uint8_t side, uint8_t offset_ch, uint16_t value) {
+  Tlc.set(offset_ch + 7, value, side);
+}
+
+void show_dot(uint8_t side, uint8_t offset_ch, digit_dot_t *dot) {
+  double time = dot->time_ms / (2 * MUX_NUM);
+  double ratio = (double)(dot->max - dot->min) / time;
+
+  dot->value += dot->direction * ratio;
+
+  if (dot->value <= dot->min) {
+    dot->direction = 1;
+    dot->value = dot->min;
+  } else if (dot->value >= dot->max) {
+    dot->direction = -1;
+    dot->value = dot->max;
+  }
+
+  Tlc.set(offset_ch + 7, dot->value, side);
+}
+
 void set_char(digit_character_t *digit, uint8_t character) {
   digit->character = character;
   digit->size = bitCountLUT[character];
@@ -314,4 +312,12 @@ void init_digit_fade_into(digit_fade_into_t *d, uint8_t value, uint16_t time_ms)
   for (int i = 0; i < 8; i++) {
     d->positions_value[i] = 0;
   }
+}
+
+void init_digit_dot(digit_dot_t *d, uint8_t value, uint8_t min, uint8_t max, int8_t direction, uint16_t time_ms) {
+  d->value = get_brightness(value);
+  d->min = get_brightness(min);
+  d->max = get_brightness(max);
+  d->direction = direction;
+  d->time_ms = time_ms;
 }

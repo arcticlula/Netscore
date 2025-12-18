@@ -1,4 +1,6 @@
 #include "misc.h"
+#include "score_board.h"
+#include <rom/ets_sys.h>
 //#include <driver/adc.h>
 
 //Preferences prefs;
@@ -115,7 +117,7 @@ void set_brightness() {
   Tlc.setAllDC(brightness[brightness_index]);
 }
 
-void set_history() {
+void set_history(action_t action) {
   if(sport == SPORT_PADEL) {
     padel_score_history_index++;
     padel_score_history[padel_score_history_index].home_points = padel_score.home_points;
@@ -127,6 +129,7 @@ void set_history() {
     padel_score_history[padel_score_history_index].home_sets = padel_score.home_sets;
     padel_score_history[padel_score_history_index].away_sets = padel_score.away_sets;    
     padel_score_history[padel_score_history_index].tiebreak = padel_score.tiebreak; 
+    padel_score_history[padel_score_history_index].action = action;
   }
   else {    
     score_history_index++;
@@ -134,10 +137,11 @@ void set_history() {
     score_history[score_history_index].away_points = score.away_points;
     score_history[score_history_index].home_sets = score.home_sets;
     score_history[score_history_index].away_sets = score.away_sets;
+    score_history[score_history_index].action = action;
   }
 }
 
-void get_history() {
+uint8_t get_history() {
   if(sport == SPORT_PADEL) {
     padel_score_history_index--;
     padel_score_t prev_score = padel_score_history[padel_score_history_index];
@@ -150,6 +154,15 @@ void get_history() {
     padel_score.home_sets = prev_score.home_sets;
     padel_score.away_sets = prev_score.away_sets;
     padel_score.tiebreak = prev_score.tiebreak;
+
+    uint8_t team;
+    if (padel_score.tiebreak) {
+      team = padel_score.home_tiebreak_points > padel_score.away_tiebreak_points ? HOME : AWAY;
+    }
+    else {
+      team = padel_score.home_points > padel_score.away_points ? HOME : AWAY;
+    }
+    return team;
   }
   else {
     score_history_index--;
@@ -158,6 +171,7 @@ void get_history() {
     score.away_points = prev_score.away_points;
     score.home_sets = prev_score.home_sets;
     score.away_sets = prev_score.away_sets;
+    return score.home_points > score.away_points ? HOME : AWAY;
   }
 }
 
@@ -225,6 +239,7 @@ void reset_adc(){
 void adc_read_bat(TimerHandle_t xTimer) {
   //int64_t start_time = esp_timer_get_time(); // Get start time
   gpio_set_level((gpio_num_t)ADC_BAT_EN_PIN, LOW);
+  ets_delay_us(200);  // 0.2 ms delay for pulse to settle but before it turns off (~1.2ms)
   //vTaskDelay(pdMS_TO_TICKS(2));  // 2 ms delay
 
   // Read ADC value using One-shot Mode

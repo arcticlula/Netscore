@@ -53,3 +53,9 @@ melody_note_t* get_melody(uint8_t index, uint8_t* size);
 void timer_melody_callback(void *arg);
 void melody_task(void *arg);
 void play_next_note();
+
+void play_nav_sound(uint8_t button);
+void play_enter_sound(uint8_t button);
+void play_add_point_sound();
+void play_undo_point_sound();
+void play_win_sound();

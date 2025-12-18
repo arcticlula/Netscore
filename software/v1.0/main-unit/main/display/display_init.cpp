@@ -1,4 +1,5 @@
 #include "display_init.h"
+#include "../wifi/esp-now.h"
 
 void init_display() {
   init_boot_scr();
@@ -58,28 +59,29 @@ void init_boot_4_scr() {
   set_chars_fade_into(&dfi6, letters[A], letters[C]);
 
   window = BOOT_4_SCR;
+  set_hold_time_ms(SMALL_HOLD_TIME_MS);
 }
 
-void init_press_scr() {
-  init_digit_wave(&dw1, 50, 50, 80, 0, 1, 500);
-  init_digit_wave(&dw2, 50, 50, 80, 0, 1, 500);
-  init_digit_wave(&dw3, 50, 50, 80, 0, 1, 500);
-  init_digit_wave(&dw4, 50, 50, 80, 0, 1, 500);
-  init_digit_wave(&dw5, 50, 50, 80, 0, 1, 500);
+// void init_press_scr() {
+//   init_digit_wave(&dw1, 50, 50, 80, 0, 1, 500);
+//   init_digit_wave(&dw2, 50, 50, 80, 0, 1, 500);
+//   init_digit_wave(&dw3, 50, 50, 80, 0, 1, 500);
+//   init_digit_wave(&dw4, 50, 50, 80, 0, 1, 500);
+//   init_digit_wave(&dw5, 50, 50, 80, 0, 1, 500);
 
-  init_digit_zigzag(&dz1, 0, 20, 80, 0, -1, 500);
+//   init_digit_zigzag(&dz1, 0, 20, 80, 0, -1, 500);
 
-  set_letter(&dw1.c, P);
-  set_letter(&dw2.c, R);
-  set_letter(&dw3.c, E);
-  set_letter(&dw4.c, S);
-  set_letter(&dw5.c, S);
+//   set_letter(&dw1.c, P);
+//   set_letter(&dw2.c, R);
+//   set_letter(&dw3.c, E);
+//   set_letter(&dw4.c, S);
+//   set_letter(&dw5.c, S);
 
-  uint8_t positions[] = {0, 5, 4, 3};
-  set_positions(&dz1.c, positions, 4);
+//   uint8_t positions[] = {0, 5, 4, 3};
+//   set_positions(&dz1.c, positions, 4);
 
-  window = PRESS_SCR;
-}
+//   window = PRESS_SCR;
+// }
 
 void init_menu_scr() {
   window = MENU_SCR;
@@ -186,16 +188,33 @@ void init_set_padel_deuce_type_scr() {
 }
 
 void init_play_scr() {
+  init_digit_dot(&dd1, 50, 0, 50, -1, 1000);
+  init_digit_dot(&dd2, 50, 0, 50, -1, 1000);
+
   window = PLAY_SCR;
-  set_hold_time_ms(1200);
+  set_hold_time_ms(BIG_HOLD_TIME_MS);
 }
 
-void init_play_set_win_scr(uint8_t team) {
-  window = team == HOME ? PLAY_HOME_SET_WIN_SCR : PLAY_AWAY_SET_WIN_SCR;
+void init_play_result_scr(uint8_t team) {
+  init_digit_wave(&dw1, 50, 50, 100, 0, 1, 1000);
+  init_digit_wave(&dw2, 50, 50, 100, 0, 1, 1000);
+  init_digit_wave(&dw5, 50, 50, 100, 0, 1, 1000);
+  init_digit_wave(&dw6, 50, 50, 100, 0, 1, 1000);
+  window = team == HOME ? PLAY_HOME_WIN_SCR : PLAY_AWAY_WIN_SCR;
 }
 
-void init_play_sets_score_scr() {
-  window = PLAY_SETS_SCORE_SCR;
+// void init_play_result_text_scr(uint8_t team) {
+//   window = team == HOME ? PLAY_HOME_WIN_TEXT_SCR : PLAY_AWAY_WIN_TEXT_SCR;
+// }
+
+void advance_after_set() {
+  reset_score();
+  if (sport == SPORT_PADEL) {
+    window = PLAY_SETS_SCORE_SCR;
+    // init_play_scr();
+  } else {
+    init_set_max_points_scr();
+  }
 }
 
 void init_brilho_scr() {
@@ -203,8 +222,16 @@ void init_brilho_scr() {
 }
 
 void init_bat_scr() {
+  // init_digit_dot(&dd1, 50, 0, 50, -1, 1000);
+
   reset_adc();
   window = BATT_SCR;
+}
+
+void init_device_bat_scr() {
+  esp_now_device_battery(DEVICE_1);
+  esp_now_device_battery(DEVICE_2);
+  window = BATT_DEVICE_SCR;
 }
 
 void init_test_scr() {

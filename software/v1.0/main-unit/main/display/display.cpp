@@ -17,9 +17,9 @@ void show_display() {
     case BOOT_4_SCR:
       show_boot_4();
       break;
-    case PRESS_SCR:
-      show_press();
-      break;
+    // case PRESS_SCR:
+    //   show_press();
+    //   break;
     case SPORT_SCR:
       show_sport();
       break;
@@ -41,14 +41,20 @@ void show_display() {
     case PLAY_SCR:
       show_play();
       break;
-    case PLAY_HOME_SET_WIN_SCR:
-      show_set_win(HOME);
-      show_set_lost(AWAY);
+    case PLAY_HOME_WIN_SCR:
+      show_play_result(HOME);
       break;
-    case PLAY_AWAY_SET_WIN_SCR:
-      show_set_win(AWAY);
-      show_set_lost(HOME);
+    case PLAY_AWAY_WIN_SCR:
+      show_play_result(AWAY);
       break;
+    // case PLAY_HOME_WIN_TEXT_SCR:
+    //   show_win_text(HOME);
+    //   show_lost_text(AWAY);
+    //   break;
+    // case PLAY_AWAY_WIN_TEXT_SCR:
+    //   show_win_text(AWAY);
+    //   show_lost_text(HOME);
+    //   break;
     case PLAY_SETS_SCORE_SCR:
       show_play_padel_sets(HOME);
       show_play_padel_sets(AWAY);
@@ -58,6 +64,9 @@ void show_display() {
       break;
     case BATT_SCR:
       show_battery();
+      break;
+    case BATT_DEVICE_SCR:
+      show_device_battery();
       break;
     case TEST_SCR:
       show_test();
@@ -126,7 +135,7 @@ void show_boot_4() {
   switch(current_mux) {
     case 0:
       //1
-      show_fade_into(SIDE_BOTH, 0, &dfi1, init_press_scr);
+      show_fade_into(SIDE_BOTH, 0, &dfi1, init_menu_scr);
       //5
       show_fade_into(SIDE_BOTH, 8, &dfi5);
       break;
@@ -356,11 +365,18 @@ void show_play_default() {
       break;
     case 1:
       // 2
-      show_number(SIDE_A, 0, home_points_2, 50, home_has_dot, 1000);
-      show_number(SIDE_A, 8, away_points_2, 50, away_has_dot, 1000);
+      show_number(SIDE_A, 0, home_points_2, 50);
+      if(home_has_dot) show_dot(SIDE_A, 0, &dd1);
+
+      show_number(SIDE_A, 8, away_points_2, 50);
+      if(away_has_dot) show_dot(SIDE_A, 8, &dd2);
+
       // 6
-      show_number(SIDE_B, 0, away_points_2, 50, away_has_dot, 1000);
-      show_number(SIDE_B, 8, home_points_2, 50, home_has_dot, 1000);
+      show_number(SIDE_B, 0, away_points_2, 50);
+      if(away_has_dot) show_dot(SIDE_B, 0, &dd2);
+
+      show_number(SIDE_B, 8, home_points_2, 50);
+      if(home_has_dot) show_dot(SIDE_B, 8, &dd1);
       break;
     case 2:
       // 3 - 4
@@ -429,31 +445,98 @@ void show_play_padel() {
       break;
     case 1:
       // 2
-      show_character(SIDE_A, 0, home_points_2, 50, home_game_point, 1000);
-      show_character(SIDE_A, 8, away_points_2, 50, away_game_point, 1000);
+      show_character(SIDE_A, 0, home_points_2, 50);
+      if(home_game_point) show_dot(SIDE_A, 0, &dd1);
+
+      show_character(SIDE_A, 8, away_points_2, 50);
+      if(away_game_point) show_dot(SIDE_A, 8, &dd1);
+
       // 6
-      show_character(SIDE_B, 0, away_points_2, 50, away_game_point, 1000);
-      show_character(SIDE_B, 8, home_points_2, 50, home_game_point, 1000);
+      show_character(SIDE_B, 0, away_points_2, 50);
+      if(away_game_point) show_dot(SIDE_B, 0, &dd1);
+
+      show_character(SIDE_B, 8, home_points_2, 50);
+      if(home_game_point) show_dot(SIDE_B, 8, &dd1);
       break;
     case 2:
       // 3 - 4
-      show_number(SIDE_A, 0, padel_score.home_games, 50, home_set_point, 2000);
-      show_number(SIDE_A, 8, padel_score.away_games, 50, away_set_point, 2000);
+      show_number(SIDE_A, 0, padel_score.home_games, 50);
+      if(home_set_point) show_dot(SIDE_A, 0, &dd2);
+
+      show_number(SIDE_A, 8, padel_score.away_games, 50);
+      if(away_set_point) show_dot(SIDE_A, 8, &dd2);
       
-      show_number(SIDE_B, 0, padel_score.away_games, 50, away_set_point, 2000);
-      show_number(SIDE_B, 8, padel_score.home_games, 50, home_set_point, 2000);
+      show_number(SIDE_B, 0, padel_score.away_games, 50);
+      if(away_set_point) show_dot(SIDE_B, 0, &dd2);
+
+      show_number(SIDE_B, 8, padel_score.home_games, 50);
+      if(home_set_point) show_dot(SIDE_B, 8, &dd2);
       break;
   }
 }
 
-void show_set_win(uint8_t team) {
-  uint8_t winner_side = team == HOME ? SIDE_A : SIDE_B;
-  show_text(winner_side, G, A, N, H, O, U, 50);
+
+void show_play_result(uint8_t team) {
+    if (sport == SPORT_PADEL) {
+        show_play_result_padel(team);
+    } else {
+        show_play_result_default(team);
+    }
 }
 
-void show_set_lost(uint8_t team) {
+void show_play_result_default(uint8_t team) {
+  uint8_t home_points_1 = score.home_points / 10; 
+  uint8_t home_points_2 = score.home_points % 10;
+  uint8_t away_points_1 = score.away_points / 10;
+  uint8_t away_points_2 = score.away_points % 10;
+
+  set_number(&dw1.c, home_points_1);
+  set_number(&dw2.c, home_points_2);
+  set_number(&dw5.c, away_points_1);
+  set_number(&dw6.c, away_points_2);
+
+  switch(current_mux) {
+    case 0:
+      // 1
+      if (team == HOME) show_wave(SIDE_A, 0, &dw1); else show_number(SIDE_A, 0, home_points_1, 50);
+      if (team == AWAY) show_wave(SIDE_A, 8, &dw5); else show_number(SIDE_A, 8, away_points_1, 50);
+      // 5
+      if (team == AWAY) show_wave(SIDE_B, 0, &dw5); else show_number(SIDE_B, 0, away_points_1, 50);
+      if (team == HOME) show_wave(SIDE_B, 8, &dw1); else show_number(SIDE_B, 8, home_points_1, 50);
+      break;
+      
+    case 1:
+      // 2
+      if (team == HOME) show_wave(SIDE_A, 0, &dw2); else show_number(SIDE_A, 0, home_points_2, 50);
+      if (team == AWAY) show_wave(SIDE_A, 8, &dw6); else show_number(SIDE_A, 8, away_points_2, 50);
+      // 6
+      if (team == AWAY) show_wave(SIDE_B, 0, &dw6); else show_number(SIDE_B, 0, away_points_2, 50);
+      if (team == HOME) show_wave(SIDE_B, 8, &dw2); else show_number(SIDE_B, 8, home_points_2, 50);
+      break;
+      
+    case 2:
+      // 3 - 4
+      show_number(SIDE_A, 0, score.home_sets, 50);
+      show_number(SIDE_A, 8, score.away_sets, 50);
+      
+      show_number(SIDE_B, 0, score.away_sets, 50);
+      show_number(SIDE_B, 8, score.home_sets, 50);
+      break;
+  }
+}
+
+void show_play_result_padel(uint8_t team) {
+  show_play_padel();
+}
+
+void show_win_text(uint8_t team) {
+  uint8_t winner_side = team == HOME ? SIDE_A : SIDE_B;
+  show_text(winner_side, W, I, N, N, E, R, 50);
+}
+
+void show_lost_text(uint8_t team) {
   uint8_t loser_side = team == HOME ? SIDE_A : SIDE_B;
-  show_text(loser_side, P, E, R, D, E, U, 50);
+  show_text(loser_side, L, O, O, S, E, R, 50);
 }
 
 void show_play_padel_sets(uint8_t team) {
@@ -503,7 +586,8 @@ void show_battery() {
   switch(current_mux) {
     case 0:
       //1
-      show_number(SIDE_BOTH, 0, digit_1, 50, true);
+      show_number(SIDE_BOTH, 0, digit_1, 50);
+      show_dot(SIDE_BOTH, 0, 50);
       //5
       show_number(SIDE_BOTH, 8, digit_5, 50);
       break;
@@ -518,6 +602,42 @@ void show_battery() {
       show_number(SIDE_BOTH, 0, digit_3, 50);
       //4
       show_number(SIDE_BOTH, 8, digit_4, 50);
+      break;
+  }
+}
+
+void show_device_battery() {
+  uint8_t bat_1 = get_device_battery(DEVICE_1);
+  if(bat_1 > 99) bat_1 = 99;
+  uint8_t bat_2 = get_device_battery(DEVICE_2);
+  if(bat_2 > 99) bat_2 = 99;
+
+  uint8_t d1_1 = bat_1 / 10;
+  uint8_t d1_2 = bat_1 % 10;
+  uint8_t d2_1 = bat_2 / 10;
+  uint8_t d2_2 = bat_2 % 10;
+
+  switch(current_mux) {
+    case 0:
+      //1
+      show_number(SIDE_A, 0, d1_1, 50);
+      show_number(SIDE_A, 8, d2_1, 50);
+      //5
+      show_number(SIDE_B, 0, d2_1, 50);
+      show_number(SIDE_B, 8, d1_1, 50);
+      break;
+    case 1:
+      //2
+      show_number(SIDE_A, 0, d1_2, 50);
+      show_number(SIDE_A, 8, d2_2, 50);
+      //6
+      show_number(SIDE_B, 0, d2_2, 50);
+      show_number(SIDE_B, 8, d1_2, 50);
+      break;
+    case 2:
+      //3 - 4
+      show_character(SIDE_BOTH, 0, 0b01000000, 50); // Dash
+      show_character(SIDE_BOTH, 8, 0b01000000, 50); // Dash
       break;
   }
 }

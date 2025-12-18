@@ -1,10 +1,10 @@
 #include "button_actions.h"
 
-uint8_t side = SIDE_NONE;
+// uint8_t side = SIDE_NONE;
 
-void set_side(uint8_t s) {
-  side = s;
-}
+// void set_side(uint8_t s) {
+//   side = s;
+// }
 
 void button_action_task(void *arg) {
   btn_action_t event;
@@ -15,300 +15,260 @@ void button_action_task(void *arg) {
       const uint8_t device_id = event.device_id;
       ESP_LOGI("ID", "Id: %d", event.device_id);
       ESP_LOGI("ACTIONS", "Processing action: %d", button_event);
-              
-      switch(button_event) {
-          case BUTTON_A_PRESS:
-            button_right_click(device_id);
-            break;
-          case BUTTON_A_HOLD:
-            button_right_hold(device_id);
-            break;
-          case BUTTON_B_PRESS:
-            button_left_click(device_id);
-            break;
-          case BUTTON_B_HOLD:
-            button_left_hold(device_id);
-            break;
+
+      switch(window) {
+        // case PRESS_SCR:
+        //   switch(button_event) {
+        //     case BUTTON_PRESS:
+        //     case BUTTON_A_PRESS:
+        //     case ITAG_PRESS:
+        //       set_side(SIDE_A);
+        //       init_menu_scr();
+        //       play_nav_sound(BUTTON_A_PRESS);
+        //       break;
+        //     case BUTTON_B_PRESS:
+        //       set_side(SIDE_B);
+        //       init_menu_scr();
+        //       play_nav_sound(BUTTON_B_PRESS);
+        //       break;
+        //     case BUTTON_HOLD:
+        //     case BUTTON_A_HOLD:
+        //     case ITAG_DOUBLE_PRESS:
+        //       enter_menu_option();
+        //       break;
+        //   }
+        //   break;
+        case MENU_SCR:
+          switch(button_event) {
+            case BUTTON_PRESS:
+            case BUTTON_A_PRESS:
+            case ITAG_PRESS:
+              navigate_menu(BUTTON_A);
+              break;
+            case BUTTON_B_PRESS:
+              navigate_menu(BUTTON_B);
+              break;
+            case BUTTON_HOLD:
+            case BUTTON_A_HOLD:
+            case ITAG_DOUBLE_PRESS:
+              enter_menu_option();
+              break;
+            // case BUTTON_B_HOLD:
+            //   init_press_scr();
+            //   play_enter_sound(BUTTON_B_HOLD);
+            //   break;
+          }
+          break;
+        case SPORT_SCR:
+          switch(button_event) {
+            case BUTTON_PRESS:
+            case BUTTON_A_PRESS:
+            case ITAG_PRESS:
+              navigate_sport(BUTTON_A);
+              break;
+            case BUTTON_B_PRESS:
+              navigate_sport(BUTTON_B);
+              break;
+            case BUTTON_HOLD:
+            case BUTTON_A_HOLD:
+            case ITAG_DOUBLE_PRESS:
+              enter_sport_option();
+              break;
+            case BUTTON_B_HOLD:
+              go_back();
+              break;
+          }
+          break;
+        case SET_MAX_SCORE_SCR:
+          switch(button_event) {
+            case BUTTON_PRESS:
+            case ITAG_PRESS:
+              navigate_set_max_score(BUTTON);
+              break;
+            case BUTTON_A_PRESS:
+              navigate_set_max_score(BUTTON_A);
+              break;
+            case BUTTON_B_PRESS:
+              navigate_set_max_score(BUTTON_B);
+              break;
+            case BUTTON_HOLD:
+            case BUTTON_A_HOLD:
+            case ITAG_DOUBLE_PRESS:
+              enter_play();
+              break;
+            case BUTTON_B_HOLD:
+              go_back();
+              break;
+          }
+          break;
+        case SET_PADEL_GAME_TYPE_SCR:
+          switch(button_event) {
+            case BUTTON_PRESS:
+            case ITAG_PRESS:
+              navigate_padel_game_type(BUTTON);
+              break;
+            case BUTTON_A_PRESS:
+              navigate_padel_game_type(BUTTON_A);
+              break;
+            case BUTTON_B_PRESS:
+              navigate_padel_game_type(BUTTON_B);
+              break;
+            case BUTTON_HOLD:
+            case BUTTON_A_HOLD:
+            case ITAG_DOUBLE_PRESS:
+              set_padel_game_type();
+              enter_padel_deuce_type();
+              break;
+            case BUTTON_B_HOLD:
+              go_back();
+              break;
+          }
+          break;
+        case SET_PADEL_DEUCE_TYPE_SCR:
+          switch(button_event) {
+            case BUTTON_PRESS:
+            case ITAG_PRESS:
+              navigate_padel_deuce_type(BUTTON);
+              break;
+            case BUTTON_A_PRESS:
+              navigate_padel_deuce_type(BUTTON_A);
+              break;
+            case BUTTON_B_PRESS:
+              navigate_padel_deuce_type(BUTTON_B);
+              break;
+            case BUTTON_HOLD:
+            case BUTTON_A_HOLD:
+            case ITAG_DOUBLE_PRESS:
+              set_padel_deuce_type();
+              enter_play();
+              break;
+            case BUTTON_B_HOLD:
+              go_back();
+              break;
+          }
+          break;
+        case PLAY_SCR:
+          switch(button_event) {
+            case BUTTON_PRESS:
+            case ITAG_PRESS:
+            case BUTTON_A_PRESS:
+            case BUTTON_B_PRESS:
+              play_add_point(device_id);
+              break;
+            case BUTTON_HOLD:
+            case BUTTON_A_HOLD:
+            case ITAG_DOUBLE_PRESS:
+            case BUTTON_B_HOLD:
+              play_undo_point(device_id);
+              break;
+          }
+          break;
+        case PLAY_HOME_WIN_SCR:
+        case PLAY_AWAY_WIN_SCR:
+          switch(button_event) {
+            case BUTTON_PRESS:
+            case ITAG_PRESS:
+            case BUTTON_A_PRESS:
+            case BUTTON_B_PRESS:
+              enter_play_next();
+              break;
+            case BUTTON_HOLD:
+            case BUTTON_A_HOLD:
+            case BUTTON_B_HOLD:
+            case ITAG_DOUBLE_PRESS:
+              get_history();
+              go_back();
+              break;
+          }
+          break;
+        case PLAY_SETS_SCORE_SCR:
+          switch(button_event) {
+            case BUTTON_PRESS:
+            case ITAG_PRESS:
+            case BUTTON_A_PRESS:
+            case BUTTON_B_PRESS:
+            case BUTTON_HOLD:
+            case BUTTON_A_HOLD:
+            case ITAG_DOUBLE_PRESS:
+              enter_play();
+              break;
+            case BUTTON_B_HOLD:
+              go_back();
+              break;
+          }
+          break;
+        case BRILHO_SCR:
+          switch(button_event) {
+            case BUTTON_PRESS:
+            case ITAG_PRESS:
+              navigate_brightness(BUTTON);
+              break;
+            case BUTTON_A_PRESS:
+              navigate_brightness(BUTTON_A);
+              break;
+            case BUTTON_B_PRESS:
+              navigate_brightness(BUTTON_B);
+              break;
+            case BUTTON_HOLD:
+            case BUTTON_A_HOLD:
+            case ITAG_DOUBLE_PRESS:
+              // set_brightness_pref();
+              go_back();
+              break;
+            case BUTTON_B_HOLD:
+              go_back();
+              break;
+          }
+          break;
+        case BATT_SCR:
+          switch(button_event) {
+            case BUTTON_PRESS:
+            case ITAG_PRESS:
+            case BUTTON_A_PRESS:
+            case BUTTON_B_PRESS:
+              enter_battery_device();
+              break;
+            case BUTTON_HOLD:
+            case BUTTON_A_HOLD:
+            case BUTTON_B_HOLD:
+            case ITAG_DOUBLE_PRESS:
+              go_back();
+              break;
+          }
+          break;
+        case BATT_DEVICE_SCR:
+          switch(button_event) {
+            case BUTTON_PRESS:
+            case ITAG_PRESS:
+            case BUTTON_A_PRESS:
+            case BUTTON_B_PRESS:
+              enter_battery();
+              break;
+            case BUTTON_HOLD:
+            case BUTTON_A_HOLD:
+            case BUTTON_B_HOLD:
+            case ITAG_DOUBLE_PRESS:
+              go_back();
+              break;
+          }
+          break;
+        case TEST_SCR:
+          switch(button_event) {
+            case BUTTON_PRESS:
+            case ITAG_PRESS:
+            case BUTTON_A_PRESS:
+            case BUTTON_B_PRESS:
+              enter_test();
+              break;
+            case BUTTON_HOLD:
+            case BUTTON_A_HOLD:
+            case BUTTON_B_HOLD:
+            case ITAG_DOUBLE_PRESS:
+              go_back();
+              break;
+          }
+          break;
       }
-      //last_action = (uint32_t)(esp_timer_get_time() / 1000ULL);
     }
-  }
-}
-
-void onMelodyComplete() {
-  static bool status = true;
-  gpio_set_level((gpio_num_t)LED_PIN, status);
-  status =! status;
-}
-
-void playWinMelody() {
-  buzzer_enqueue_note(NOTE_A, 4, 500, onMelodyComplete);
-  buzzer_enqueue_note(NOTE_B, 4, 500, onMelodyComplete);
-  buzzer_enqueue_note(NOTE_C, 4, 500, onMelodyComplete);
-  //buzzer_enqueue_melody(HOME_WIN, onMelodyComplete);
-  //buzzer_enqueue_melody(UNDO, onMelodyComplete);
-}
-
-// Add Home Point
-void button_left_click(uint8_t device_id) {
-  uint8_t current_menu_option = menu;
-  switch(window) {
-    case MENU_SCR:
-      menu--;
-      if(menu < MENU_PLAY) { menu = MENU_OFF; }
-      init_menu_transition_scr(current_menu_option, menu);
-      buzzer_enqueue_note(NOTE_B, 4, 100, nullptr);
-      break;
-    case SPORT_SCR:
-      sport--;
-      if(sport < SPORT_VOLLEY) { sport = SPORT_PADEL; }
-      buzzer_enqueue_note(NOTE_B, 4, 100, nullptr);
-      break;
-    case SET_MAX_SCORE_SCR:
-      max_score.current = max_score.min;
-      init_set_max_points_scr();
-      buzzer_enqueue_note(NOTE_B, 4, 100, nullptr);
-      break;
-    case SET_PADEL_GAME_TYPE_SCR:
-      padel_game_type_option.current = FIRST;
-      init_set_padel_game_type_scr();
-      buzzer_enqueue_note(NOTE_A, 4, 100, nullptr);
-      break;
-    case SET_PADEL_DEUCE_TYPE_SCR:
-      padel_deuce_option.current = FIRST;
-      init_set_padel_deuce_type_scr();
-      buzzer_enqueue_note(NOTE_A, 4, 100, nullptr);
-      break;
-    case PLAY_SCR:
-      if(device_id == DEVICE_1) add_point(HOME);
-      else if(device_id == DEVICE_2) add_point(AWAY);
-      break;
-    case BRILHO_SCR:
-      if(brightness_index > 0) brightness_index--;
-      set_brightness();
-      break;
-  }
-}
-
-void button_left_hold(uint8_t button_id) {
-  //playWinMelody();
-  switch(window) {
-    case MENU_SCR:
-      init_press_scr();
-      break;
-    case SPORT_SCR:
-      init_menu_scr();
-      break;
-    case SET_MAX_SCORE_SCR:
-      init_sport_scr();
-      break;
-    case SET_PADEL_GAME_TYPE_SCR:
-      init_sport_scr();
-      break;
-    case SET_PADEL_DEUCE_TYPE_SCR:
-      init_set_padel_game_type_scr();
-      break;
-    case PLAY_SCR:
-      undo_point();
-      //buzzer_play_melody(NULL, UNDO, NULL);
-      break;
-    case BRILHO_SCR:
-      //get_brightness_pref();
-      window = MENU_SCR;
-      break;
-    case BATT_SCR:
-      window = MENU_SCR;
-      break;
-    case TEST_SCR:
-      //reset_preferences();
-      window = MENU_SCR;
-      break;
-  }
-}
-
-void button_left_dbl_click() {
-  switch(window) {
-    case MENU_SCR:
-      //buzzer_play(A, NOTE_B, 7, 100);
-      break;
-    case PLAY_SCR:
-      //buzzer_play(A, NOTE_A, 8, 200);
-      //set_score_pref(true);
-      init_menu_scr();
-      break;
-  }
-}
-
-// Add Away Point
-void button_right_click(uint8_t device_id) {
-  uint8_t current_menu_option = menu;
-  switch(window) {
-    case PRESS_SCR:
-      set_side(SIDE_A);
-      init_menu_scr();
-      buzzer_enqueue_note(NOTE_A, 4, 100, nullptr);
-      break;
-    case MENU_SCR:
-      menu++;
-      if(menu > MENU_OFF) { menu = MENU_PLAY; }
-      init_menu_transition_scr(current_menu_option, menu);
-      buzzer_enqueue_note(NOTE_A, 4, 100, nullptr);
-      break;
-    case SPORT_SCR:
-      sport++;
-      if(sport > SPORT_PADEL) { sport = SPORT_VOLLEY; }
-      buzzer_enqueue_note(NOTE_A, 4, 100, nullptr);
-      break;
-    case SET_MAX_SCORE_SCR:
-      max_score.current = max_score.max;
-      init_set_max_points_scr();
-      buzzer_enqueue_note(NOTE_A, 4, 100, nullptr);
-      break;
-    case SET_PADEL_GAME_TYPE_SCR:
-      padel_game_type_option.current = LAST;
-      init_set_padel_game_type_scr();
-      buzzer_enqueue_note(NOTE_A, 4, 100, nullptr);
-      break;
-    case SET_PADEL_DEUCE_TYPE_SCR:
-      padel_deuce_option.current = LAST;
-      init_set_padel_deuce_type_scr();
-      buzzer_enqueue_note(NOTE_A, 4, 100, nullptr);
-      break;
-    case PLAY_SCR:
-      if(device_id == DEVICE_1) add_point(HOME);
-      else if(device_id == DEVICE_2) add_point(AWAY);
-      break;
-    case PLAY_HOME_SET_WIN_SCR:
-    case PLAY_AWAY_SET_WIN_SCR:
-      init_play_sets_score_scr();
-      break;
-    case PLAY_SETS_SCORE_SCR:
-      init_play_scr();
-      break;
-    case BRILHO_SCR:
-      if(brightness_index < MAX_BRIGHT_INDEX - 1) brightness_index++;
-      set_brightness();
-      break;
-  }
-}
-
-void button_right_hold(uint8_t button_id) {
-  switch(window) {
-    case MENU_SCR:
-      enter_menu_option();
-      break;
-    case SPORT_SCR:
-      enter_sport_option();
-      break;
-    case SET_MAX_SCORE_SCR:
-      init_play_scr();
-      break;
-    case SET_PADEL_GAME_TYPE_SCR:
-      set_padel_game_type();
-      init_set_padel_deuce_type_scr();
-      break;
-    case SET_PADEL_DEUCE_TYPE_SCR:
-      set_padel_deuce_type();
-      init_play_scr();
-      break;
-    case PLAY_SCR:
-      undo_point();
-      //buzzer_play_melody(NULL, UNDO, NULL);
-      break;
-    case BRILHO_SCR:
-      //set_brightness_pref();
-      window = MENU_SCR;
-      break;
-  }
-}
-
-void button_right_dbl_click() {
-  switch(window) {
-    case MENU_SCR:
-      //buzzer_play(B, NOTE_B, 7, 100);
-      break;
-    case PLAY_SCR:
-      //buzzer_play(B, NOTE_A, 8, 200);
-      //set_score_pref();
-      //init_menu_scr();
-      break;
-  }
-}
-
-/**void button_a_click() { 
-  switch(window) {
-    case PRESS_SCR:
-      set_side(SIDE_B);
-      init_menu_scr();
-      break;
-    case PLAY_SCR:
-      button_left_click();
-      break;
-    default:
-      side == SIDE_B ? button_right_click() : button_left_click();
-  }
-}
-
-void button_b_click() { 
-  switch(window) {
-    case PRESS_SCR:
-      set_side(SIDE_A);
-      init_menu_scr();
-      break;
-    case PLAY_SCR:
-      button_right_click();
-      break;
-    default:
-      side == SIDE_A ? button_right_click() : button_left_click();
-  }
-}
-
-void button_a_hold() { 
-  side == SIDE_B ? button_right_hold() : button_left_hold();
-}
-
-void button_b_hold() { 
-  side == SIDE_A ? button_right_hold() : button_left_hold();
-}
-
-void button_a_dbl_click() { 
-  side == SIDE_B ? button_right_dbl_click() : button_left_dbl_click();
-}
-
-void button_b_dbl_click() { 
-  side == SIDE_A ? button_right_dbl_click() : button_left_dbl_click();
-}**/
-
-void enter_menu_option() {
-  switch(menu) {
-    case MENU_PLAY:
-      init_sport_scr();
-      break;
-    case MENU_BRILHO:
-      init_brilho_scr();
-      break;
-    case MENU_BATT:
-      init_bat_scr();
-      break;
-    case MENU_TEST:
-      init_test_scr();
-      break;
-    case MENU_OFF:
-      init_off_scr();   
-      break;
-  }
-}
-
-void enter_sport_option() {
-  switch(sport) {
-    case SPORT_VOLLEY:
-      init_volley();
-      break;
-    case SPORT_PING_PONG:
-      init_ping_pong();
-      break;
-    case SPORT_PADEL:
-      init_padel();
-      break;
   }
 }

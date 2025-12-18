@@ -31,6 +31,9 @@
 #define SMALL_RED 90
 #define SMALL_GREEN 100
 
+#define SMALL_HOLD_TIME_MS 500
+#define BIG_HOLD_TIME_MS 1200
+
 #define ADC_BAT_PIN ADC_CHANNEL_1
 #define ADC_BAT_EN_PIN 4
 
@@ -77,7 +80,7 @@ typedef enum {
   BOOT_2_SCR,
   BOOT_3_SCR,
   BOOT_4_SCR,
-  PRESS_SCR,
+  // PRESS_SCR,
   SPORT_SCR,
   MENU_SCR,
   MENU_TRANSITION_SCR,
@@ -85,11 +88,14 @@ typedef enum {
   SET_PADEL_GAME_TYPE_SCR,
   SET_PADEL_DEUCE_TYPE_SCR,
   PLAY_SCR,
-  PLAY_HOME_SET_WIN_SCR,
-  PLAY_AWAY_SET_WIN_SCR,
+  PLAY_HOME_WIN_SCR,
+  PLAY_AWAY_WIN_SCR,
+  // PLAY_HOME_WIN_TEXT_SCR,
+  // PLAY_AWAY_WIN_TEXT_SCR,
   PLAY_SETS_SCORE_SCR,
   BRILHO_SCR,
   BATT_SCR,
+  BATT_DEVICE_SCR,
   TEST_SCR,
   OFF_SCR,
   OFF_2_SCR,
@@ -115,6 +121,12 @@ typedef enum {
   SIDE_BOTH,
   SIDE_NONE
 } side_t;
+
+typedef enum {
+  BEGIN,
+  ADD_POINT,
+  UNDO_POINT
+} action_t;
 
 enum {
   HOME = 0,

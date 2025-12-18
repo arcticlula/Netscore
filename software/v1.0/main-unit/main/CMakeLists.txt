@@ -3,6 +3,7 @@ idf_component_register(
         "main.cpp"
         "button/input.cpp"
         "button/button_actions.cpp"
+        "button/button_actions_helper.cpp"
         "buzzer/buzzer.cpp"
         "display/display_definitions.cpp"
         "display/display_api.cpp"

@@ -71,14 +71,14 @@ typedef enum {
 
 typedef enum {
     BUTTON_PRESS,
+    BUTTON_HOLD,
     BUTTON_A_PRESS,
     BUTTON_B_PRESS,
-    ITAG_PRESS,
-    BUTTON_HOLD,
     BUTTON_A_HOLD,
     BUTTON_B_HOLD,
     BUTTON_A_PRESS_BOTH,
     BUTTON_B_PRESS_BOTH,
+    ITAG_PRESS,
     ITAG_DOUBLE_PRESS
 } esp_now_button_event_t;
 

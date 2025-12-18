@@ -38,7 +38,7 @@ extern "C" void app_main(void)
     //add_click_handler(button_left, dbl_click, &button_a_dbl_click);
     //add_click_handler(button_right, dbl_click, &button_b_dbl_click);
       
-    //init_adc();
+    init_adc();
     //init_timers();
     init_buzzer();
     
