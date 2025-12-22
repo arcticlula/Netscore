@@ -4,7 +4,7 @@ uint8_t menu_brightness = 50;
 
 void show_display() {
   Tlc.clear();
-  switch(window) {
+  switch (window) {
     case BOOT_SCR:
       show_boot();
       break;
@@ -81,112 +81,112 @@ void show_display() {
 }
 
 void show_boot() {
-  switch(current_mux) {
+  switch (current_mux) {
     case 0:
-      //1
+      // 1
       show_fade_in(SIDE_BOTH, 0, &df1);
-      //5
+      // 5
       show_fade_in(SIDE_BOTH, 8, &df5);
       break;
     case 1:
-      //2
+      // 2
       show_fade_in(SIDE_BOTH, 0, &df2, init_boot_2_scr);
-      //6
+      // 6
       show_fade_in(SIDE_BOTH, 8, &df6);
       break;
   }
 }
 
 void show_boot_2() {
-  switch(current_mux) {
+  switch (current_mux) {
     case 0:
-      //1
+      // 1
       show_wave(SIDE_BOTH, 0, &dw1, init_boot_3_scr);
-      //5
+      // 5
       show_wave(SIDE_BOTH, 8, &dw5);
       break;
     case 1:
-      //2
+      // 2
       show_wave(SIDE_BOTH, 0, &dw2);
-      //6
+      // 6
       show_wave(SIDE_BOTH, 8, &dw6);
       break;
   }
 }
 
 void show_boot_3() {
-  switch(current_mux) {
+  switch (current_mux) {
     case 0:
-      //1
+      // 1
       show_wave(SIDE_BOTH, 0, &dw1, init_boot_4_scr);
-      //5
+      // 5
       show_wave(SIDE_BOTH, 8, &dw5);
       break;
     case 1:
-      //2
+      // 2
       show_wave(SIDE_BOTH, 0, &dw2);
-      //6
+      // 6
       show_wave(SIDE_BOTH, 8, &dw6);
       break;
   }
 }
 
 void show_boot_4() {
-  switch(current_mux) {
+  switch (current_mux) {
     case 0:
-      //1
+      // 1
       show_fade_into(SIDE_BOTH, 0, &dfi1, init_menu_scr);
-      //5
+      // 5
       show_fade_into(SIDE_BOTH, 8, &dfi5);
       break;
     case 1:
-      //2
+      // 2
       show_fade_into(SIDE_BOTH, 0, &dfi2);
-      //6
+      // 6
       show_fade_into(SIDE_BOTH, 8, &dfi6);
       break;
     case 2:
-      //3
+      // 3
       show_fade_into(SIDE_BOTH, 0, &dfi3);
-      //4
+      // 4
       show_fade_into(SIDE_BOTH, 8, &dfi4);
       break;
   }
 }
 
 void show_press() {
-  switch(current_mux) {
+  switch (current_mux) {
     case 0:
-      //1
+      // 1
       show_wave(SIDE_BOTH, 0, &dw1);
-      //5
+      // 5
       show_wave(SIDE_BOTH, 8, &dw5);
       break;
     case 1:
-      //2
+      // 2
       show_wave(SIDE_BOTH, 0, &dw2);
-      //6
+      // 6
       show_zigzag(SIDE_BOTH, 8, &dz1);
       break;
     case 2:
-      //3
+      // 3
       show_wave(SIDE_BOTH, 0, &dw3);
-      //4
+      // 4
       show_wave(SIDE_BOTH, 8, &dw4);
       break;
   }
 }
 
 void show_sport() {
-  switch(sport) {
+  switch (sport) {
     case SPORT_VOLLEY:
-      show_text(SIDE_BOTH, V,O,L,E,I,BLANK, menu_brightness);
+      show_text(SIDE_BOTH, V, O, L, E, I, BLANK, menu_brightness);
       break;
     case SPORT_PING_PONG:
       show_sport_ping_pong();
       break;
     case SPORT_PADEL:
-      show_text(SIDE_BOTH, P,A,D,E,L,BLANK, menu_brightness);
+      show_text(SIDE_BOTH, P, A, D, E, L, BLANK, menu_brightness);
       break;
   }
 }
@@ -195,22 +195,22 @@ void show_sport_ping_pong() {
   static uint16_t cnt = 0;
   static uint8_t alt_letter = I;
 
-  switch(current_mux) {
+  switch (current_mux) {
     case 0:
-      //1
+      // 1
       show_letter(SIDE_BOTH, 0, P, menu_brightness);
-      //5
+      // 5
       show_letter(SIDE_BOTH, 8, N, menu_brightness);
       break;
     case 1:
-      //2
+      // 2
       show_letter(SIDE_BOTH, 0, alt_letter, menu_brightness);
-      //6
+      // 6
       show_letter(SIDE_BOTH, 8, G, menu_brightness);
       break;
   }
   cnt++;
-  if(cnt == 500) {
+  if (cnt == 500) {
     alt_letter = alt_letter == I ? O : I;
     cnt = 0;
   }
@@ -221,49 +221,49 @@ void show_menu() {
 }
 
 void show_menu_transition() {
-  switch(current_mux) {
+  switch (current_mux) {
     case 0:
-      //1
+      // 1
       show_fade_into(SIDE_BOTH, 0, &dfi1);
-      //5
+      // 5
       show_fade_into(SIDE_BOTH, 8, &dfi5);
       break;
     case 1:
-      //2
+      // 2
       show_fade_into(SIDE_BOTH, 0, &dfi2, init_menu_scr);
-      //6
+      // 6
       show_fade_into(SIDE_BOTH, 8, &dfi6);
       break;
     case 2:
-      //3
+      // 3
       show_fade_into(SIDE_BOTH, 0, &dfi3);
-      //4
+      // 4
       show_fade_into(SIDE_BOTH, 8, &dfi4);
       break;
   }
 }
 
 void show_set_max_score() {
-  uint8_t digit_1 = max_score.min / 10; 
+  uint8_t digit_1 = max_score.min / 10;
   uint8_t digit_2 = max_score.min % 10;
   uint8_t digit_5 = max_score.max / 10;
   uint8_t digit_6 = max_score.max % 10;
 
-  switch(current_mux) {
+  switch (current_mux) {
     case 0:
-      //1
+      // 1
       max_score.current == max_score.min ? show_wave(SIDE_BOTH, 0, &dw1) : show_number(SIDE_BOTH, 0, digit_1, 20);
-      //5
+      // 5
       max_score.current == max_score.max ? show_wave(SIDE_BOTH, 8, &dw1) : show_number(SIDE_BOTH, 8, digit_5, 20);
       break;
     case 1:
-      //2 
+      // 2
       max_score.current == max_score.min ? show_wave(SIDE_BOTH, 0, &dw2) : show_number(SIDE_BOTH, 0, digit_2, 20);
-      //6
+      // 6
       max_score.current == max_score.max ? show_wave(SIDE_BOTH, 8, &dw2) : show_number(SIDE_BOTH, 8, digit_6, 20);
       break;
     case 2:
-      //3 - 4
+      // 3 - 4
       max_score.current == max_score.min ? show_zigzag(SIDE_BOTH, 0, &dz1) : show_zigzag(SIDE_BOTH, 8, &dz1);
       break;
   }
@@ -283,60 +283,62 @@ void change_pattern_b() {
 }
 
 void show_set_padel_game_type() {
-  uint8_t digit_1 = padel_game_type_option.first[0]; 
+  uint8_t digit_1 = padel_game_type_option.first[0];
   uint8_t digit_2 = padel_game_type_option.first[1];
   uint8_t digit_5 = padel_game_type_option.last[0];
   uint8_t digit_6 = padel_game_type_option.last[1];
 
-  switch(current_mux) {
+  switch (current_mux) {
     case 0:
-      //1
-      if(padel_game_type_option.current == FIRST) {
-        if(inf_patern_a) show_zigzag(SIDE_BOTH, 0, &dz2, change_pattern_a);
-        else show_letter(SIDE_BOTH, 0, digit_1, 30);
-      } 
-      else show_letter(SIDE_BOTH, 0, digit_1, 20);
-      //5
+      // 1
+      if (padel_game_type_option.current == FIRST) {
+        if (inf_patern_a) show_zigzag(SIDE_BOTH, 0, &dz2, change_pattern_a);
+        else
+          show_letter(SIDE_BOTH, 0, digit_1, 30);
+      } else
+        show_letter(SIDE_BOTH, 0, digit_1, 20);
+      // 5
       padel_game_type_option.current == LAST ? show_wave(SIDE_BOTH, 8, &dw1) : show_letter(SIDE_BOTH, 8, digit_5, 20);
       break;
     case 1:
-      //2 
-      if(padel_game_type_option.current == FIRST) {
-        if(inf_patern_b) show_zigzag(SIDE_BOTH, 0, &dz3, change_pattern_b);
-        else show_letter(SIDE_BOTH, 0, digit_2, 30);
-      } 
-      else show_letter(SIDE_BOTH, 0, digit_2, 20);
-      //6
+      // 2
+      if (padel_game_type_option.current == FIRST) {
+        if (inf_patern_b) show_zigzag(SIDE_BOTH, 0, &dz3, change_pattern_b);
+        else
+          show_letter(SIDE_BOTH, 0, digit_2, 30);
+      } else
+        show_letter(SIDE_BOTH, 0, digit_2, 20);
+      // 6
       padel_game_type_option.current == LAST ? show_wave(SIDE_BOTH, 8, &dw2) : show_letter(SIDE_BOTH, 8, digit_6, 20);
       break;
     case 2:
-      //3 - 4
+      // 3 - 4
       padel_game_type_option.current == FIRST ? show_zigzag(SIDE_BOTH, 0, &dz1) : show_zigzag(SIDE_BOTH, 8, &dz1);
       break;
   }
 }
 
 void show_set_deuce_type() {
-  uint8_t digit_1 = padel_deuce_option.first[0]; 
+  uint8_t digit_1 = padel_deuce_option.first[0];
   uint8_t digit_2 = padel_deuce_option.first[1];
   uint8_t digit_5 = padel_deuce_option.last[0];
   uint8_t digit_6 = padel_deuce_option.last[1];
 
-  switch(current_mux) {
+  switch (current_mux) {
     case 0:
-      //1
+      // 1
       padel_deuce_option.current == FIRST ? show_wave(SIDE_BOTH, 0, &dw1) : show_letter(SIDE_BOTH, 0, digit_1, 20);
-      //5
+      // 5
       padel_deuce_option.current == LAST ? show_wave(SIDE_BOTH, 8, &dw1) : show_letter(SIDE_BOTH, 8, digit_5, 20);
       break;
     case 1:
-      //2 
+      // 2
       padel_deuce_option.current == FIRST ? show_wave(SIDE_BOTH, 0, &dw2) : show_letter(SIDE_BOTH, 0, digit_2, 20);
-      //6
+      // 6
       padel_deuce_option.current == LAST ? show_wave(SIDE_BOTH, 8, &dw2) : show_letter(SIDE_BOTH, 8, digit_6, 20);
       break;
     case 2:
-      //3 - 4
+      // 3 - 4
       padel_deuce_option.current == FIRST ? show_zigzag(SIDE_BOTH, 0, &dz1) : show_zigzag(SIDE_BOTH, 8, &dz1);
       break;
   }
@@ -349,12 +351,12 @@ void show_play() {
 void show_play_default() {
   bool home_has_dot = score.home_points + 1 >= max_score.current && score.home_points - score.away_points >= 1;
   bool away_has_dot = score.away_points + 1 >= max_score.current && score.away_points - score.home_points >= 1;
-  uint8_t home_points_1 = score.home_points / 10; 
+  uint8_t home_points_1 = score.home_points / 10;
   uint8_t home_points_2 = score.home_points % 10;
   uint8_t away_points_1 = score.away_points / 10;
   uint8_t away_points_2 = score.away_points % 10;
 
-  switch(current_mux) {
+  switch (current_mux) {
     case 0:
       // 1
       show_number(SIDE_A, 0, home_points_1, 50);
@@ -366,23 +368,23 @@ void show_play_default() {
     case 1:
       // 2
       show_number(SIDE_A, 0, home_points_2, 50);
-      if(home_has_dot) show_dot(SIDE_A, 0, &dd1);
+      if (home_has_dot) show_dot(SIDE_A, 0, &dd1);
 
       show_number(SIDE_A, 8, away_points_2, 50);
-      if(away_has_dot) show_dot(SIDE_A, 8, &dd2);
+      if (away_has_dot) show_dot(SIDE_A, 8, &dd2);
 
       // 6
       show_number(SIDE_B, 0, away_points_2, 50);
-      if(away_has_dot) show_dot(SIDE_B, 0, &dd2);
+      if (away_has_dot) show_dot(SIDE_B, 0, &dd2);
 
       show_number(SIDE_B, 8, home_points_2, 50);
-      if(home_has_dot) show_dot(SIDE_B, 8, &dd1);
+      if (home_has_dot) show_dot(SIDE_B, 8, &dd1);
       break;
     case 2:
       // 3 - 4
       show_number(SIDE_A, 0, score.home_sets, 50);
       show_number(SIDE_A, 8, score.away_sets, 50);
-      
+
       show_number(SIDE_B, 0, score.away_sets, 50);
       show_number(SIDE_B, 8, score.home_sets, 50);
       break;
@@ -397,35 +399,32 @@ void show_play_padel() {
   uint8_t away_points_1;
   uint8_t away_points_2;
 
-  if(tiebreak) {
+  if (tiebreak) {
     home_game_point = padel_score.home_tiebreak_points >= 6 && (padel_score.home_tiebreak_points - padel_score.away_tiebreak_points >= 1);
     away_game_point = padel_score.away_tiebreak_points >= 6 && (padel_score.away_tiebreak_points - padel_score.home_tiebreak_points >= 1);
     home_set_point = home_game_point;
     away_set_point = away_game_point;
-    home_points_1 = numbers[padel_score.home_tiebreak_points / 10]; 
+    home_points_1 = numbers[padel_score.home_tiebreak_points / 10];
     home_points_2 = numbers[padel_score.home_tiebreak_points % 10];
     away_points_1 = numbers[padel_score.away_tiebreak_points / 10];
     away_points_2 = numbers[padel_score.away_tiebreak_points % 10];
-  }
-  else {
-    home_points_1 = numbers[padel_score.home_points / 10]; 
+  } else {
+    home_points_1 = numbers[padel_score.home_points / 10];
     home_points_2 = numbers[padel_score.home_points % 10];
     away_points_1 = numbers[padel_score.away_points / 10];
     away_points_2 = numbers[padel_score.away_points % 10];
-  
-    if(padel_score.golden_point) {
+
+    if (padel_score.golden_point) {
       home_game_point = padel_score.home_points == POINTS_40;
       away_game_point = padel_score.away_points == POINTS_40;
-    }
-    else {
+    } else {
       home_game_point = (padel_score.home_points == POINTS_40 && padel_score.away_points < POINTS_40) || padel_score.home_points == POINTS_ADV;
       away_game_point = (padel_score.away_points == POINTS_40 && padel_score.home_points < POINTS_40) || padel_score.away_points == POINTS_ADV;
-  
-      if(padel_score.home_points == POINTS_ADV) {      
-        home_points_1 = letters[A]; 
+
+      if (padel_score.home_points == POINTS_ADV) {
+        home_points_1 = letters[A];
         home_points_2 = letters[D];
-      }
-      else if(padel_score.away_points == POINTS_ADV) {      
+      } else if (padel_score.away_points == POINTS_ADV) {
         away_points_1 = letters[A];
         away_points_2 = letters[D];
       }
@@ -434,7 +433,7 @@ void show_play_padel() {
     away_set_point = away_game_point && padel_score.away_games >= 5 && (padel_score.away_games - padel_score.home_games >= 1);
   }
 
-  switch(current_mux) {
+  switch (current_mux) {
     case 0:
       // 1
       show_character(SIDE_A, 0, home_points_1, 50);
@@ -446,46 +445,45 @@ void show_play_padel() {
     case 1:
       // 2
       show_character(SIDE_A, 0, home_points_2, 50);
-      if(home_game_point) show_dot(SIDE_A, 0, &dd1);
+      if (home_game_point) show_dot(SIDE_A, 0, &dd1);
 
       show_character(SIDE_A, 8, away_points_2, 50);
-      if(away_game_point) show_dot(SIDE_A, 8, &dd1);
+      if (away_game_point) show_dot(SIDE_A, 8, &dd1);
 
       // 6
       show_character(SIDE_B, 0, away_points_2, 50);
-      if(away_game_point) show_dot(SIDE_B, 0, &dd1);
+      if (away_game_point) show_dot(SIDE_B, 0, &dd1);
 
       show_character(SIDE_B, 8, home_points_2, 50);
-      if(home_game_point) show_dot(SIDE_B, 8, &dd1);
+      if (home_game_point) show_dot(SIDE_B, 8, &dd1);
       break;
     case 2:
       // 3 - 4
       show_number(SIDE_A, 0, padel_score.home_games, 50);
-      if(home_set_point) show_dot(SIDE_A, 0, &dd2);
+      if (home_set_point) show_dot(SIDE_A, 0, &dd2);
 
       show_number(SIDE_A, 8, padel_score.away_games, 50);
-      if(away_set_point) show_dot(SIDE_A, 8, &dd2);
-      
+      if (away_set_point) show_dot(SIDE_A, 8, &dd2);
+
       show_number(SIDE_B, 0, padel_score.away_games, 50);
-      if(away_set_point) show_dot(SIDE_B, 0, &dd2);
+      if (away_set_point) show_dot(SIDE_B, 0, &dd2);
 
       show_number(SIDE_B, 8, padel_score.home_games, 50);
-      if(home_set_point) show_dot(SIDE_B, 8, &dd2);
+      if (home_set_point) show_dot(SIDE_B, 8, &dd2);
       break;
   }
 }
 
-
 void show_play_result(uint8_t team) {
-    if (sport == SPORT_PADEL) {
-        show_play_result_padel(team);
-    } else {
-        show_play_result_default(team);
-    }
+  if (sport == SPORT_PADEL) {
+    show_play_result_padel(team);
+  } else {
+    show_play_result_default(team);
+  }
 }
 
 void show_play_result_default(uint8_t team) {
-  uint8_t home_points_1 = score.home_points / 10; 
+  uint8_t home_points_1 = score.home_points / 10;
   uint8_t home_points_2 = score.home_points % 10;
   uint8_t away_points_1 = score.away_points / 10;
   uint8_t away_points_2 = score.away_points % 10;
@@ -495,30 +493,46 @@ void show_play_result_default(uint8_t team) {
   set_number(&dw5.c, away_points_1);
   set_number(&dw6.c, away_points_2);
 
-  switch(current_mux) {
+  switch (current_mux) {
     case 0:
       // 1
-      if (team == HOME) show_wave(SIDE_A, 0, &dw1); else show_number(SIDE_A, 0, home_points_1, 50);
-      if (team == AWAY) show_wave(SIDE_A, 8, &dw5); else show_number(SIDE_A, 8, away_points_1, 50);
+      if (team == HOME) show_wave(SIDE_A, 0, &dw1);
+      else
+        show_number(SIDE_A, 0, home_points_1, 50);
+      if (team == AWAY) show_wave(SIDE_A, 8, &dw5);
+      else
+        show_number(SIDE_A, 8, away_points_1, 50);
       // 5
-      if (team == AWAY) show_wave(SIDE_B, 0, &dw5); else show_number(SIDE_B, 0, away_points_1, 50);
-      if (team == HOME) show_wave(SIDE_B, 8, &dw1); else show_number(SIDE_B, 8, home_points_1, 50);
+      if (team == AWAY) show_wave(SIDE_B, 0, &dw5);
+      else
+        show_number(SIDE_B, 0, away_points_1, 50);
+      if (team == HOME) show_wave(SIDE_B, 8, &dw1);
+      else
+        show_number(SIDE_B, 8, home_points_1, 50);
       break;
-      
+
     case 1:
       // 2
-      if (team == HOME) show_wave(SIDE_A, 0, &dw2); else show_number(SIDE_A, 0, home_points_2, 50);
-      if (team == AWAY) show_wave(SIDE_A, 8, &dw6); else show_number(SIDE_A, 8, away_points_2, 50);
+      if (team == HOME) show_wave(SIDE_A, 0, &dw2);
+      else
+        show_number(SIDE_A, 0, home_points_2, 50);
+      if (team == AWAY) show_wave(SIDE_A, 8, &dw6);
+      else
+        show_number(SIDE_A, 8, away_points_2, 50);
       // 6
-      if (team == AWAY) show_wave(SIDE_B, 0, &dw6); else show_number(SIDE_B, 0, away_points_2, 50);
-      if (team == HOME) show_wave(SIDE_B, 8, &dw2); else show_number(SIDE_B, 8, home_points_2, 50);
+      if (team == AWAY) show_wave(SIDE_B, 0, &dw6);
+      else
+        show_number(SIDE_B, 0, away_points_2, 50);
+      if (team == HOME) show_wave(SIDE_B, 8, &dw2);
+      else
+        show_number(SIDE_B, 8, home_points_2, 50);
       break;
-      
+
     case 2:
       // 3 - 4
       show_number(SIDE_A, 0, score.home_sets, 50);
       show_number(SIDE_A, 8, score.away_sets, 50);
-      
+
       show_number(SIDE_B, 0, score.away_sets, 50);
       show_number(SIDE_B, 8, score.home_sets, 50);
       break;
@@ -544,7 +558,7 @@ void show_play_padel_sets(uint8_t team) {
   uint8_t current_sets = team == HOME ? padel_score.home_sets : padel_score.away_sets;
   uint8_t opponent_sets = team == HOME ? padel_score.away_sets : padel_score.home_sets;
 
-  switch(current_mux) {
+  switch (current_mux) {
     case 0:
       show_number(side, 8, opponent_sets, 50);
       break;
@@ -555,19 +569,19 @@ void show_play_padel_sets(uint8_t team) {
 }
 
 void show_brightness() {
-  switch(current_mux) {
+  switch (current_mux) {
     case 0:
-      if(brightness_index >= 0) show_letter(SIDE_BOTH, 0, O, 50);
-      if(brightness_index >= 4) show_letter(SIDE_BOTH, 8, O, 50);
+      show_letter(SIDE_BOTH, 0, O, 50);
+      if (brightness_index >= 4) show_letter(SIDE_BOTH, 8, O, 50);
       break;
     case 1:
-      if(brightness_index >= 1) show_letter(SIDE_BOTH, 0, O, 50);
-      if(brightness_index >= 5) show_letter(SIDE_BOTH, 8, O, 50);
+      if (brightness_index >= 1) show_letter(SIDE_BOTH, 0, O, 50);
+      if (brightness_index >= 5) show_letter(SIDE_BOTH, 8, O, 50);
       break;
     case 2:
       // 3 - 4
-      if(brightness_index >= 2) show_letter(SIDE_BOTH, 0, O, 50);
-      if(brightness_index >= 3) show_letter(SIDE_BOTH, 8, O, 50);
+      if (brightness_index >= 2) show_letter(SIDE_BOTH, 0, O, 50);
+      if (brightness_index >= 3) show_letter(SIDE_BOTH, 8, O, 50);
       break;
   }
 }
@@ -575,32 +589,31 @@ void show_brightness() {
 void show_battery() {
   uint16_t bat_value = get_bat_value();
   uint8_t bat_perc = get_bat_percentage();
-  uint8_t digit_1 = bat_value / 1000 % 10; 
+  uint8_t digit_1 = bat_value / 1000 % 10;
   uint8_t digit_2 = bat_value / 100 % 10;
   uint8_t digit_3 = bat_perc / 10 % 10;
   uint8_t digit_4 = bat_perc % 10;
   uint8_t digit_5 = bat_value / 10 % 10;
   uint8_t digit_6 = bat_value % 10;
 
-  
-  switch(current_mux) {
+  switch (current_mux) {
     case 0:
-      //1
+      // 1
       show_number(SIDE_BOTH, 0, digit_1, 50);
       show_dot(SIDE_BOTH, 0, 50);
-      //5
+      // 5
       show_number(SIDE_BOTH, 8, digit_5, 50);
       break;
     case 1:
-      //2
+      // 2
       show_number(SIDE_BOTH, 0, digit_2, 50);
-      //6
+      // 6
       show_number(SIDE_BOTH, 8, digit_6, 50);
       break;
     case 2:
-      //3
+      // 3
       show_number(SIDE_BOTH, 0, digit_3, 50);
-      //4
+      // 4
       show_number(SIDE_BOTH, 8, digit_4, 50);
       break;
   }
@@ -608,36 +621,36 @@ void show_battery() {
 
 void show_device_battery() {
   uint8_t bat_1 = get_device_battery(DEVICE_1);
-  if(bat_1 > 99) bat_1 = 99;
+  if (bat_1 > 99) bat_1 = 99;
   uint8_t bat_2 = get_device_battery(DEVICE_2);
-  if(bat_2 > 99) bat_2 = 99;
+  if (bat_2 > 99) bat_2 = 99;
 
   uint8_t d1_1 = bat_1 / 10;
   uint8_t d1_2 = bat_1 % 10;
   uint8_t d2_1 = bat_2 / 10;
   uint8_t d2_2 = bat_2 % 10;
 
-  switch(current_mux) {
+  switch (current_mux) {
     case 0:
-      //1
+      // 1
       show_number(SIDE_A, 0, d1_1, 50);
       show_number(SIDE_A, 8, d2_1, 50);
-      //5
+      // 5
       show_number(SIDE_B, 0, d2_1, 50);
       show_number(SIDE_B, 8, d1_1, 50);
       break;
     case 1:
-      //2
+      // 2
       show_number(SIDE_A, 0, d1_2, 50);
       show_number(SIDE_A, 8, d2_2, 50);
-      //6
+      // 6
       show_number(SIDE_B, 0, d2_2, 50);
       show_number(SIDE_B, 8, d1_2, 50);
       break;
     case 2:
-      //3 - 4
-      show_character(SIDE_BOTH, 0, 0b01000000, 50); // Dash
-      show_character(SIDE_BOTH, 8, 0b01000000, 50); // Dash
+      // 3 - 4
+      show_character(SIDE_BOTH, 0, 0b01000000, 50);  // Dash
+      show_character(SIDE_BOTH, 8, 0b01000000, 50);  // Dash
       break;
   }
 }
@@ -648,8 +661,7 @@ void show_test() {
   uint8_t digit_4 = id % 10;
   bool digit_r = gpio_get_level((gpio_num_t)BUTTON_RIGHT_PIN);
 
-  
-  switch(current_mux) {
+  switch (current_mux) {
     case 0:
       show_letter(SIDE_A, 0, digit_l ? A : BLANK, 50);
       show_letter(SIDE_A, 8, digit_r ? B : BLANK, 50);
@@ -666,19 +678,19 @@ void show_test() {
 }
 
 void show_off() {
-  switch(current_mux) {
+  switch (current_mux) {
     case 0:
-    //1
-    show_wave(SIDE_BOTH, 0, &dw1, init_off_2_scr);
-    //5
-    show_wave(SIDE_BOTH, 8, &dw5);
-    break;
+      // 1
+      show_wave(SIDE_BOTH, 0, &dw1, init_off_2_scr);
+      // 5
+      show_wave(SIDE_BOTH, 8, &dw5);
+      break;
     case 1:
-    //2
-    show_wave(SIDE_BOTH, 0, &dw2);
-    //6
-    show_wave(SIDE_BOTH, 8, &dw6);
-    break;
+      // 2
+      show_wave(SIDE_BOTH, 0, &dw2);
+      // 6
+      show_wave(SIDE_BOTH, 8, &dw6);
+      break;
   }
 }
 
