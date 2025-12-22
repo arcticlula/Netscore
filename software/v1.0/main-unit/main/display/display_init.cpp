@@ -1,4 +1,5 @@
 #include "display_init.h"
+
 #include "../wifi/esp-now.h"
 
 void init_display() {
@@ -135,11 +136,10 @@ void init_set_max_points_scr() {
   set_number(&dw1.c, max_score.current / 10);
   set_number(&dw2.c, max_score.current % 10);
 
-  if(max_score.current == max_score.max) {
+  if (max_score.current == max_score.max) {
     uint8_t positions[] = {0, 5, 4, 3};
     set_positions(&dz1.c, positions, 4);
-  }
-  else {
+  } else {
     uint8_t positions[] = {0, 1, 2, 3};
     set_positions(&dz1.c, positions, 4);
   }
@@ -147,7 +147,7 @@ void init_set_max_points_scr() {
   window = SET_MAX_SCORE_SCR;
 }
 
-void init_set_padel_game_type_scr() {  
+void init_set_padel_game_type_scr() {
   if (padel_game_type_option.current == FIRST) {
     uint8_t positions[] = {0, 5, 4, 3};
     uint8_t a[] = {2, 3, 4, 5, 0, 1};
@@ -161,7 +161,7 @@ void init_set_padel_game_type_scr() {
     set_letter(&dw2.c, padel_game_type_option.last[1]);
     set_positions(&dz1.c, positions, 4);
   }
-  
+
   init_digit_zigzag(&dz1, 0, 20, 80, 0, -1, 500);
   init_digit_zigzag(&dz2, 0, 60, 80, 30, 1, 500);
   init_digit_zigzag(&dz3, 0, 60, 80, 30, 1, 500);
@@ -169,8 +169,6 @@ void init_set_padel_game_type_scr() {
 }
 
 void init_set_padel_deuce_type_scr() {
-  uint8_t positions[4];
-  
   if (padel_deuce_option.current == FIRST) {
     uint8_t positions[] = {0, 5, 4, 3};
     set_letter(&dw1.c, padel_deuce_option.first[0]);
@@ -182,7 +180,7 @@ void init_set_padel_deuce_type_scr() {
     set_letter(&dw2.c, padel_deuce_option.last[1]);
     set_positions(&dz1.c, positions, 4);
   }
-  
+
   init_digit_zigzag(&dz1, 0, 20, 80, 0, -1, 500);
   window = SET_PADEL_DEUCE_TYPE_SCR;
 }
@@ -256,7 +254,7 @@ void init_off_scr() {
   window = OFF_SCR;
 }
 
-void init_off_2_scr() {  
+void init_off_2_scr() {
   gpio_set_level((gpio_num_t)LDO_LATCH, LOW);
   window = OFF_2_SCR;
 }

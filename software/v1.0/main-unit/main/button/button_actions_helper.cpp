@@ -1,10 +1,9 @@
 #include "button_actions_helper.h"
 
 uint8_t toggle_option(uint8_t option) {
-  if(option == FIRST) {
+  if (option == FIRST) {
     return LAST;
-  }
-  else if(option == LAST) {
+  } else if (option == LAST) {
     return FIRST;
   }
   return option;
@@ -12,23 +11,22 @@ uint8_t toggle_option(uint8_t option) {
 
 void navigate_menu(uint8_t button) {
   uint8_t current_menu_option = menu;
-  if(button == BUTTON_A) {
-      menu++;
-      if(menu > MENU_OFF) { menu = MENU_PLAY; }
-      init_menu_transition_scr(current_menu_option, menu);
-      play_nav_sound(BUTTON_A_PRESS);
-  } 
-  else if(button == BUTTON_B) {
-      menu--;
-      if(menu < MENU_PLAY) { menu = MENU_OFF; }
-      init_menu_transition_scr(current_menu_option, menu);
-      play_nav_sound(BUTTON_B_PRESS);
+  if (button == BUTTON_A) {
+    menu++;
+    if (menu > MENU_OFF) { menu = MENU_PLAY; }
+    init_menu_transition_scr(current_menu_option, menu);
+    play_nav_sound(BUTTON_A_PRESS);
+  } else if (button == BUTTON_B) {
+    menu--;
+    if (menu < MENU_PLAY) { menu = MENU_OFF; }
+    init_menu_transition_scr(current_menu_option, menu);
+    play_nav_sound(BUTTON_B_PRESS);
   }
 }
 
 void enter_menu_option() {
   play_enter_sound(BUTTON_A_HOLD);
-  switch(menu) {
+  switch (menu) {
     case MENU_PLAY:
       init_sport_scr();
       break;
@@ -42,27 +40,25 @@ void enter_menu_option() {
       init_test_scr();
       break;
     case MENU_OFF:
-      init_off_scr();   
+      init_off_scr();
       break;
   }
 }
 
 void navigate_sport(uint8_t button) {
-  uint8_t current_sport_option = sport;
-  if(button == BUTTON_A) {
-      sport++;
-      if(sport > SPORT_PADEL) { sport = SPORT_VOLLEY; }
-      play_nav_sound(BUTTON_A_PRESS);
-  } 
-  else if(button == BUTTON_B) {
-      sport--;
-      if(sport < SPORT_VOLLEY) { sport = SPORT_PADEL; }
-      play_nav_sound(BUTTON_B_PRESS);
+  if (button == BUTTON_A) {
+    sport++;
+    if (sport > SPORT_PADEL) { sport = SPORT_VOLLEY; }
+    play_nav_sound(BUTTON_A_PRESS);
+  } else if (button == BUTTON_B) {
+    sport--;
+    if (sport < SPORT_VOLLEY) { sport = SPORT_PADEL; }
+    play_nav_sound(BUTTON_B_PRESS);
   }
 }
 
 void enter_sport_option() {
-  switch(sport) {
+  switch (sport) {
     case SPORT_VOLLEY:
       init_volley();
       break;
@@ -76,7 +72,7 @@ void enter_sport_option() {
 }
 
 void navigate_set_max_score(uint8_t button) {
-  switch(button) {
+  switch (button) {
     case BUTTON:
       max_score.current = max_score.current == max_score.max ? max_score.min : max_score.max;
       play_nav_sound(BUTTON_A_PRESS);
@@ -95,7 +91,7 @@ void navigate_set_max_score(uint8_t button) {
 }
 
 void navigate_padel_game_type(uint8_t button) {
-  switch(button) {
+  switch (button) {
     case BUTTON:
       padel_game_type_option.current = toggle_option(padel_game_type_option.current);
       play_nav_sound(BUTTON_A_PRESS);
@@ -114,7 +110,7 @@ void navigate_padel_game_type(uint8_t button) {
 }
 
 void navigate_padel_deuce_type(uint8_t button) {
-  switch(button) {
+  switch (button) {
     case BUTTON:
       padel_deuce_option.current = toggle_option(padel_deuce_option.current);
       play_nav_sound(BUTTON_A_PRESS);
@@ -154,16 +150,17 @@ void enter_brightness() {
 
 void navigate_brightness(uint8_t button) {
   play_nav_sound(BUTTON_A_PRESS);
-  switch(button) {
+  switch (button) {
     case BUTTON:
-      if(brightness_index < MAX_BRIGHT_INDEX - 1) brightness_index++;
-      else brightness_index = 0;
+      if (brightness_index < MAX_BRIGHT_INDEX - 1) brightness_index++;
+      else
+        brightness_index = 0;
       break;
     case BUTTON_A:
-      if(brightness_index < MAX_BRIGHT_INDEX - 1) brightness_index++;
+      if (brightness_index < MAX_BRIGHT_INDEX - 1) brightness_index++;
       break;
     case BUTTON_B:
-      if(brightness_index > 0) brightness_index--;
+      if (brightness_index > 0) brightness_index--;
       break;
   }
   set_brightness();
@@ -190,22 +187,24 @@ void enter_off() {
 }
 
 void play_add_point(uint8_t device_id) {
-  if(device_id == DEVICE_1) add_point(HOME);
-  else if(device_id == DEVICE_2) add_point(AWAY);
+  if (device_id == DEVICE_1) add_point(HOME);
+  else if (device_id == DEVICE_2)
+    add_point(AWAY);
   send_beep((esp_now_device_t)DEVICE_1, BUTTON_SINGLE_BEEP);
   send_beep((esp_now_device_t)DEVICE_2, BUTTON_SINGLE_BEEP);
 }
 
 void play_undo_point(uint8_t device_id) {
-  if(device_id == DEVICE_1) undo_point(HOME);
-  else if(device_id == DEVICE_2) undo_point(AWAY);
+  if (device_id == DEVICE_1) undo_point(HOME);
+  else if (device_id == DEVICE_2)
+    undo_point(AWAY);
   send_beep((esp_now_device_t)DEVICE_1, BUTTON_DOUBLE_BEEP);
   send_beep((esp_now_device_t)DEVICE_2, BUTTON_DOUBLE_BEEP);
 }
 
 void go_back() {
   play_enter_sound(BUTTON_B_HOLD);
-  switch(window) {
+  switch (window) {
     case SPORT_SCR:
     case BRILHO_SCR:
     case BATT_SCR:
