@@ -9,7 +9,6 @@ static const char* TAG = "ITAG";
 #define BEEP_REDUNDANCY_COUNT 3
 #define BEEP_REDUNDANCY_DELAY_MS 20
 
-// External reference to GATT profile (defined in main)
 extern gattc_profile_inst_t gl_profile_tab[];
 
 // Set iTag button silence state: true=0x20 (no beep on press), false=0x00 (beep on press)

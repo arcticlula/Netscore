@@ -30,3 +30,10 @@ Below is short explanation of remaining files in the project folder.
 ```
 Additionally, the sample project contains Makefile and component.mk files, used for the legacy Make based build system. 
 They are not used or needed when building with CMake and idf.py.
+
+## Configuration & Troubleshooting
+
+### Display Flickering (ESP32-S2 / IDF v5.x)
+If you experience flickering on the display, ensure your **Flash Frequency** is set to **40MHz**.
+- In `sdkconfig` or `menuconfig`: Set `CONFIG_ESPTOOLPY_FLASHFREQ="40m"`.
+- 80MHz flash frequency can cause timing instability with the TLC5940 bit-banging/SPI timing on some S2 chips.

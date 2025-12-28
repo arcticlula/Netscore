@@ -13,12 +13,12 @@ void navigate_menu(uint8_t button) {
   uint8_t current_menu_option = menu;
   if (button == BUTTON_A) {
     menu++;
-    if (menu > MENU_OFF) { menu = MENU_PLAY; }
+    if (menu > MENU_OFF) menu = MENU_PLAY;
     init_menu_transition_scr(current_menu_option, menu);
     play_nav_sound(BUTTON_A_PRESS);
   } else if (button == BUTTON_B) {
     menu--;
-    if (menu < MENU_PLAY) { menu = MENU_OFF; }
+    if (menu < MENU_PLAY) menu = MENU_OFF;
     init_menu_transition_scr(current_menu_option, menu);
     play_nav_sound(BUTTON_B_PRESS);
   }
@@ -31,7 +31,7 @@ void enter_menu_option() {
       init_sport_scr();
       break;
     case MENU_BRILHO:
-      init_brilho_scr();
+      init_brightness_scr();
       break;
     case MENU_BATT:
       init_bat_scr();
@@ -48,11 +48,11 @@ void enter_menu_option() {
 void navigate_sport(uint8_t button) {
   if (button == BUTTON_A) {
     sport++;
-    if (sport > SPORT_PADEL) { sport = SPORT_VOLLEY; }
+    if (sport > SPORT_PADEL) sport = SPORT_VOLLEY;
     play_nav_sound(BUTTON_A_PRESS);
   } else if (button == BUTTON_B) {
     sport--;
-    if (sport < SPORT_VOLLEY) { sport = SPORT_PADEL; }
+    if (sport < SPORT_VOLLEY) sport = SPORT_PADEL;
     play_nav_sound(BUTTON_B_PRESS);
   }
 }
@@ -74,7 +74,7 @@ void enter_sport_option() {
 void navigate_set_max_score(uint8_t button) {
   switch (button) {
     case BUTTON:
-      max_score.current = max_score.current == max_score.max ? max_score.min : max_score.max;
+      max_score.current = (max_score.current == max_score.max) ? max_score.min : max_score.max;
       play_nav_sound(BUTTON_A_PRESS);
       break;
     case BUTTON_A:
@@ -135,6 +135,10 @@ void enter_padel_deuce_type() {
 
 void enter_play() {
   play_enter_sound(BUTTON_A_HOLD);
+  uint8_t set_idx = score.home_sets + score.away_sets;
+  if (set_idx < 5) {
+    set_points_max[set_idx] = max_score.current;
+  }
   init_play_scr();
 }
 
@@ -164,6 +168,7 @@ void navigate_brightness(uint8_t button) {
       break;
   }
   set_brightness();
+  init_brightness_scr();
 }
 
 void enter_battery() {
@@ -198,6 +203,8 @@ void play_undo_point(uint8_t device_id) {
   if (device_id == DEVICE_1) undo_point(HOME);
   else if (device_id == DEVICE_2)
     undo_point(AWAY);
+  else
+    undo_point(LAST_TEAM);
   send_beep((esp_now_device_t)DEVICE_1, BUTTON_DOUBLE_BEEP);
   send_beep((esp_now_device_t)DEVICE_2, BUTTON_DOUBLE_BEEP);
 }

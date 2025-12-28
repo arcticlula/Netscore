@@ -1,5 +1,10 @@
 #include "buzzer.h"
 
+#include "driver/ledc.h"
+#include "esp_timer.h"
+#include "tasks.h"
+#include "wifi/esp-now.h"
+
 const uint8_t tempo = 120;
 
 // {Note, Divider, Octave}
@@ -88,10 +93,15 @@ void buzzer_play(uint8_t buzzer, note_t note, uint8_t octave, int16_t duration_m
 }
 
 void buzzer_enqueue_note(note_t note, uint8_t octave, int16_t duration_ms, callback_t callback) {
+  int8_t divider = 0;
+  if (duration_ms > 0) {
+    divider = wholenote / duration_ms;
+  }
+
   melody_note_t melody_note = {
       .note = note,
+      .divider = divider,
       .octave = octave,
-      .duration = duration_ms,
       .callback = callback};
 
   xQueueSend(melody_queue, &melody_note, portMAX_DELAY);
@@ -106,24 +116,10 @@ void buzzer_enqueue_melody(uint8_t index, callback_t callback) {
   }
 
   for (uint8_t i = 0; i < size; i++) {
-    int8_t divider = (int8_t)notes[i].octave;
+    melody_note_t melody_note = notes[i];
 
-    int16_t duration_ms = 0;
-    if (divider != 0) {
-      duration_ms = wholenote / abs(divider);
-      if (divider < 0) {
-        duration_ms = duration_ms * 1.5;  // Dotted note
-      }
-    }
-
-    uint8_t target_octave = (notes[i].duration != 0) ? (uint8_t)notes[i].duration : 5;
-
-    melody_note_t melody_note = {
-        .note = notes[i].note,
-        .octave = target_octave,
-        .duration = duration_ms,
-        .callback = (i == size - 1) ? callback : NULL  // Only set callback for last note
-    };
+    // Ensure callback is only on the last note
+    melody_note.callback = (i == size - 1) ? callback : NULL;
 
     xQueueSend(melody_queue, &melody_note, portMAX_DELAY);
   }
@@ -180,12 +176,23 @@ void play_win_sound() {
 void melody_task(void* arg) {
   while (1) {
     if (xQueueReceive(melody_queue, &current_note, portMAX_DELAY) == pdTRUE) {
-      uint32_t total_duration = current_note.duration;
+      int16_t duration_ms = 0;
+      int8_t divider = current_note.divider;
+      if (divider != 0) {
+        duration_ms = wholenote / abs(divider);
+        if (divider < 0) {
+          duration_ms = duration_ms * 1.5;  // Dotted note
+        }
+      }
+
+      uint8_t octave = (current_note.octave != 0) ? (uint8_t)current_note.octave : 5;
+
+      uint32_t total_duration = duration_ms;
       uint32_t play_duration = total_duration * 0.9;
       uint32_t pause_duration = total_duration - play_duration;
 
       if (current_note.note != NONE && play_duration > 0) {
-        buzzer_play(SIDE_A, current_note.note, current_note.octave, play_duration);
+        buzzer_play(SIDE_A, current_note.note, octave, play_duration);
         note_done = false;
         while (!note_done) {
           vTaskDelay(pdMS_TO_TICKS(5));

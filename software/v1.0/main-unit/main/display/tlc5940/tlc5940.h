@@ -18,50 +18,43 @@
 
 #pragma once
 
-#include "tlc_config.h"
 #include <bits/algorithmfwd.h>
-#include <esp_log.h>
-#include <freertos/FreeRTOS.h>
-#include <freertos/task.h>
-#include "tasks.h"
-#include "spi/spi.h"
-#include "driver/gpio.h"
-#include "driver/gptimer.h"
-#include "driver/ledc.h"  // LED PWM controller (LEDC)
-#include "gamma_correction.h"
+
 #include "definitions.h"
+#include "driver/gpio.h"
+#include "gamma_correction.h"
+#include "tasks.h"
+#include "tlc_config.h"
 
 extern volatile uint8_t current_mux;
 
-class Tlc5940
-{
-  public:
-    void init(	
-        uint8_t sin = DEFAULT_TLC_MOSI_PIN,
-        uint8_t sout = DEFAULT_TLC_MISO_PIN,
-        uint8_t sclk = DEFAULT_TLC_SCK_PIN,
-        uint8_t xlat = DEFAULT_XLAT_PIN,
-        uint8_t blank = DEFAULT_BLANK_PIN,
-        uint8_t gsclk = DEFAULT_GSCLK_PIN,
-        uint8_t vprg = DEFAULT_VPRG_PIN,
-        uint8_t dcprg = DEFAULT_DCPRG_PIN,
-        uint8_t xerr = DEFAULT_XERR_PIN 
-    );
-    void setUserCallback(void (*callback)());
-    void clear(void);
-    uint8_t update(int mux_idx);
-    void setChannel(TLC_CHANNEL_TYPE channel, uint16_t value);
-    void set(TLC_CHANNEL_TYPE channel, uint16_t value, uint8_t side);
-    uint16_t get(TLC_CHANNEL_TYPE channel);
-    void setAll(uint16_t value);
+class Tlc5940 {
+ public:
+  void init(
+      uint8_t sin = DEFAULT_TLC_MOSI_PIN,
+      uint8_t sout = DEFAULT_TLC_MISO_PIN,
+      uint8_t sclk = DEFAULT_TLC_SCK_PIN,
+      uint8_t xlat = DEFAULT_XLAT_PIN,
+      uint8_t blank = DEFAULT_BLANK_PIN,
+      uint8_t gsclk = DEFAULT_GSCLK_PIN,
+      uint8_t vprg = DEFAULT_VPRG_PIN,
+      uint8_t dcprg = DEFAULT_DCPRG_PIN,
+      uint8_t xerr = DEFAULT_XERR_PIN);
+  void setUserCallback(void (*callback)());
+  void clear(void);
+  uint8_t update(int mux_idx);
+  void setChannel(TLC_CHANNEL_TYPE channel, uint16_t value);
+  void set(TLC_CHANNEL_TYPE channel, uint16_t value, uint8_t side);
+  uint16_t get(TLC_CHANNEL_TYPE channel);
+  void setAll(uint16_t value);
 #if VPRG_ENABLED
-    void updateDC(void);
-    void setDC(TLC_CHANNEL_TYPE channel, uint8_t value);
-    uint8_t getDC(TLC_CHANNEL_TYPE channel);
-    void setAllDC(uint8_t value);
+  void updateDC(void);
+  void setDC(TLC_CHANNEL_TYPE channel, uint8_t value);
+  uint8_t getDC(TLC_CHANNEL_TYPE channel);
+  void setAllDC(uint8_t value);
 #endif
 #if XERR_ENABLED
-    uint8_t readXERR(void);
+  uint8_t readXERR(void);
 #endif
 };
 

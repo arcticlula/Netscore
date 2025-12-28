@@ -4,7 +4,7 @@
 #define DEBUG_BAT
 
 #ifndef LOW
-#define LOW  0
+#define LOW 0
 #endif
 
 #ifndef HIGH
@@ -26,6 +26,8 @@
 #define MIN_SCORE_PING_PONG 11
 #define MAX_SCORE_PING_PONG 21
 
+#define MAX_SETS 15
+
 #define BIG_RED 90
 #define BIG_PURE_GREEN 40
 #define SMALL_RED 90
@@ -37,32 +39,32 @@
 #define ADC_BAT_PIN ADC_CHANNEL_1
 #define ADC_BAT_EN_PIN 4
 
-//#define BUTTON_LEFT_PIN   5
-//#define BUTTON_RIGHT_PIN  4
-#define BUTTON_LEFT_PIN   5
-#define BUTTON_RIGHT_PIN  6
-#define VCC_CTRL_EN  14
-//#define LDO_CTRL_EN  4
-#define LDO_LATCH  45
-#define LED_PIN  15
-//#define BUZZER_PIN   6
-#define BUZZER_A_PIN   42
-#define BUZZER_B_PIN   7
-#define BUZZER_A_LEDC_CHN   LEDC_CHANNEL_2
-#define BUZZER_B_LEDC_CHN   LEDC_CHANNEL_3
+// #define BUTTON_LEFT_PIN   5
+// #define BUTTON_RIGHT_PIN  4
+#define BUTTON_LEFT_PIN 5
+#define BUTTON_RIGHT_PIN 6
+#define VCC_CTRL_EN 14
+// #define LDO_CTRL_EN  4
+#define LDO_LATCH 45
+#define LED_PIN 15
+// #define BUZZER_PIN   6
+#define BUZZER_A_PIN 42
+#define BUZZER_B_PIN 7
+#define BUZZER_A_LEDC_CHN LEDC_CHANNEL_2
+#define BUZZER_B_LEDC_CHN LEDC_CHANNEL_3
 
-#define DEFAULT_TLC_MOSI_PIN     35
-#define DEFAULT_TLC_MISO_PIN     37
-#define DEFAULT_TLC_SCK_PIN      36
-//#define DEFAULT_XLAT_PIN     33
-#define DEFAULT_XLAT_PIN     17
-#define DEFAULT_BLANK_PIN    16
-#define DEFAULT_GSCLK_PIN    18
-//#define DEFAULT_VPRG_PIN    40
-#define DEFAULT_VPRG_PIN    21
-//#define DEFAULT_DCPRG_PIN    39
-#define DEFAULT_DCPRG_PIN    38
-#define DEFAULT_XERR_PIN    -1
+#define DEFAULT_TLC_MOSI_PIN 35
+#define DEFAULT_TLC_MISO_PIN 37
+#define DEFAULT_TLC_SCK_PIN 36
+// #define DEFAULT_XLAT_PIN     33
+#define DEFAULT_XLAT_PIN 17
+#define DEFAULT_BLANK_PIN 16
+#define DEFAULT_GSCLK_PIN 18
+// #define DEFAULT_VPRG_PIN    40
+#define DEFAULT_VPRG_PIN 21
+// #define DEFAULT_DCPRG_PIN    39
+#define DEFAULT_DCPRG_PIN 38
+#define DEFAULT_XERR_PIN -1
 
 #define MUX_A_DD_1 41
 #define MUX_A_DD_2 40
@@ -90,9 +92,6 @@ typedef enum {
   PLAY_SCR,
   PLAY_HOME_WIN_SCR,
   PLAY_AWAY_WIN_SCR,
-  // PLAY_HOME_WIN_TEXT_SCR,
-  // PLAY_AWAY_WIN_TEXT_SCR,
-  PLAY_SETS_SCORE_SCR,
   BRILHO_SCR,
   BATT_SCR,
   BATT_DEVICE_SCR,
@@ -128,10 +127,11 @@ typedef enum {
   UNDO_POINT
 } action_t;
 
-enum {
+typedef enum {
   HOME = 0,
-  AWAY
-};
+  AWAY,
+  LAST_TEAM
+} team_t;
 
 enum {
   HOME_WIN = 0,
@@ -167,10 +167,7 @@ extern int8_t menu;
 // Screen brightness vector
 extern uint8_t brightness[6];
 extern uint8_t brightness_index;
-
-extern float displays[MUX_NUM][6]; //2 arrays of 6 (Number of 7Seg per display)
-
-extern uint16_t timer_cnt;
+extern uint8_t brightness_animated_index;
 
 typedef struct {
   uint8_t first[2];
@@ -180,5 +177,5 @@ typedef struct {
 
 extern uint8_t menu_options[5][6];
 
-extern option_string_2_t padel_game_type_option; 
-extern option_string_2_t padel_deuce_option; 
+extern option_string_2_t padel_game_type_option;
+extern option_string_2_t padel_deuce_option;

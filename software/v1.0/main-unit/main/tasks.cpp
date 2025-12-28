@@ -1,6 +1,9 @@
 #include "tasks.h"
 
 #include "button/button_actions.h"
+#include "buzzer/buzzer.h"
+#include "display/tlc5940/tlc5940.h"
+#include "wifi/esp-now.h"
 
 QueueHandle_t espnow_queue;
 QueueHandle_t button_action_queue;

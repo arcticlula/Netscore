@@ -1,6 +1,11 @@
 #include "display_init.h"
 
-#include "../wifi/esp-now.h"
+#include <cstdint>
+
+#include "definitions.h"
+#include "display.h"
+#include "display_definitions.h"
+#include "wifi/esp-now.h"
 
 void init_display() {
   init_boot_scr();
@@ -53,11 +58,11 @@ void init_boot_4_scr() {
   init_digit_fade_into(&dfi6, 50, 1000);
 
   set_chars_fade_into(&dfi1, letters[L], letters[P]);
-  set_chars_fade_into(&dfi2, letters[U], letters[R]);
-  set_chars_fade_into(&dfi3, BLANK, letters[E]);
-  set_chars_fade_into(&dfi4, BLANK, letters[S]);
-  set_chars_fade_into(&dfi5, letters[L], letters[S]);
-  set_chars_fade_into(&dfi6, letters[A], letters[C]);
+  set_chars_fade_into(&dfi2, letters[U], letters[L]);
+  set_chars_fade_into(&dfi3, BLANK, BLANK);
+  set_chars_fade_into(&dfi4, BLANK, BLANK);
+  set_chars_fade_into(&dfi5, letters[L], letters[A]);
+  set_chars_fade_into(&dfi6, letters[A], letters[Y]);
 
   window = BOOT_4_SCR;
   set_hold_time_ms(SMALL_HOLD_TIME_MS);
@@ -84,9 +89,7 @@ void init_boot_4_scr() {
 //   window = PRESS_SCR;
 // }
 
-void init_menu_scr() {
-  window = MENU_SCR;
-}
+void init_menu_scr() { window = MENU_SCR; }
 
 void init_menu_transition_scr(uint8_t current_option, uint8_t next_option) {
   init_digit_fade_into(&dfi1, 50, 200);
@@ -106,9 +109,7 @@ void init_menu_transition_scr(uint8_t current_option, uint8_t next_option) {
   window = MENU_TRANSITION_SCR;
 }
 
-void init_sport_scr() {
-  window = SPORT_SCR;
-}
+void init_sport_scr() { window = SPORT_SCR; }
 
 void init_volley() {
   max_score.min = MIN_SCORE_VOLLEY;
@@ -133,6 +134,9 @@ void init_padel() {
 void init_set_max_points_scr() {
   init_digit_zigzag(&dz1, 0, 20, 80, 0, -1, 500);
 
+  init_digit_wave(&dw1, 100, 50, 100, 0, -1, 500);
+  init_digit_wave(&dw2, 100, 50, 100, 0, -1, 500);
+
   set_number(&dw1.c, max_score.current / 10);
   set_number(&dw2.c, max_score.current % 10);
 
@@ -148,6 +152,9 @@ void init_set_max_points_scr() {
 }
 
 void init_set_padel_game_type_scr() {
+  init_digit_wave(&dw1, 100, 50, 100, 0, -1, 500);
+  init_digit_wave(&dw2, 100, 50, 100, 0, -1, 500);
+
   if (padel_game_type_option.current == FIRST) {
     uint8_t positions[] = {0, 5, 4, 3};
     uint8_t a[] = {2, 3, 4, 5, 0, 1};
@@ -201,21 +208,36 @@ void init_play_result_scr(uint8_t team) {
   window = team == HOME ? PLAY_HOME_WIN_SCR : PLAY_AWAY_WIN_SCR;
 }
 
-// void init_play_result_text_scr(uint8_t team) {
-//   window = team == HOME ? PLAY_HOME_WIN_TEXT_SCR : PLAY_AWAY_WIN_TEXT_SCR;
-// }
-
 void advance_after_set() {
-  reset_score();
   if (sport == SPORT_PADEL) {
-    window = PLAY_SETS_SCORE_SCR;
-    // init_play_scr();
+    init_play_scr();
   } else {
     init_set_max_points_scr();
   }
 }
 
-void init_brilho_scr() {
+void init_brightness_scr() {
+  brightness_animated_index = 0;
+
+  uint8_t a[] = {3, 4, 5, 0, 1, 2};
+  uint8_t b1[] = {3, 4, 5, 0};
+  uint8_t b2[] = {0, 1, 2, 3};
+  uint8_t c1[] = {0};
+  uint8_t c2[] = {3};
+
+  set_positions(&dz1.c, a, 6);
+
+  set_positions(&dz2.c, b1, 4, a, 6);
+  set_positions(&dz3.c, b2, 4, a, 6);
+
+  set_positions(&dz4.c, c1, 1, a, 6);
+  set_positions(&dz5.c, c2, 1, a, 6);
+
+  init_digit_zigzag(&dz1, 0, 60, 80, 30, 1, 600);
+  init_digit_zigzag(&dz2, 0, 60, 80, 30, 1, 400);
+  init_digit_zigzag(&dz3, 0, 60, 80, 30, 1, 400);
+  init_digit_zigzag(&dz4, 0, 60, 80, 30, 1, 100);
+  init_digit_zigzag(&dz5, 0, 60, 80, 30, 1, 100);
   window = BRILHO_SCR;
 }
 

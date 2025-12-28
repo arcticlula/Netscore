@@ -16,7 +16,7 @@ void button_action_task(void *arg) {
       ESP_LOGI("ID", "Id: %d", event.device_id);
       ESP_LOGI("ACTIONS", "Processing action: %d", button_event);
 
-      switch(window) {
+      switch (window) {
         // case PRESS_SCR:
         //   switch(button_event) {
         //     case BUTTON_PRESS:
@@ -39,7 +39,7 @@ void button_action_task(void *arg) {
         //   }
         //   break;
         case MENU_SCR:
-          switch(button_event) {
+          switch (button_event) {
             case BUTTON_PRESS:
             case BUTTON_A_PRESS:
             case ITAG_PRESS:
@@ -53,14 +53,14 @@ void button_action_task(void *arg) {
             case ITAG_DOUBLE_PRESS:
               enter_menu_option();
               break;
-            // case BUTTON_B_HOLD:
-            //   init_press_scr();
-            //   play_enter_sound(BUTTON_B_HOLD);
-            //   break;
+              // case BUTTON_B_HOLD:
+              //   init_press_scr();
+              //   play_enter_sound(BUTTON_B_HOLD);
+              //   break;
           }
           break;
         case SPORT_SCR:
-          switch(button_event) {
+          switch (button_event) {
             case BUTTON_PRESS:
             case BUTTON_A_PRESS:
             case ITAG_PRESS:
@@ -80,7 +80,7 @@ void button_action_task(void *arg) {
           }
           break;
         case SET_MAX_SCORE_SCR:
-          switch(button_event) {
+          switch (button_event) {
             case BUTTON_PRESS:
             case ITAG_PRESS:
               navigate_set_max_score(BUTTON);
@@ -102,7 +102,7 @@ void button_action_task(void *arg) {
           }
           break;
         case SET_PADEL_GAME_TYPE_SCR:
-          switch(button_event) {
+          switch (button_event) {
             case BUTTON_PRESS:
             case ITAG_PRESS:
               navigate_padel_game_type(BUTTON);
@@ -125,7 +125,7 @@ void button_action_task(void *arg) {
           }
           break;
         case SET_PADEL_DEUCE_TYPE_SCR:
-          switch(button_event) {
+          switch (button_event) {
             case BUTTON_PRESS:
             case ITAG_PRESS:
               navigate_padel_deuce_type(BUTTON);
@@ -148,7 +148,7 @@ void button_action_task(void *arg) {
           }
           break;
         case PLAY_SCR:
-          switch(button_event) {
+          switch (button_event) {
             case BUTTON_PRESS:
             case ITAG_PRESS:
             case BUTTON_A_PRESS:
@@ -165,7 +165,7 @@ void button_action_task(void *arg) {
           break;
         case PLAY_HOME_WIN_SCR:
         case PLAY_AWAY_WIN_SCR:
-          switch(button_event) {
+          switch (button_event) {
             case BUTTON_PRESS:
             case ITAG_PRESS:
             case BUTTON_A_PRESS:
@@ -176,29 +176,13 @@ void button_action_task(void *arg) {
             case BUTTON_A_HOLD:
             case BUTTON_B_HOLD:
             case ITAG_DOUBLE_PRESS:
-              get_history();
-              go_back();
-              break;
-          }
-          break;
-        case PLAY_SETS_SCORE_SCR:
-          switch(button_event) {
-            case BUTTON_PRESS:
-            case ITAG_PRESS:
-            case BUTTON_A_PRESS:
-            case BUTTON_B_PRESS:
-            case BUTTON_HOLD:
-            case BUTTON_A_HOLD:
-            case ITAG_DOUBLE_PRESS:
-              enter_play();
-              break;
-            case BUTTON_B_HOLD:
+              undo_point(LAST_TEAM);
               go_back();
               break;
           }
           break;
         case BRILHO_SCR:
-          switch(button_event) {
+          switch (button_event) {
             case BUTTON_PRESS:
             case ITAG_PRESS:
               navigate_brightness(BUTTON);
@@ -221,7 +205,7 @@ void button_action_task(void *arg) {
           }
           break;
         case BATT_SCR:
-          switch(button_event) {
+          switch (button_event) {
             case BUTTON_PRESS:
             case ITAG_PRESS:
             case BUTTON_A_PRESS:
@@ -237,7 +221,7 @@ void button_action_task(void *arg) {
           }
           break;
         case BATT_DEVICE_SCR:
-          switch(button_event) {
+          switch (button_event) {
             case BUTTON_PRESS:
             case ITAG_PRESS:
             case BUTTON_A_PRESS:
@@ -253,7 +237,7 @@ void button_action_task(void *arg) {
           }
           break;
         case TEST_SCR:
-          switch(button_event) {
+          switch (button_event) {
             case BUTTON_PRESS:
             case ITAG_PRESS:
             case BUTTON_A_PRESS:

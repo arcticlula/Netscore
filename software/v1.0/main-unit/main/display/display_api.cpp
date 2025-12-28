@@ -1,5 +1,13 @@
 #include "display_api.h"
 
+#include <math.h>
+
+#include <cstdint>
+
+#include "display/display.h"
+#include "display/display_definitions.h"
+#include "tlc5940/tlc5940.h"
+
 void show_character(uint8_t side, uint8_t offset_ch, uint8_t character, uint8_t val) {
   if (val == BLANK) return;
 
@@ -19,24 +27,28 @@ void show_letter(uint8_t side, uint8_t offset_ch, uint8_t character, uint8_t val
   show_character(side, offset_ch, letters[character], value);
 }
 
+void show_symbol(uint8_t side, uint8_t offset_ch, uint8_t symbol, uint8_t value) {
+  show_character(side, offset_ch, symbols[symbol], value);
+}
+
 void show_text(uint8_t side, uint8_t l_1, uint8_t l_2, uint8_t l_3, uint8_t l_4, uint8_t l_5, uint8_t l_6, uint8_t value) {
-  switch(current_mux) {
+  switch (current_mux) {
     case 0:
-      //1
+      // 1
       show_letter(side, 0, l_1, value);
-      //5
+      // 5
       show_letter(side, 8, l_5, value);
       break;
     case 1:
-      //2
+      // 2
       show_letter(side, 0, l_2, value);
-      //6
+      // 6
       show_letter(side, 8, l_6, value);
       break;
     case 2:
-      //3
+      // 3
       show_letter(side, 0, l_3, value);
-      //4
+      // 4
       show_letter(side, 8, l_4, value);
       break;
   }
@@ -47,7 +59,7 @@ void show_text(uint8_t side, uint8_t text[6], uint8_t value) {
 }
 
 void show_wave(uint8_t side, uint8_t offset_ch, digit_wave_t *digit, void (*callback)()) {
-  double time = digit->time_ms / (2 * MUX_NUM); //only called every x time, x is the number of mux outputs, the 2 is bc only called every 2ms
+  double time = digit->time_ms / (2 * MUX_NUM);  // only called every x time, x is the number of mux outputs, the 2 is bc only called every 2ms
   uint16_t value = round(digit->value);
   uint16_t background = round(digit->background);
   double ratio = (double)(digit->max - digit->min) / time;
@@ -62,14 +74,13 @@ void show_wave(uint8_t side, uint8_t offset_ch, digit_wave_t *digit, void (*call
   if (digit->value <= digit->min) {
     digit->direction = 1;
     digit->value = digit->min;
-    if(callback) callback();
-  }
-  else if (digit->value >= digit->max) {
+    if (callback) callback();
+  } else if (digit->value >= digit->max) {
     digit->direction = -1;
     digit->value = digit->max;
-    if(callback) callback();
+    if (callback) callback();
   }
-  //Serial.printf("Value: %d, Ratio: %.2f, Direction: %d\n", digit->value, ratio, digit->direction);
+  // Serial.printf("Value: %d, Ratio: %.2f, Direction: %d\n", digit->value, ratio, digit->direction);
 }
 
 void show_zigzag(uint8_t side, uint8_t offset_ch, digit_zigzag_t *digit, void (*callback)()) {
@@ -77,39 +88,36 @@ void show_zigzag(uint8_t side, uint8_t offset_ch, digit_zigzag_t *digit, void (*
   uint16_t max = round(digit->max);
   uint16_t min = round(digit->min);
   uint16_t background = round(digit->background);
-  double time = digit->time_ms / (2 * MUX_NUM * digit->c.size); //only called every x time, x is the number of mux outputs, the 2 is bc only called every 2ms
+  double time = digit->time_ms / (2 * MUX_NUM * digit->c.size);  // only called every x time, x is the number of mux outputs, the 2 is bc only called every 2ms
 
-  if(digit->cnt == time) {
+  if (digit->cnt == time) {
     digit->channel += digit->direction;
     digit->cnt = 0;
-  }
-  else digit->cnt++;
+  } else
+    digit->cnt++;
 
   if (digit->channel < 0) {
-    if(callback) {
+    if (callback) {
       digit->channel = last_ch;
       callback();
-    }
-    else {
+    } else {
       digit->channel = 0;
       digit->direction = 1;
     }
-  }
-  else if (digit->channel > last_ch) {
-    if(callback) {
+  } else if (digit->channel > last_ch) {
+    if (callback) {
       digit->channel = 0;
       callback();
-    }
-    else {
+    } else {
       digit->channel = last_ch - 1;
       digit->direction = -1;
     }
   }
 
-  //Serial.printf("Value: %.2f, Ratio: %.2f, Direction: %d\n", value, ratio, direction);
+  // Serial.printf("Value: %.2f, Ratio: %.2f, Direction: %d\n", value, ratio, direction);
 
-  for (uint8_t i = 0; i < digit->c.size; i++) {
-    Tlc.set(offset_ch + digit->c.positions[i], background, side);
+  for (uint8_t i = 0; i < digit->c.background_size; i++) {
+    Tlc.set(offset_ch + digit->c.background_positions[i], background, side);
   }
 
   // Set the main channel to maximum brightness
@@ -119,27 +127,27 @@ void show_zigzag(uint8_t side, uint8_t offset_ch, digit_zigzag_t *digit, void (*
   if (digit->direction == 1 && digit->channel > 0) {
     Tlc.set(offset_ch + digit->c.positions[digit->channel - 1], min, side);
   }
-  
+
   if (digit->direction == -1 && digit->channel < last_ch) {
     Tlc.set(offset_ch + digit->c.positions[digit->channel + 1], min, side);
   }
 }
 
 void show_fade_in(uint8_t side, uint8_t offset_ch, digit_fade_t *digit, void (*callback)()) {
-  static double time = digit->time_ms / (2 * MUX_NUM * digit->c.size); //only called every x time, x is the number of mux outputs, the 2 is bc only called every 2ms
+  static double time = digit->time_ms / (2 * MUX_NUM * digit->c.size);  // only called every x time, x is the number of mux outputs, the 2 is bc only called every 2ms
   double ratio = (double)(digit->value / time);
 
-  if(digit->channel < digit->c.size - 1) {
-    if(digit->cnt == time) digit->cnt = 0;
-    else if(digit->cnt % (uint16_t)(time / 2) == 0) {
+  if (digit->channel < digit->c.size - 1) {
+    if (digit->cnt == time) digit->cnt = 0;
+    else if (digit->cnt % (uint16_t)(time / 2) == 0) {
       digit->channel++;
       digit->cnt++;
-    }
-    else digit->cnt++;
-  }
-  else {
-    if((digit->positions_value[digit->c.size - 1] >= digit->value) && callback) callback();
-    else digit->cnt++;
+    } else
+      digit->cnt++;
+  } else {
+    if ((digit->positions_value[digit->c.size - 1] >= digit->value) && callback) callback();
+    else
+      digit->cnt++;
   }
 
   for (uint8_t channel = 0; channel <= digit->channel; channel++) {
@@ -153,33 +161,33 @@ void show_fade_in(uint8_t side, uint8_t offset_ch, digit_fade_t *digit, void (*c
 }
 
 void show_fade_into(uint8_t side, uint8_t offset_ch, digit_fade_into_t *digit, void (*callback)()) {
-  double time = digit->time_ms / (2 * MUX_NUM); //only called every x time, x is the number of mux outputs, the 2 is bc only called every 2ms
+  double time = digit->time_ms / (2 * MUX_NUM);  // only called every x time, x is the number of mux outputs, the 2 is bc only called every 2ms
   double ratio = (double)(digit->value / time);
-  //Serial.printf("Ratio: %f", ratio);
+  // Serial.printf("Ratio: %f", ratio);
 
   for (uint8_t channel = 0; channel < 8; channel++) {
     int16_t value = digit->positions_value[channel];
     double direction = digit->positions_dir[channel];
-    //Serial.printf("Direction: %f", direction);
+    // Serial.printf("Direction: %f", direction);
     Tlc.set(offset_ch + channel, round(value), side);
-    if(direction != 0) {
+    if (direction != 0) {
       digit->positions_value[channel] += direction * ratio;
       if (value > digit->value) {
         digit->positions_value[channel] = digit->value;
-        if(callback) callback();
-      }
-      else if (value < 0) {
+        if (callback) callback();
+      } else if (value < 0) {
         digit->positions_value[channel] = 0;
-        if(callback) callback();
+        if (callback) callback();
       }
     }
   }
 
-  //Serial.printf("\n");
+  // Serial.printf("\n");
 }
 
-void show_dot(uint8_t side, uint8_t offset_ch, uint16_t value) {
-  Tlc.set(offset_ch + 7, value, side);
+void show_dot(uint8_t side, uint8_t offset_ch, uint8_t value) {
+  uint16_t val = round(get_brightness(value));
+  Tlc.set(offset_ch + 7, val, side);
 }
 
 void show_dot(uint8_t side, uint8_t offset_ch, digit_dot_t *dot) {
@@ -221,41 +229,55 @@ void set_chars_fade_into(digit_fade_into_t *digit, uint8_t character, uint8_t ch
   get_bit_positions(character, digit->c1.positions, &digit->c1.size);
   get_bit_positions(character2, digit->c2.positions, &digit->c2.size);
 
-  //bool pos_diff = digit->target_value > digit->value ? true : false;
-  //uint16_t diff = pos_diff ? digit->target_value - digit->value : digit->value - digit->target_value;
+  // bool pos_diff = digit->target_value > digit->value ? true : false;
+  // uint16_t diff = pos_diff ? digit->target_value - digit->value : digit->value - digit->target_value;
 
-  //double fo_dir = diff == 0 ? -1 : -(digit->value / diff);
-  //double fi_dir = diff == 0 ? 1 : (double)(digit->target_value / diff);
-  //double ft_dir = diff == 0 ? 0 : pos_diff ? 1 : -1;
+  // double fo_dir = diff == 0 ? -1 : -(digit->value / diff);
+  // double fi_dir = diff == 0 ? 1 : (double)(digit->target_value / diff);
+  // double ft_dir = diff == 0 ? 0 : pos_diff ? 1 : -1;
 
   for (uint8_t i = 0; i < 8; i++) {
     bool c1 = (digit->c1.character & (1 << i));
     bool c2 = (digit->c2.character & (1 << i));
-    //Serial.printf("c1: %d, c2: %d\n", c1, c2);
-    if(c1) digit->positions_value[i] = digit->value;
-    else digit->positions_value[i] = 0;
-    if (c1 && !c2) 
-      digit->positions_dir[i] = -1; // Fade out
+    // Serial.printf("c1: %d, c2: %d\n", c1, c2);
+    if (c1) digit->positions_value[i] = digit->value;
+    else
+      digit->positions_value[i] = 0;
+    if (c1 && !c2)
+      digit->positions_dir[i] = -1;  // Fade out
     else if (!c1 && c2)
-      digit->positions_dir[i] = 1; // Fade in
-    else  
-      digit->positions_dir[i] = 0; // No Change
+      digit->positions_dir[i] = 1;  // Fade in
+    else
+      digit->positions_dir[i] = 0;  // No Change
   }
 }
 
 void get_bit_positions(uint8_t value, uint8_t *positions, uint8_t *size) {
-    *size = 0; // Initialize size to 0
-    for (uint8_t bit = 0; bit < 8; bit++) {
-        if (value & (1 << bit)) {
-            positions[(*size)++] = bit;
-        }
+  *size = 0;  // Initialize size to 0
+  for (uint8_t bit = 0; bit < 8; bit++) {
+    if (value & (1 << bit)) {
+      positions[(*size)++] = bit;
     }
+  }
 }
 
 void set_positions(digit_character_t *digit, uint8_t *positions, uint8_t size) {
   digit->size = size;
+  digit->background_size = size;
   for (int i = 0; i < size; i++) {
-      digit->positions[i] = positions[i];
+    digit->positions[i] = positions[i];
+    digit->background_positions[i] = positions[i];
+  }
+}
+
+void set_positions(digit_character_t *digit, uint8_t *positions, uint8_t size, uint8_t *background_positions, uint8_t background_size) {
+  digit->size = size;
+  digit->background_size = background_size;
+  for (int i = 0; i < size; i++) {
+    digit->positions[i] = positions[i];
+  }
+  for (int i = 0; i < background_size; i++) {
+    digit->background_positions[i] = background_positions[i];
   }
 }
 

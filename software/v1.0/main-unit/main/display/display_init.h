@@ -1,8 +1,8 @@
 #pragma once
 #include "definitions.h"
-#include "misc.h"
-#include "display_definitions.h"
 #include "display_api.h"
+#include "display_definitions.h"
+#include "misc.h"
 
 void init_display();
 void init_boot_scr();
@@ -21,9 +21,8 @@ void init_set_padel_game_type_scr();
 void init_set_padel_deuce_type_scr();
 void init_play_scr();
 void init_play_result_scr(uint8_t team);
-void init_play_result_text_scr(uint8_t team);
 void advance_after_set();
-void init_brilho_scr();
+void init_brightness_scr();
 void init_bat_scr();
 void init_device_bat_scr();
 void init_test_scr();

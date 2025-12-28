@@ -21,6 +21,16 @@
 
 #include "tlc5940.h"
 
+#include <esp_log.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+
+#include <algorithm>
+
+#include "driver/gptimer.h"
+#include "driver/ledc.h"
+#include "spi/spi.h"
+
 static const char *TAG = "TLC_5940";
 
 gptimer_handle_t timer_handle = NULL;
@@ -168,9 +178,6 @@ void Tlc5940::init(uint8_t sin, uint8_t sout, uint8_t sclk, uint8_t xlat, uint8_
   ESP_ERROR_CHECK(ledc_channel_config(&ledc_channel));
 
   vTaskDelay(pdMS_TO_TICKS(10));
-  // Optional: Adjust duty cycle dynamically if needed
-  ESP_ERROR_CHECK(ledc_set_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0, 8));
-  ESP_ERROR_CHECK(ledc_update_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0));
 
   ESP_LOGI("LEDC", "LEDC configured successfully!");
 
@@ -208,39 +215,18 @@ void Tlc5940::init(uint8_t sin, uint8_t sout, uint8_t sclk, uint8_t xlat, uint8_
   if (ret != ESP_OK) {
     ESP_LOGE(TAG, "gptimer_start failed: %s", esp_err_to_name(ret));
 
-    // Check common failure reasons:
     if (ret == ESP_ERR_INVALID_STATE) {
       ESP_LOGE(TAG, "Timer not enabled or already running");
     } else if (ret == ESP_ERR_INVALID_ARG) {
       ESP_LOGE(TAG, "Invalid timer handle");
     }
   }
-  /**hw_timer_t* TLC5940_timer = NULL;
-        // start timer
-  TLC5940_timer = timerBegin(0, TIMER_DIV, true); // increment mode
-        timerAttachInterrupt(TLC5940_timer, &TLC5940_onTimer, true);    // edge mode
-        timerAlarmWrite(TLC5940_timer, TIMER_ALARM, true); 		// auto-reload mode
-        timerAlarmEnable(TLC5940_timer);*/
-
-  // LEDC for GS(Gray-scale) clock
-  /**const uint8_t  TLC5940_LEDC_CHN = 0;    // LEDC channel
-  const double   TLC5940_LEDC_FRQ = 2e6;  // LEDC frequency 2MHz
-  const uint8_t  TLC5940_LEDC_RSL = 5;    // LEDC resolution 5bit = 32
-  const uint32_t TLC5940_LEDC_DTY = 8;    // LEDC duty 25% .. 8 / 32
-
-  ledcSetup(TLC5940_LEDC_CHN, TLC5940_LEDC_FRQ, TLC5940_LEDC_RSL);
-  ledcAttachPin(gsclk_pin, TLC5940_LEDC_CHN);
-//ledc_isr_register(ledc_timer_overflow_isr, NULL, ESP_INTR_FLAG_IRAM , NULL)
-  ledcWrite(TLC5940_LEDC_CHN, TLC5940_LEDC_DTY);*/
 }
 
 void Tlc5940::setUserCallback(void (*callback)()) {
   userCallback = callback;
 }
 
-/** Clears the grayscale data array, #tlc_GSData, but does not shift in any
-    data.  This call should be followed by update() if you are turning off
-    all the outputs. */
 void Tlc5940::clear(void) {
   setAll(0);
 }
@@ -328,12 +314,6 @@ static inline uint8_t byte_mask(uint8_t bit_ofs, uint8_t bit_num) {
   return result;
 }
 
-/** \addtogroup ReqVPRG_ENABLED
-    From the \ref CoreFunctions "Core Functions":
-    - \link Tlc5940::setAllDC Tlc.setAllDC(uint8_t value(0-63)) \endlink - sets
-      all the dot correction data to value */
-/* @{ */
-
 /** Shifts in the data from the DOT Correction data array, #tlc_DCData.
  */
 void Tlc5940::updateDC(void) {
@@ -405,8 +385,6 @@ void Tlc5940::setAllDC(uint8_t value) {
 
   update_dc = true;
 }
-
-/* @} */
 
 #endif
 
@@ -482,16 +460,12 @@ void display_update_task(void *arg) {
     }
 
     // Below this we have 4096 cycles to shift in the data for the next cycle
-    uint8_t *p = tlc_GSData;
-    while (p < tlc_GSData + NUM_TLCS * 24) {
-      tlc_shift8(*p++);
-      tlc_shift8(*p++);
-      tlc_shift8(*p++);
-    }
+
+    // Send all grayscale data in one transaction
+    spi_send(tlc_GSData, NUM_TLCS * 24);
     xlatNeedsPulse = 1;
 
     if (userCallback) {
-      // mux logic here instead of display
       set_mux_a((gpio_num_t)mux_a[current_mux]);
       set_mux_b((gpio_num_t)mux_b[current_mux]);
       if (current_mux < MUX_NUM - 1) {
@@ -507,7 +481,7 @@ void display_update_task(void *arg) {
 
 /** Shifts out a byte, MSB first */
 void tlc_shift8(uint8_t byte) {
-  spi_send(&byte);
+  spi_send(&byte, 1);
 }
 
 #if VPRG_ENABLED

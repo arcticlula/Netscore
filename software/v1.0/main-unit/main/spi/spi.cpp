@@ -1,5 +1,8 @@
 #include "spi.h"
 
+#include "driver/spi_common.h"
+#include "driver/spi_master.h"
+
 spi_device_handle_t spi_handle;
 
 esp_err_t spi_init(uint8_t sclk_pin, uint8_t sout_pin, uint8_t sin_pin) {
@@ -23,9 +26,9 @@ esp_err_t spi_init(uint8_t sclk_pin, uint8_t sout_pin, uint8_t sin_pin) {
   return ESP_OK;
 }
 
-esp_err_t spi_send(uint8_t *data) {
+esp_err_t spi_send(uint8_t *data, int len) {
   spi_transaction_t t = {};
-  t.length = 8;
+  t.length = len * 8;
   t.tx_buffer = data;
   t.rx_buffer = NULL;
   return spi_device_transmit(spi_handle, &t);

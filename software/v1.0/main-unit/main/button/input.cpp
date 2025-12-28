@@ -1,5 +1,11 @@
 #include "input.h"
 
+#include <esp_log.h>
+#include <esp_timer.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+#include <rom/ets_sys.h>
+
 static const char *TAG = "INPUT";
 
 // Buttons
@@ -79,15 +85,10 @@ void timer_hold_handler(void *arg) {
   input_t *input = &inputs[index];
 
   // Check that the button is still pressed.
-  // (Assuming that "input->level" is the idle level and !input->level is active.)
   ets_printf("level = %d - state = %d\n", gpio_get_level(input->pin), input->level);
   if (gpio_get_level(input->pin) == input->level) {
     ets_printf("Hold detected for input %d\n", index);
     input->on_hold();
-
-    // Optionally: you might want to disable further hold callbacks
-    // until the button is released. For example, disable the interrupt or
-    // flag that a hold was already handled.
   }
 }
 

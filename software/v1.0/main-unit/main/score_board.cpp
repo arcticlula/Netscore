@@ -1,241 +1,272 @@
 #include "score_board.h"
 
-// Score
-max_score_t max_score = {0, 0, 0}; 
+#include <cstdint>
+#include <vector>
 
-score_t score = {0, 0, 0, 0, BEGIN};
-score_t score_history[255] = {0, 0, 0, 0, BEGIN};
-uint8_t score_history_index = 0;
+#include "definitions.h"
+#include "esp_log.h"
+#include "wifi/esp-now.h"
+
+static const char *TAG = "ScoreBoard";
+
+max_score_t max_score = {0, 0, 0};
+uint8_t set_points_max[MAX_SETS] = {0};
+
+bool endless = false;
+bool golden_point = false;
+
+// Score
+score_t score = {
+    .home_points = 0,
+    .away_points = 0,
+    .home_sets = 0,
+    .away_sets = 0,
+    .set_points_home = {0},
+    .set_points_away = {0}};
 
 // Padel score
 padel_score_t padel_score = {
-    .home_points = POINTS_0,
-    .away_points = POINTS_0,
-    .home_tiebreak_points = 0,
-    .away_tiebreak_points = 0,
+    .home_points = 0,
+    .away_points = 0,
     .home_games = 0,
     .away_games = 0,
     .home_sets = 0,
     .away_sets = 0,
-    .action = BEGIN,
-    .golden_point = false,
-    .endless = true,
-    .tiebreak = false
-};
+    .set_games_home = {0},
+    .set_games_away = {0},
+    .tiebreak = false};
 
-padel_score_t padel_score_history[255];
-uint8_t padel_score_history_index = 0;
+Match match;
 
-void add_point(uint8_t team) {
-  sport == SPORT_PADEL ? add_point_padel(team) : add_point_default(team);
-  set_history(ADD_POINT);
-}
-
-void add_point_default(uint8_t team) {
-  uint8_t *current_points = (team == HOME) ? &score.home_points : &score.away_points;
-  uint8_t *opponent_points = (team == HOME) ? &score.away_points : &score.home_points;
-
-  ++*current_points;
-  if(*current_points >= max_score.current && (*current_points - *opponent_points > 1)) {
-    //buzzer_play_melody(NULL, HOME_WIN, home_set_win);
-    //disable_buttons();
+void Match::addPoint(team_t team) {
+  history.push_back({team, 0, EventType::PointScored});
+  bool home_set_won = false;
+  bool away_set_won = false;
+  if (sport == SPORT_PADEL) {
+    padel_score_t new_score = getPadelScore();
+    home_set_won = new_score.home_sets > padel_score.home_sets;
+    away_set_won = new_score.away_sets > padel_score.away_sets;
+    padel_score = new_score;
+  } else {
+    score_t new_score = getScore();
+    home_set_won = new_score.home_sets > score.home_sets;
+    away_set_won = new_score.away_sets > score.away_sets;
+    score = new_score;
+  }
+  if (home_set_won || away_set_won) {
     set_win(team);
-  }
-  else {
+  } else {
     play_add_point_sound();
-  }  
+  }
 }
 
-void add_point_padel(uint8_t team) {
-  bool tiebreak = padel_score.tiebreak;
-  if(tiebreak) {
-    uint8_t *current_points = (team == HOME) ? &padel_score.home_tiebreak_points : &padel_score.away_tiebreak_points;
-    uint8_t *opponent_points = (team == HOME) ? &padel_score.away_tiebreak_points : &padel_score.home_tiebreak_points;
-    ++*current_points;
-    play_add_point_sound();
-    
-    if ((*current_points >= 7) && (*current_points - *opponent_points >= 2)) set_win(team);
-  }
-  else {
-    padel_points_t *current_points = (team == HOME) ? &padel_score.home_points : &padel_score.away_points;
-    padel_points_t *opponent_points = (team == HOME) ? &padel_score.away_points : &padel_score.home_points;
-    bool golden_point = padel_score.golden_point;
-
-    switch (*current_points){
-      case POINTS_0:
-        set_point(current_points, POINTS_15);
-        break;
-      case POINTS_15: 
-        set_point(current_points, POINTS_30);
-        break;
-      case POINTS_30:
-        set_point(current_points, POINTS_40);
-        break;
-      case POINTS_40:
-        if(golden_point) game_win(team); 
-        else {
-          if(*opponent_points == POINTS_40) {
-            set_point(current_points, POINTS_ADV);
-          }
-          else if(*opponent_points == POINTS_ADV) {
-            set_point(opponent_points, POINTS_40);
-          }
-          else game_win(team);
+void Match::undoPoint(team_t team) {
+  if (!history.empty()) {
+    for (auto it = history.rbegin(); it != history.rend(); ++it) {  // rbegin() returns the last element and rend() returns the element before the first element
+      if ((team == LAST_TEAM || it->team == team) && it->type == EventType::PointScored) {
+        history.erase(std::next(it).base());
+        if (sport == SPORT_PADEL) {
+          padel_score = getPadelScore();
+        } else {
+          score = getScore();
         }
-        break;
-      case POINTS_ADV:
-        game_win(team);
-        break;
+        play_undo_point_sound();
+        return;
+      }
     }
   }
 }
 
-void set_point(padel_points_t *points, padel_points_t value) {
-  *points = value;
-  play_add_point_sound();
+void Match::reset() {
+  history.clear();
+  if (sport == SPORT_PADEL) {
+    padel_score = getPadelScore();
+  } else {
+    score = getScore();
+  }
+}
+
+score_t Match::getScore() const {
+  score_t state = {0, 0, 0, 0, {0}, {0}};
+  calculateScoreInternal(state);
+  return state;
+}
+
+void Match::calculateScoreInternal(score_t &state) const {
+  for (const auto &event : history) {
+    if (event.type == EventType::PointScored) {
+      uint8_t *current_p = (event.team == HOME) ? &state.home_points : &state.away_points;
+      uint8_t *other_p = (event.team == HOME) ? &state.away_points : &state.home_points;
+
+      (*current_p)++;
+
+      uint8_t set_idx = state.home_sets + state.away_sets;
+      uint8_t current_max = (set_idx < MAX_SETS) ? set_points_max[set_idx] : max_score.current;
+
+      if (*current_p >= current_max && (*current_p - *other_p >= 2)) {
+        // Set Won
+        uint8_t *current_sets = (event.team == HOME) ? &state.home_sets : &state.away_sets;
+
+        if (set_idx < MAX_SETS) {
+          state.set_points_home[set_idx] = state.home_points;
+          state.set_points_away[set_idx] = state.away_points;
+        }
+
+        (*current_sets)++;
+        state.home_points = 0;
+        state.away_points = 0;
+      }
+    }
+  }
+}
+
+padel_score_t Match::getPadelScore() const {
+  padel_score_t state = {0, 0, 0, 0, 0, 0, {0}, {0}, false};
+  calculatePadelScoreInternal(state);
+  return state;
+}
+
+void Match::calculatePadelScoreInternal(padel_score_t &state) const {
+  for (const auto &event : history) {
+    if (event.type == EventType::PointScored) {
+      uint8_t *current_p = (event.team == HOME) ? &state.home_points : &state.away_points;
+      uint8_t *other_p = (event.team == HOME) ? &state.away_points : &state.home_points;
+
+      if (state.tiebreak) {
+        (*current_p)++;
+        if ((*current_p >= 7) && (*current_p - *other_p >= 2)) {
+          game_win(state, event.team);
+        }
+      } else {
+        switch (*current_p) {
+          case POINTS_0:
+            *current_p = POINTS_15;
+            break;
+          case POINTS_15:
+            *current_p = POINTS_30;
+            break;
+          case POINTS_30:
+            *current_p = POINTS_40;
+            break;
+          case POINTS_40:
+            if (golden_point) game_win(state, event.team);
+            else {
+              if (*other_p == POINTS_40) {
+                *current_p = POINTS_ADV;
+              } else if (*other_p == POINTS_ADV) {
+                *other_p = POINTS_40;
+              } else
+                game_win(state, event.team);
+            }
+            break;
+          case POINTS_ADV:
+            game_win(state, event.team);
+            break;
+        }
+      }
+    }
+  }
+}
+
+void add_point(team_t team) {
+  match.addPoint(team);
+}
+
+void undo_point(team_t team) {
+  if (match.history.empty()) {
+    set_hold_time_ms(SMALL_HOLD_TIME_MS);
+    sport == SPORT_PADEL ? init_set_padel_deuce_type_scr() : init_set_max_points_scr();
+  } else {
+    if (sport == SPORT_PADEL) {
+      padel_score_t s = match.getPadelScore();
+
+      if (s.home_points == 0 && s.away_points == 0) {
+        match.undoPoint(LAST_TEAM);
+        init_play_scr();
+      } else if (team == HOME && s.home_points > 0) {
+        match.undoPoint(HOME);
+        init_play_scr();
+      } else if (team == AWAY && s.away_points > 0) {
+        match.undoPoint(AWAY);
+        init_play_scr();
+      } else if (team == LAST_TEAM) {
+        match.undoPoint(LAST_TEAM);
+        init_play_scr();
+      }
+    } else {
+      score_t s = match.getScore();
+
+      if (s.home_points == 0 && s.away_points == 0) {
+        match.undoPoint(LAST_TEAM);
+        init_play_scr();
+      } else if (team == HOME && s.home_points > 0) {
+        match.undoPoint(HOME);
+        init_play_scr();
+      } else if (team == AWAY && s.away_points > 0) {
+        match.undoPoint(AWAY);
+        init_play_scr();
+      } else if (team == LAST_TEAM) {
+        match.undoPoint(LAST_TEAM);
+        init_play_scr();
+      }
+    }
+  }
 }
 
 void set_padel_game_type() {
-  padel_score.endless = padel_game_type_option.current == TOURNAMENT;
+  endless = padel_game_type_option.current == TOURNAMENT;
 }
 
 void set_padel_deuce_type() {
-  padel_score.golden_point = padel_deuce_option.current == GOLDEN_POINT;
+  golden_point = padel_deuce_option.current == GOLDEN_POINT;
 }
 
-void set_padel_tiebreak_mode() {
-  padel_score.tiebreak = true;
-}
+void game_win(padel_score_t &state, team_t team) {
+  uint8_t *current_games = (team == HOME) ? &state.home_games : &state.away_games;
+  uint8_t *opponent_games = (team == HOME) ? &state.away_games : &state.home_games;
 
-void game_win(uint8_t team) {
-  uint8_t *current_games = (team == HOME) ? &padel_score.home_games : &padel_score.away_games;
-  uint8_t *opponent_games = (team == HOME) ? &padel_score.away_games : &padel_score.home_games;
-  bool endless = padel_score.endless;
+  (*current_games)++;
+  reset_points(state);
 
-  reset_points();
-  ++*current_games;
+  if (!endless) {
+    if (((*current_games >= 6 && ((*current_games - *opponent_games > 1))) || state.tiebreak)) {
+      uint8_t *current_sets = (team == HOME) ? &state.home_sets : &state.away_sets;
+      uint8_t set_idx = state.home_sets + state.away_sets;
+      if (set_idx < MAX_SETS) {
+        state.set_games_home[set_idx] = state.home_games;
+        state.set_games_away[set_idx] = state.away_games;
+      }
 
-  if(!endless) {
-    if((*current_games >= 6 && (*current_games - *opponent_games > 1))) {
-      set_win(team);
-    }
-    else if (*current_games == 6 && *opponent_games == 6) {
-      set_padel_tiebreak_mode();
+      (*current_sets)++;
+      reset_games(state);
+    } else if (*current_games == 6 && *opponent_games == 6) {
+      state.tiebreak = true;
     }
   }
 }
 
-void set_win(uint8_t team) {
+void set_win(team_t team) {
   play_win_sound();
-  if(sport == SPORT_PADEL) { 
-    uint8_t *current_sets = (team == HOME) ? &padel_score.home_sets : &padel_score.away_sets;
-    
-    ++*current_sets;
-  }
-  else {
-    uint8_t *current_sets = (team == HOME) ? &score.home_sets : &score.away_sets;
-    
-    ++*current_sets;
-  }
   init_play_result_scr(team);
 }
 
-/**void undo_point() {
-  if(sport == SPORT_PADEL) {   
-    if(padel_score_history_index == 0) {
-      set_hold_time_ms(500);
-      init_set_padel_deuce_type_scr();
-    }
-    else get_history();
-    buzzer_enqueue_note(NOTE_C, 7, 150, nullptr);
-    buzzer_enqueue_note(NOTE_A, 7, 100, nullptr);
-  }
-  else {
-    if(score_history_index == 0) {
-      set_hold_time_ms(500); //TODO: centralize logic
-      init_set_max_points_scr();
-    }
-    else get_history();
-    buzzer_enqueue_note(NOTE_C, 7, 150, nullptr);
-    buzzer_enqueue_note(NOTE_A, 7, 100, nullptr);
-  }
-}**/
-
-void undo_point(uint8_t team) {
-  if(sport == SPORT_PADEL) {
-    if(padel_score.tiebreak) {
-       uint8_t *current_points = (team == HOME) ? &padel_score.home_tiebreak_points : &padel_score.away_tiebreak_points;
-       if(*current_points > 0) --*current_points;
-    } else {
-      padel_points_t *current_points = (team == HOME) ? &padel_score.home_points : &padel_score.away_points;
-      switch (*current_points){
-        case POINTS_15: 
-          set_point(current_points, POINTS_0);
-          break;
-        case POINTS_30:
-          set_point(current_points, POINTS_15);
-          break;
-        case POINTS_40:
-          set_point(current_points, POINTS_30);
-          break;
-        case POINTS_ADV:
-          set_point(current_points, POINTS_40);
-          break;
-        default:
-          break;
-      }
-    }
-    set_history(UNDO_POINT);
-  } 
-  else {
-    uint8_t *current_points = (team == HOME) ? &score.home_points : &score.away_points;
-    if(*current_points > 0) {
-      --*current_points;
-      set_history(UNDO_POINT);
-    }
-    else if(score.home_points == 0 && score.away_points == 0) {
-      if(score_history_index == 0) {
-        set_hold_time_ms(500);
-        init_set_max_points_scr();
-      }
-      else {
-        uint8_t team = get_history();
-        init_play_result_scr(team);
-      }
-    }
-  }
-
-  play_undo_point_sound();
+template <typename T>
+void reset_points(T &state) {
+  state.home_points = 0;
+  state.away_points = 0;
 }
 
-void reset_points() {
-  if(sport == SPORT_PADEL) {    
-    padel_score.home_points = POINTS_0;
-    padel_score.away_points = POINTS_0;
-  }
-  else {
-    score.home_points = 0;
-    score.away_points = 0;
-  }
-}
-
-void reset_games() {
-  reset_points(); 
-  padel_score.home_games = 0;
-  padel_score.away_games = 0;
-  if(padel_score.tiebreak) {
-    padel_score.tiebreak = false;
-    padel_score.home_tiebreak_points = 0;
-    padel_score.away_tiebreak_points = 0;
+void reset_games(padel_score_t &state) {
+  reset_points(state);
+  state.home_games = 0;
+  state.away_games = 0;
+  if (state.tiebreak) {
+    state.tiebreak = false;
   }
 }
 
 void reset_score() {
-  if(sport == SPORT_PADEL) {
-    reset_games();
-  }
-  else {
-    reset_points();
-  }
-  set_history(BEGIN);
+  match.reset();
+  max_score = {0, 0, 0};
+  for (int i = 0; i < MAX_SETS; i++) set_points_max[i] = 0;
 }
