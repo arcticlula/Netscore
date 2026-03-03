@@ -1,0 +1,10 @@
+menu "ESP HID Host Configuration"
+
+    config LOG_BUTTON_EVENTS_ONLY
+        bool "Log button events only (suppress hex dumps)"
+        default n
+        help
+            When enabled, suppresses verbose hex dumps during GATT notifications
+            to reduce log noise. Only button event logs will be shown.
+
+endmenu
