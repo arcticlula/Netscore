@@ -1,0 +1,15 @@
+{
+  "name": "netscore-web",
+  "version": "1.0.0",
+  "description": "Wasm scoreboard with hot reload",
+  "scripts": {
+    "dev": "concurrently \"npm run watch:build\" \"npm run serve\"",
+    "watch:build": "nodemon --watch src -e cpp --exec \"./build.sh\"",
+    "serve": "live-server --port=8080 --watch=index.html,build/netscore.js,build/netscore.wasm"
+  },
+  "devDependencies": {
+    "concurrently": "^9.0.0",
+    "live-server": "^1.2.0",
+    "nodemon": "^3.0.0"
+  }
+}

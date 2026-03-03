@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scoreboard</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;700&display=swap');
+
+        body {
+            background-color: #050505;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            margin: 0;
+            font-family: 'Outfit', sans-serif;
+            color: #ccc;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        .scoreboard-container {
+            display: flex;
+            align-items: center;
+            gap: 40px;
+            background: #111;
+            padding: 20px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8), inset 0 0 50px rgba(20, 20, 20, 0.5);
+            border: 1px solid #222;
+        }
+
+        .score-group {
+            display: flex;
+            align-items: center;
+        }
+
+        .score-group.middle {
+            gap: 20px;
+        }
+
+        .digit-container {
+            width: 90px;
+            height: 140px;
+            position: relative;
+        }
+
+        .digit-container.small {
+            width: 45px;
+            height: 70px;
+        }
+
+        .label {
+            text-align: center;
+            font-size: 0.8rem;
+            color: #555;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 10px;
+        }
+
+        .column {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        svg {
+            width: 100%;
+            height: 100%;
+            overflow: visible;
+        }
+
+        .segment {
+            fill: #222;
+            transition: all 0.1s ease-out;
+            fill-opacity: 0.15;
+        }
+
+        /* RED DIGITS */
+        .digit-red .segment.on {
+            fill: #ff0033;
+            filter: drop-shadow(0 0 8px rgba(255, 0, 51, var(--brightness, 1))) drop-shadow(0 0 15px rgba(255, 0, 0, var(--brightness, 1)));
+            fill-opacity: var(--brightness, 1);
+        }
+
+        /* GREEN (575nm - Yellow-Green) DIGITS */
+        .digit-green .segment.on {
+            fill: #ccff00;
+            filter: drop-shadow(0 0 8px rgba(204, 255, 0, var(--brightness, 1))) drop-shadow(0 0 15px rgba(187, 255, 0, var(--brightness, 1)));
+            fill-opacity: var(--brightness, 1);
+        }
+
+        .digit-green .segment {
+            fill: #222;
+        }
+
+        .reset-button {
+            background-color: #ccff00;
+            cursor: pointer;
+            font-size: 0.8rem;
+            color: #555;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 10px;
+        }
+
+        /* Mobile Responsiveness */
+        @media (max-width: 768px) {
+            .scoreboard-container {
+                padding: 15px 20px;
+                gap: 10px;
+                transform: scale(0.5);
+                transform-origin: top center;
+                box-sizing: border-box;
+            }
+
+            .score-group {
+                gap: 5px;
+            }
+
+            .digit-container {
+                /* Let scale handle the resizing, but ensure spacing is tight */
+                margin: 0 2px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <svg width="0" height="0" style="display: none;">
+        <defs>
+            <!-- Top/Bottom Horizontal -->
+            <path id="seg-horz" d="M 24,4 L 76,4 L 82,10 L 76,16 L 24,16 L 18,10 Z" />
+
+            <!-- Side Vertical -->
+            <path id="seg-vert" d="M 4,24 L 4,61 L 10,67 L 16,61 L 16,24 L 10,18 Z" />
+
+            <!-- Middle Horizontal -->
+            <path id="seg-mid" d="M 24,4 L 76,4 L 82,10 L 76,16 L 24,16 L 18,10 Z" />
+
+            <!-- Decimal Point (DP) -->
+            <circle id="seg-dp" cx="6" cy="6" r="6" />
+
+            <!-- Speaker On Icon -->
+            <g id="icon-speaker-on">
+                <path
+                    d="M11 5L6 9H2v6h4l5 4V5z m3.71 6c0-1.66-1.01-3.07-2.43-3.64v7.27c1.42-.57 2.43-1.98 2.43-3.63z m-2.43 8.26v2.09c3.02-.63 5.56-2.92 6.22-5.91l-2.06-.41c-.51 2.11-2.29 3.76-4.16 4.23z m4.16-12.26l2.06-.41C17.84 3.73 15.3 1.44 12.28.81V2.9c1.87.47 3.65 2.12 4.16 4.23z"
+                    fill="#555" />
+            </g>
+
+            <!-- Speaker Off Icon -->
+            <g id="icon-speaker-off">
+                <path
+                    d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63z m2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73 4.27 3zM12 4L9.91 6.09 12 8.18V4z"
+                    fill="#555" />
+            </g>
+        </defs>
+    </svg>
+
+    <script>
+        function createDigitSVG(idPrefix, colorClass) {
+            return `
+                <svg viewBox="0 0 110 150" class="digit ${colorClass}" id="${idPrefix}">
+                    <g transform="skewX(-6) translate(15, 5)">
+                        <!-- A: Top -->
+                        <use href="#seg-horz" x="0" y="15" id="${idPrefix}-a" class="segment" />
+                        
+                        <!-- B: Top Right -->
+                        <use href="#seg-vert" x="72" y="10" id="${idPrefix}-b" class="segment" />
+                        
+                        <!-- C: Bottom Right -->
+                        <use href="#seg-vert" x="72" y="65" id="${idPrefix}-c" class="segment" />
+                        
+                        <!-- D: Bottom -->
+                        <use href="#seg-horz" x="0" y="125" id="${idPrefix}-d" class="segment" />
+                        
+                        <!-- E: Bottom Left -->
+                        <use href="#seg-vert" x="8" y="65" id="${idPrefix}-e" class="segment" />
+                        
+                        <!-- F: Top Left -->
+                        <use href="#seg-vert" x="8" y="10" id="${idPrefix}-f" class="segment" />
+                        
+                        <!-- G: Middle -->
+                        <use href="#seg-mid" x="0" y="70" id="${idPrefix}-g" class="segment" />
+                        
+                        <!-- H: Decimal Point -->
+                        <use href="#seg-dp" x="90" y="130" id="${idPrefix}-h" class="segment" />
+                    </g>
+                </svg>
+            `;
+        }
+    </script>
+
+    <div class="scoreboard-container">
+        <!-- Home -->
+        <div class="column">
+            <div class="label">Home</div>
+            <div class="score-group">
+                <div class="digit-container">
+                    <script>document.write(createDigitSVG('home-tens', 'digit-red'));</script>
+                </div>
+                <div class="digit-container">
+                    <script>document.write(createDigitSVG('home-ones', 'digit-red'));</script>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sets -->
+        <div class="column">
+            <button id="resetBtn" class="reset-button">
+                Reset
+            </button>
+            <div class="label">Sets</div>
+            <div class="score-group middle">
+                <div class="digit-container small">
+                    <script>document.write(createDigitSVG('sets-home', 'digit-green'));</script>
+                </div>
+                <div id="muteBtn" class="mute-button" title="Toggle Mute">
+                    <svg viewBox="0 0 24 24" id="mute-icon-svg">
+                        <use href="#icon-speaker-off" id="mute-icon-use" />
+                    </svg>
+                </div>
+                <div class="digit-container small">
+                    <script>document.write(createDigitSVG('sets-away', 'digit-green'));</script>
+                </div>
+            </div>
+        </div>
+
+        <!-- Away -->
+        <div class="column">
+            <div class="label">Away</div>
+            <div class="score-group">
+                <div class="digit-container">
+                    <script>document.write(createDigitSVG('away-tens', 'digit-red'));</script>
+                </div>
+                <div class="digit-container">
+                    <script>document.write(createDigitSVG('away-ones', 'digit-red'));</script>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="remotes-wrapper">
+        <!-- Device 1: Home Remote -->
+        <div class="controls-container">
+            <img src="ab_shutter_2btn.png" class="remote-bg" alt="Remote Control">
+            <button id="btn_1_A" class="overlay-btn btn-1-a" title="Button_1_A"></button>
+            <button id="btn_1_B" class="overlay-btn btn-1-b" title="Button_1_B"></button>
+        </div>
+
+        <!-- Device 2: Away Remote -->
+        <div class="controls-container">
+            <img src="ab_shutter_1btn.png" class="remote-bg" alt="Remote Control 2">
+            <button id="btn_2" class="overlay-btn btn-2" title="Button_2"></button>
+        </div>
+    </div>
+
+    <style>
+        .remotes-wrapper {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .controls-container {
+            position: relative;
+            width: 300px;
+            max-width: 45%;
+        }
+
+        @media (max-width: 768px) {
+            .remotes-wrapper {
+                margin-top: -100px;
+                gap: 10px;
+                width: 100%;
+                padding: 0 10px;
+                box-sizing: border-box;
+                justify-content: center;
+            }
+
+            .controls-container {
+                width: 45%;
+            }
+        }
+
+        .remote-bg {
+            width: 100%;
+            height: auto;
+            display: block;
+            pointer-events: none;
+            filter: drop-shadow(0 10px 20px rgba(0, 0, 0, 0.5));
+        }
+
+        .overlay-btn {
+            position: absolute;
+            background: rgba(0, 0, 0, 0);
+            border: 1px solid rgba(0, 0, 0, 0);
+            cursor: pointer;
+            border-radius: 50%;
+        }
+
+        .overlay-btn:active {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .btn-1-a {
+            width: 21.67%;
+            padding-top: 21.67%;
+            height: 0;
+            left: 39%;
+            top: 28.2%;
+        }
+
+        .btn-1-b {
+            width: 16.33%;
+            padding-top: 15.33%;
+            height: 0;
+            left: 41.6%;
+            top: 54%;
+        }
+
+        .btn-2 {
+            width: 17.67%;
+            padding-top: 17.67%;
+            height: 0;
+            left: 39.6%;
+            top: 34%;
+        }
+
+        .mute-button {
+            width: 40px;
+            height: 40px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 10px;
+        }
+
+        .mute-button svg {
+            width: 100%;
+            height: 100%;
+            fill: #555;
+            transition: fill 0.2s;
+        }
+
+        .mute-button:hover svg path {
+            fill: #ccff00;
+        }
+    </style>
+
+    <script src="build/netscore.js"></script>
+
+    <script>
+        // Audio Context
+        let audioCtx;
+
+        function initAudio() {
+            if (!audioCtx) {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                audioCtx = new AudioContext();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        window.playTone = function (frequency, durationMs, delayMs) {
+            if (!audioCtx) return;
+
+            const startTime = audioCtx.currentTime + (delayMs / 1000);
+            const duration = durationMs / 1000;
+
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+
+            osc.type = 'square'; // chiptune style
+            osc.frequency.value = frequency;
+
+            gain.gain.setValueAtTime(0, startTime);
+            gain.gain.linearRampToValueAtTime(0.1, startTime + 0.01); // Attack
+            gain.gain.setValueAtTime(0.1, startTime + duration - 0.01);
+            gain.gain.linearRampToValueAtTime(0, startTime + duration); // Release
+
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            osc.start(startTime);
+            osc.stop(startTime + duration);
+        };
+
+        let intervalId;
+
+        const BUTTON_PRESS = 0;
+        const BUTTON_HOLD = 1;
+        const BUTTON_A_PRESS = 2;
+        const BUTTON_B_PRESS = 3;
+        const BUTTON_A_HOLD = 4;
+        const BUTTON_B_HOLD = 5;
+
+        const DEVICE_1 = 1;
+        const DEVICE_2 = 2;
+
+        Module.onRuntimeInitialized = function () {
+            Module._init_system();
+            startLoop();
+        };
+
+        let animationFrameId;
+
+        function startLoop() {
+            if (intervalId) clearInterval(intervalId);
+            if (animationFrameId) cancelAnimationFrame(animationFrameId);
+
+            // Simulation Loop (2.05ms)
+            intervalId = setInterval(() => {
+                Module._advance_mux_and_update();
+            }, 2.05);
+
+            // Render Loop (60Hz / Monitor Refresh Rate)
+            render();
+        }
+
+        function render() {
+            updateUI();
+            animationFrameId = requestAnimationFrame(render);
+        }
+
+        function updateDigit(prefix, mux, side, baseChannel) {
+            const segments = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+            for (let i = 0; i < 8; i++) {
+                const val = Module._get_led_value(mux, side, baseChannel + i);
+                const el = document.getElementById(`${prefix}-${segments[i]}`);
+                if (el) {
+                    if (val > 0) {
+                        el.classList.add('on');
+                        el.style.setProperty('--brightness', val / 4095.0);
+                    } else {
+                        el.classList.remove('on');
+                        el.style.setProperty('--brightness', 0);
+                    }
+                }
+            }
+        }
+
+        function updateUI() {
+            const SIDE_A = 0;
+            updateDigit('home-tens', 0, SIDE_A, 0);
+            updateDigit('away-tens', 0, SIDE_A, 8);
+            updateDigit('home-ones', 1, SIDE_A, 0);
+            updateDigit('away-ones', 1, SIDE_A, 8);
+            updateDigit('sets-home', 2, SIDE_A, 0);
+            updateDigit('sets-away', 2, SIDE_A, 8);
+        }
+
+        function setupButton(btn, deviceId, pressEvent, holdEvent) {
+            let timer;
+            let isHold = false;
+
+            const startPress = () => {
+                isHold = false;
+                const HOLD_TIME = Module._get_hold_time_ms ? Module._get_hold_time_ms() : 500;
+
+                timer = setTimeout(() => {
+                    isHold = true;
+                    Module._trigger_button_event(deviceId, holdEvent);
+                }, HOLD_TIME);
+            };
+
+            const endPress = () => {
+                if (timer) clearTimeout(timer);
+                if (!isHold) {
+                    Module._trigger_button_event(deviceId, pressEvent);
+                }
+                isHold = false;
+            };
+
+            // Mouse events
+            btn.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                startPress();
+            });
+            btn.addEventListener('mouseup', (e) => {
+                e.preventDefault();
+                endPress();
+            });
+            btn.addEventListener('mouseleave', (e) => {
+                if (timer) {
+                    clearTimeout(timer);
+                    timer = null;
+                }
+            });
+
+            // Touch events
+            btn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                startPress();
+            });
+            btn.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                endPress();
+            });
+        }
+
+        // Setup Device 1 Buttons (Blue 2 btn Remote)
+        const btn1A = document.getElementById('btn_1_A');
+        const btn1B = document.getElementById('btn_1_B');
+        setupButton(btn1A, DEVICE_1, BUTTON_A_PRESS, BUTTON_A_HOLD);
+        setupButton(btn1B, DEVICE_1, BUTTON_B_PRESS, BUTTON_B_HOLD);
+
+        // Setup Device 2 Button (White 1 btn Remote)
+        const btn2 = document.getElementById('btn_2');
+        setupButton(btn2, DEVICE_2, BUTTON_PRESS, BUTTON_HOLD);
+
+        const resetBtn = document.getElementById('resetBtn');
+        if (resetBtn) {
+            resetBtn.addEventListener('click', () => {
+                if (Module._reset_simulation) {
+                    Module._reset_simulation();
+                }
+            });
+        }
+
+        let isMuted = true;
+        const muteBtn = document.getElementById('muteBtn');
+        const muteIconUse = document.getElementById('mute-icon-use');
+
+        if (muteBtn) {
+            muteBtn.addEventListener('click', () => {
+                initAudio();
+                isMuted = !isMuted;
+                if (Module._set_muted) {
+                    Module._set_muted(isMuted ? 1 : 0);
+                }
+
+                if (isMuted) {
+                    muteIconUse.setAttribute('href', '#icon-speaker-off');
+                } else {
+                    muteIconUse.setAttribute('href', '#icon-speaker-on');
+                }
+            });
+        }
+    </script>
+</body>
+
+</html>
