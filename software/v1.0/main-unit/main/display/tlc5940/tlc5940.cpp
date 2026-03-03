@@ -49,8 +49,8 @@ volatile uint8_t current_mux = 0;
 uint8_t mux_a[] = {MUX_A_DD_1, MUX_A_DD_2, MUX_A_SD};
 uint8_t mux_b[] = {MUX_B_DD_1, MUX_B_DD_2, MUX_B_SD};
 
-float segment_a[6] = {BIG_RED, BIG_RED, SMALL_GREEN, SMALL_GREEN, BIG_RED, BIG_RED};
-float segment_b[6] = {BIG_PURE_GREEN, BIG_PURE_GREEN, SMALL_RED, SMALL_RED, BIG_PURE_GREEN, BIG_PURE_GREEN};
+float segment_a[6] = SEGMENT_A_VALUES;
+float segment_b[6] = SEGMENT_B_VALUES;
 
 gpio_num_t mux_a_1, mux_a_2, mux_a_3;
 gpio_num_t mux_b_1, mux_b_2, mux_b_3;
@@ -499,9 +499,9 @@ void tlc_dcModeStop(void) {
 #endif
 
 static const uint8_t digit_lookup[3][2] = {
-    {0, 4},
-    {1, 5},
-    {2, 3}};
+    {4, 0},
+    {5, 1},
+    {3, 2}};
 
 uint16_t get_corrected_value(uint8_t channel, uint16_t value) {
   uint8_t chan = channel < 16 ? channel : channel - 16;

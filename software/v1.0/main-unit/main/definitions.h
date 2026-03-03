@@ -3,6 +3,8 @@
 
 #define DEBUG_BAT
 
+#define ENABLE_BUZZER 0
+
 #ifndef LOW
 #define LOW 0
 #endif
@@ -29,7 +31,8 @@
 #define MAX_SETS 15
 
 #define BIG_RED 90
-#define BIG_PURE_GREEN 40
+#define BIG_BLUE 100
+#define BIG_PURE_GREEN 42
 #define SMALL_RED 90
 #define SMALL_GREEN 100
 
@@ -179,3 +182,21 @@ extern uint8_t menu_options[5][6];
 
 extern option_string_2_t padel_game_type_option;
 extern option_string_2_t padel_deuce_option;
+// --- DISPLAY COLOR CONFIGURATION ---
+
+// Define complete color layouts for a full 6-digit face of the scoreboard
+// Large_Home_1, Large_Home_2, Small_Home, Small_Away, Large_Away_1, Large_Away_2
+
+#define FACE_RED_GREEN_RED BIG_RED, BIG_RED, SMALL_GREEN, SMALL_GREEN, BIG_RED, BIG_RED
+#define FACE_GREEN_RED_GREEN BIG_PURE_GREEN, BIG_PURE_GREEN, SMALL_GREEN, SMALL_RED, BIG_PURE_GREEN, BIG_PURE_GREEN
+#define FACE_BLUE_GREEN_BLUE BIG_BLUE, BIG_BLUE, SMALL_GREEN, SMALL_GREEN, BIG_BLUE, BIG_BLUE
+#define FACE_RED_GREEN BIG_RED, BIG_RED, SMALL_GREEN, SMALL_GREEN, BIG_PURE_GREEN, BIG_PURE_GREEN
+#define FACE_GREEN_RED BIG_PURE_GREEN, BIG_PURE_GREEN, SMALL_GREEN, SMALL_RED, BIG_RED, BIG_RED
+#define FACE_BLUE_GREEN_RED BIG_BLUE, BIG_BLUE, SMALL_GREEN, SMALL_GREEN, BIG_RED, BIG_RED
+#define FACE_OFF 0, 0, 0, 0, 0, 0
+
+#define DISPLAY_A_LAYOUT FACE_RED_GREEN
+#define DISPLAY_B_LAYOUT FACE_BLUE_GREEN_RED
+
+#define SEGMENT_A_VALUES {DISPLAY_A_LAYOUT}
+#define SEGMENT_B_VALUES {DISPLAY_B_LAYOUT}

@@ -9,3 +9,8 @@
 /software/v1.0/main-unit/.cache
 /software/web/node_modules
 *.code-workspace
+/software/v1.1/bl-hub-s3/.cache
+/software/v1.1/main-unit-s3/.cache
+/software/v2.0/main-unit/.cache
+/software/v2.0/side-unit/.cache
+/software/web/display/node_modules

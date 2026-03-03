@@ -1,6 +1,8 @@
 #include "buzzer.h"
 
+#include "driver/gpio.h"
 #include "driver/ledc.h"
+#include "esp_log.h"
 #include "esp_timer.h"
 #include "tasks.h"
 #include "wifi/esp-now.h"
@@ -20,7 +22,6 @@ const uint16_t wholenote = (60000UL * 4) / tempo;
 uint8_t divider = 0, note_duration = 0;
 volatile bool note_done = true;
 
-static callback_t melody_callback = NULL;
 melody_note_t current_note;
 
 esp_timer_handle_t timer_stop_buzzer_a_handle;
@@ -39,6 +40,7 @@ void init_buzzer() {
   ledc_timer_config(&ledc_timer);
 
   // Configure LEDC channel for buzzer A
+  gpio_reset_pin((gpio_num_t)BUZZER_A_PIN);
   ledc_channel_config_t ledc_channel_a = {};
   ledc_channel_a.gpio_num = BUZZER_A_PIN;           // GPIO pin for buzzer A
   ledc_channel_a.speed_mode = LEDC_LOW_SPEED_MODE;  // High speed mode
@@ -51,6 +53,7 @@ void init_buzzer() {
   ledc_channel_config(&ledc_channel_a);
 
   // Configure LEDC channel for buzzer B
+  gpio_reset_pin((gpio_num_t)BUZZER_B_PIN);
   ledc_channel_config_t ledc_channel_b = {};
   ledc_channel_b.gpio_num = BUZZER_B_PIN;           // GPIO pin for buzzer B
   ledc_channel_b.speed_mode = LEDC_LOW_SPEED_MODE;  // High speed mode
@@ -89,10 +92,15 @@ void buzzer_start(note_t note, uint8_t octave) {
 void buzzer_play(uint8_t buzzer, note_t note, uint8_t octave, int16_t duration_ms) {
   ledc_channel_t channel = buzzer == SIDE_A ? BUZZER_A_LEDC_CHN : BUZZER_B_LEDC_CHN;
   play_note(channel, note, octave);
+  esp_timer_stop(melody_timer_handle);
   esp_timer_start_once(melody_timer_handle, duration_ms * 1000);
 }
 
 void buzzer_enqueue_note(note_t note, uint8_t octave, int16_t duration_ms, callback_t callback) {
+#if !ENABLE_BUZZER
+  return;
+#endif
+
   int8_t divider = 0;
   if (duration_ms > 0) {
     divider = wholenote / duration_ms;
@@ -108,6 +116,10 @@ void buzzer_enqueue_note(note_t note, uint8_t octave, int16_t duration_ms, callb
 }
 
 void buzzer_enqueue_melody(uint8_t index, callback_t callback) {
+#if !ENABLE_BUZZER
+  return;
+#endif
+
   uint8_t size = 0;
   melody_note_t* notes = get_melody(index, &size);
   if (!notes || size == 0) {
@@ -146,6 +158,7 @@ melody_note_t* get_melody(uint8_t index, uint8_t* size) {
 
 void timer_melody_callback(void* arg) {
   buzzer_stop(BUZZER_A_LEDC_CHN);
+  buzzer_stop(BUZZER_B_LEDC_CHN);
   note_done = true;
   if (current_note.callback) {
     current_note.callback();
@@ -193,6 +206,7 @@ void melody_task(void* arg) {
 
       if (current_note.note != NONE && play_duration > 0) {
         buzzer_play(SIDE_A, current_note.note, octave, play_duration);
+        buzzer_play(SIDE_B, current_note.note, octave, play_duration);
         note_done = false;
         while (!note_done) {
           vTaskDelay(pdMS_TO_TICKS(5));

@@ -5,7 +5,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "ab_shutter.h"
 #include "driver/gpio.h"
 #include "esp_bt_defs.h"
 #include "esp_gap_ble_api.h"
@@ -19,7 +18,6 @@
 #include "freertos/event_groups.h"
 #include "freertos/task.h"
 #include "init.h"
-#include "itag.h"
 #include "nvs_flash.h"
 
 #ifndef ESP_BLE_AD_TYPE_MANUFACTURER_SPECIFIC
@@ -189,6 +187,10 @@ typedef struct {
     uint16_t hid_boot_kbd_input_char;  // 0x2A22 Boot Keyboard Input
     uint16_t hid_protocol_mode_char;   // 0x2A4E Protocol Mode
 } conn_ctx_t;
+
+#include "ab_shutter.h"
+#include "itag.h"
+#include "nvs_store.h"
 
 // Global variables
 extern gattc_profile_inst_t gl_profile_tab[PROFILE_NUM];

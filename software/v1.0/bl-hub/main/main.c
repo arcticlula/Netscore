@@ -87,8 +87,12 @@ typedef enum {
     GPIO_BUTTON_BEEP
 } gpio_button_event_t;
 
-// Array of device connections to track (used by legacy HID host path)
+// Array of ESP-NOW slots (2 concurrent slots max)
 device_connection_t device_connections[MAX_DEVICES] = {0};
+
+// Cache for known devices loaded from NVS
+known_device_t nvs_cache[NVS_MAX_DEVICES] = {0};
+int nvs_cache_count = 0;
 
 char* bda2str(uint8_t* bda, char* str, size_t size) {
     if (bda == NULL || str == NULL || size < 18) {
@@ -336,13 +340,15 @@ static void gattc_profile_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_
             if (ctx) {
                 ctx->conn_id = p_data->connect.conn_id;
                 active_conn_count++;
+
+                // Persist the device to NVS known list
+                nvs_add_known_device(p_data->connect.remote_bda);
+                // Update RAM cache
+                nvs_load_known_devices(nvs_cache, &nvs_cache_count);
+
+                // Dynamically assign a device slot for ESP-NOW sending
+                assign_device_slot(p_data->connect.remote_bda);
             }
-
-            // Persist the device to NVS known list
-            nvs_add_known_device(p_data->connect.remote_bda);
-
-            // Assign dynamic device_id slot for ESP-NOW routing
-            assign_device_slot(p_data->connect.remote_bda);
 
             memcpy(gl_profile_tab[PROFILE_A_APP_ID].remote_bda, p_data->connect.remote_bda, sizeof(esp_bd_addr_t));
             esp_err_t mtu_ret = esp_ble_gattc_send_mtu_req(gattc_if, p_data->connect.conn_id);
@@ -351,8 +357,8 @@ static void gattc_profile_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_
             }
 
             if (active_conn_count < MAX_CONN) {
-                ESP_LOGI(TAG, "Resuming scan for additional connections (STOP_SCANNING_AFTER_CONNECT disabled)");
-                esp_ble_gap_start_scanning(30);
+                ESP_LOGI(TAG, "Resuming scan for additional connections");
+                esp_ble_gap_start_scanning(0);
             }
             break;
         }
@@ -760,18 +766,25 @@ static void gattc_profile_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_
                 memset(ctx, 0, sizeof(*ctx));
                 active_conn_count = (active_conn_count > 0) ? active_conn_count - 1 : 0;
             }
-            // Mark device as disconnected but preserve BDA for reconnection attempts
+            // Release the device slot so other devices can use it
             for (int i = 0; i < MAX_DEVICES; ++i) {
                 if (memcmp(device_connections[i].bda, p_data->disconnect.remote_bda, 6) == 0) {
+                    memset(device_connections[i].bda, 0, 6);
                     device_connections[i].connected = false;
                     device_connections[i].dev = NULL;
-                    ESP_LOGI(TAG, "Marked device slot %d as disconnected (preserved BDA " ESP_BD_ADDR_STR " for reconnect)", i + 1, ESP_BD_ADDR_HEX(p_data->disconnect.remote_bda));
+                    device_connections[i].device_type = DEVICE_TYPE_UNKNOWN;
+                    ESP_LOGI(TAG, "Released device slot %d (BDA " ESP_BD_ADDR_STR " removed)", i + 1, ESP_BD_ADDR_HEX(p_data->disconnect.remote_bda));
                     break;
                 }
             }
 
             // Notify NOT_CONNECTED status over ESP-NOW for this device
             update_device_connection_status(p_data->disconnect.remote_bda, false, NULL);
+
+            if (active_conn_count < MAX_CONN) {
+                ESP_LOGI(TAG, "Device disconnected, room available (%d/%d), resuming scanning", active_conn_count, MAX_CONN);
+                esp_ble_gap_start_scanning(0);
+            }
         }
             ESP_LOGI(TAG, "Disconnected, remote " ESP_BD_ADDR_STR ", reason 0x%02x",
                      ESP_BD_ADDR_HEX(p_data->disconnect.remote_bda), p_data->disconnect.reason);
@@ -784,7 +797,7 @@ static void gattc_profile_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_
 void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t* param) {
     switch (event) {
         case ESP_GAP_BLE_SCAN_PARAM_SET_COMPLETE_EVT: {
-            uint32_t duration = 30;  // seconds
+            uint32_t duration = 0;  // 0 means scan continuously
             esp_ble_gap_start_scanning(duration);
             break;
         }
@@ -807,18 +820,12 @@ void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t* param) {
                     const uint8_t* name = find_ad_type(adv_all, adv_len, sr_len, ESP_BLE_AD_TYPE_NAME_CMPL, &name_len);
                     if (!name) name = find_ad_type(adv_all, adv_len, sr_len, ESP_BLE_AD_TYPE_NAME_SHORT, &name_len);
 
-                    // First priority: explicit MAC filter list loaded from NVS
+                    // First priority: explicit MAC filter list, checked from NVS RAM cache
                     bool is_explicit_target = false;
-                    {
-                        known_device_t list[NVS_MAX_DEVICES];
-                        int count = 0;
-                        if (nvs_load_known_devices(list, &count) && count > 0) {
-                            for (int i = 0; i < count; ++i) {
-                                if (memcmp(list[i].bda, scan_result->scan_rst.bda, 6) == 0) {
-                                    is_explicit_target = true;
-                                    break;
-                                }
-                            }
+                    for (int i = 0; i < nvs_cache_count; ++i) {
+                        if (memcmp(nvs_cache[i].bda, scan_result->scan_rst.bda, 6) == 0) {
+                            is_explicit_target = true;
+                            break;
                         }
                     }
 
@@ -906,6 +913,11 @@ void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t* param) {
                     break;
                 }
                 case ESP_GAP_SEARCH_INQ_CMPL_EVT:
+                    ESP_LOGI(TAG, "Scan complete");
+                    if (active_conn_count < MAX_CONN) {
+                        ESP_LOGI(TAG, "Scanning stopped but we have room (%d/%d connections). Restarting scan...", active_conn_count, MAX_CONN);
+                        esp_ble_gap_start_scanning(0);
+                    }
                     break;
                 default:
                     break;
@@ -1166,59 +1178,6 @@ void update_device_connection_status(const uint8_t* bda, bool connected, esp_hid
     }
 }
 
-// Attempt to reconnect a specific device
-bool reconnect_device(device_connection_t* conn) {
-    if (conn == NULL) return false;
-
-    uint32_t current_time = xTaskGetTickCount() * portTICK_PERIOD_MS;
-
-    // Only attempt reconnection if enough time has passed since last attempt
-    if (current_time - conn->last_reconnect_attempt < RECONNECTION_INTERVAL_MS) {
-        return false;
-    }
-
-    conn->last_reconnect_attempt = current_time;
-    char bda_str[18];
-    ESP_LOGI(TAG, "Attempting to reconnect (GATT client) device: %s (ID: %d)",
-             bda2str(conn->bda, bda_str, sizeof(bda_str)), conn->device_id);
-
-    esp_err_t er = esp_ble_gattc_open(gl_profile_tab[PROFILE_A_APP_ID].gattc_if,
-                                      conn->bda,
-                                      conn->addr_type,
-                                      true);
-    if (er == ESP_OK) {
-        ESP_LOGI(TAG, "Reconnect initiated successfully (esp_ble_gattc_open)");
-        // Do not mark connected here; will set status in CONNECT_EVT after success
-        return true;
-    } else {
-        ESP_LOGE(TAG, "Reconnect open failed: %s", esp_err_to_name(er));
-        return false;
-    }
-}
-
-// Connection monitoring task
-void connection_monitor_task(void* pvParameters) {
-    const TickType_t xDelay = pdMS_TO_TICKS(RECONNECTION_INTERVAL_MS);
-
-    while (1) {
-        for (int i = 0; i < MAX_DEVICES; i++) {
-            device_connection_t* conn = &device_connections[i];
-            // Skip empty slots (all zeros BDA)
-            bool empty = true;
-            for (int j = 0; j < 6; j++) {
-                if (conn->bda[j] != 0) {
-                    empty = false;
-                    break;
-                }
-            }
-            if (!empty && !conn->connected) {
-                reconnect_device(conn);
-            }
-        }
-        vTaskDelay(xDelay);
-    }
-}
-
 void espnow_task(void* pvParameters) {
     esp_now_msg_t event;
 
@@ -1235,10 +1194,7 @@ void espnow_task(void* pvParameters) {
                 set_hold_time_ms(message);
                 break;
             case RECONNECT_REQUEST:
-                ESP_LOGI(TAG, "Reconnect request for device ID: %d", buf->device_id);
-                if (buf->device_id > 0 && buf->device_id <= MAX_DEVICES) {
-                    reconnect_device(&device_connections[buf->device_id - 1]);
-                }
+                ESP_LOGI(TAG, "Reconnect request for device ID: %d (ignored, handled by continuous scanning)", buf->device_id);
                 break;
             case BUTTON_BEEP: {
                 ESP_LOGI(TAG, "=== BEEP REQUEST: device_id=%d, duration=%d ms ===", buf->device_id, message);
@@ -1325,6 +1281,8 @@ void app_main(void) {
     init_button_contexts();
     init_gpio_buttons();
 
-    // Create the connection monitor task for automatic reconnection
-    xTaskCreate(&connection_monitor_task, "conn_monitor", 4 * 1024, NULL, 1, NULL);
+    // Load known devices from NVS to pre-populate RAM cache
+    if (nvs_load_known_devices(nvs_cache, &nvs_cache_count) && nvs_cache_count > 0) {
+        ESP_LOGI(TAG, "Loaded %d known devices from NVS into RAM cache", nvs_cache_count);
+    }
 }
