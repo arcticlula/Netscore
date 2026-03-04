@@ -13,7 +13,7 @@
 
 #define TAG "ESP-NOW"
 
-// uint8_t mac_address[] = {0x84, 0xCC, 0xA8, 0x60, 0x11, 0xE0};
+// uint8_t mac_address[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 uint8_t mac_address[] = {0x50, 0x78, 0x7d, 0x17, 0xdc, 0xfc};
 // Paired devices registry (indexed by device_t)
 typedef struct {
@@ -36,6 +36,7 @@ void init_esp_now() {
   ESP_ERROR_CHECK(esp_wifi_init(&cfg));
   ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
   ESP_ERROR_CHECK(esp_wifi_start());
+  ESP_ERROR_CHECK(esp_wifi_set_ps(WIFI_PS_NONE));
   ESP_ERROR_CHECK(esp_wifi_set_channel(1, WIFI_SECOND_CHAN_NONE));
 
   ESP_ERROR_CHECK(esp_now_init());
@@ -44,7 +45,8 @@ void init_esp_now() {
 
   esp_now_peer_info_t peerInfo = {};
   memcpy(peerInfo.peer_addr, mac_address, 6);
-  peerInfo.channel = 0;
+  peerInfo.channel = 1;
+  peerInfo.ifidx = WIFI_IF_STA;
   peerInfo.encrypt = false;
   ESP_ERROR_CHECK(esp_now_add_peer(&peerInfo));
 }
@@ -58,6 +60,11 @@ void esp_now_recv_callback(const esp_now_recv_info_t *mac_addr, const uint8_t *d
   ESP_LOGI(TAG, "Received message from device: %d", event.device_id);
   ESP_LOGI(TAG, "Event type: %d", event.event_type);
   ESP_LOGI(TAG, "Message: 0x%02X", event.message);
+
+  static bool led_toggle = false;
+  led_toggle = !led_toggle;
+  gpio_set_level((gpio_num_t)LED_PIN, led_toggle);
+
   xQueueSend(espnow_queue, &event, portMAX_DELAY);
 }
 

@@ -10,7 +10,7 @@
 
 #define TAG "ESP-NOW"
 
-// uint8_t mac_address[] = {0x84, 0xCC, 0xA8, 0x60, 0x11, 0xE0};
+// uint8_t mac_address[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 uint8_t mac_address[] = {0x7C, 0xDF, 0xA1, 0x1E, 0x83, 0x5C};
 
 // Paired devices registry (indexed by esp_now_device_t)
@@ -34,6 +34,7 @@ void init_esp_now() {
   ESP_ERROR_CHECK(esp_wifi_init(&cfg));
   ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
   ESP_ERROR_CHECK(esp_wifi_start());
+  ESP_ERROR_CHECK(esp_wifi_set_ps(WIFI_PS_NONE));
   ESP_ERROR_CHECK(esp_wifi_set_channel(1, WIFI_SECOND_CHAN_NONE));
 
   ESP_ERROR_CHECK(esp_now_init());
@@ -42,7 +43,8 @@ void init_esp_now() {
 
   esp_now_peer_info_t peerInfo = {};
   memcpy(peerInfo.peer_addr, mac_address, 6);
-  peerInfo.channel = 0;
+  peerInfo.channel = 1;
+  peerInfo.ifidx = WIFI_IF_STA;
   peerInfo.encrypt = false;
   ESP_ERROR_CHECK(esp_now_add_peer(&peerInfo));
 }
@@ -165,10 +167,6 @@ void send_mirror_state(device_t device_id, button_event_t button) {
   } else {
     state_payload.generic_option = 0;
   }
-
-  esp_now_msg_t msg;
-  msg.event_type = MIRROR_STATE;
-  msg.device_id = DEVICE_ALL;
 
   uint8_t buffer[sizeof(esp_now_event_type_t) + sizeof(mirror_state_t)];
   esp_now_event_type_t type = MIRROR_STATE;

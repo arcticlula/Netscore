@@ -30,8 +30,13 @@ typedef enum {
 
 typedef struct {
   esp_now_event_type_t event_type;
-  device_t device_id;
-  uint16_t message;
+  union {
+    struct {
+      device_t device_id;
+      uint16_t message;
+    } __attribute__((packed));
+    mirror_state_t mirror_state;
+  };
 } __attribute__((packed)) esp_now_msg_t;
 
 void init_esp_now();
