@@ -21,6 +21,8 @@
 
 #define MAX_VALUE 4095
 #define MUX_NUM 3
+#define FRAME_TIME_MS 30
+#define FRAMES_PER_SEC (1000 / FRAME_TIME_MS)
 #define BAT_MIN_LEVEL 3000
 #define BAT_MAX_LEVEL 4200
 
@@ -265,7 +267,7 @@ extern option_string_2_t padel_deuce_option;
 // --- DISPLAY COLOR CONFIGURATION ---
 
 // Define complete color layouts for a full 6-digit face of the scoreboard
-// Large_Home_1, Large_Home_2, Small_Home, Small_Away, Large_Away_1, Large_Away_2
+// DIGIT_1, DIGIT_2, DIGIT_3, DIGIT_4, DIGIT_5, DIGIT_6
 
 #define FACE_RED_GREEN_RED BIG_RED, BIG_RED, SMALL_GREEN, SMALL_GREEN, BIG_RED, BIG_RED
 #define FACE_GREEN_RED_GREEN BIG_PURE_GREEN, BIG_PURE_GREEN, SMALL_GREEN, SMALL_RED, BIG_PURE_GREEN, BIG_PURE_GREEN

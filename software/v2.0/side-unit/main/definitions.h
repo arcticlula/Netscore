@@ -19,6 +19,8 @@
 
 #define MAX_VALUE 4095
 #define MUX_NUM 3
+#define FRAME_TIME_MS 30
+#define FRAMES_PER_SEC (1000 / FRAME_TIME_MS)
 #define BAT_MIN_LEVEL 3000
 #define BAT_MAX_LEVEL 4200
 

@@ -13,6 +13,7 @@ QueueHandle_t melody_queue;
 QueueHandle_t espnow_queue;
 
 TaskHandle_t display_update_task_handle = NULL;
+TaskHandle_t display_logic_task_handle = NULL;
 TaskHandle_t button_task_handle = NULL;
 TaskHandle_t espnow_task_handle = NULL;
 
@@ -22,6 +23,7 @@ void init_tasks(void) {
   melody_queue = xQueueCreate(MELODY_QUEUE_LENGTH, sizeof(melody_note_t));
 
   xTaskCreate(display_update_task, "display_update_task", 4096, NULL, 4, &display_update_task_handle);
+  xTaskCreate(display_logic_task, "display_logic_task", 4096, NULL, 3, &display_logic_task_handle);
   xTaskCreate(button_action_task, "button_action_task", 4096, NULL, 5, NULL);
   xTaskCreate(melody_task, "melody_task", 8192, NULL, 4, NULL);
   xTaskCreate(connection_monitor_task, "conn_monitor", 4 * 1024, NULL, 1, NULL);

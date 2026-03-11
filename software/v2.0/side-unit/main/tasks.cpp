@@ -11,6 +11,8 @@ QueueHandle_t melody_queue;
 QueueHandle_t mirror_update_queue;
 
 TaskHandle_t display_update_task_handle = NULL;
+TaskHandle_t display_logic_task_handle = NULL;
+TaskHandle_t espnow_task_handle = NULL;
 TaskHandle_t button_task_handle = NULL;
 
 void init_tasks(void) {
@@ -21,9 +23,10 @@ void init_tasks(void) {
   mirror_update_queue = xQueueCreate(10, sizeof(mirror_state_t));
 
   xTaskCreate(display_update_task, "display_update_task", 4096, NULL, 4, &display_update_task_handle);
+  xTaskCreate(display_logic_task, "display_logic_task", 4096, NULL, 3, &display_logic_task_handle);
+  xTaskCreate(espnow_task, "espnow_task", 4096, NULL, 5, &espnow_task_handle);
   // xTaskCreate(button_task, "button_task", 4096, NULL, 4, &button_task_handle);
 
-  xTaskCreate(espnow_task, "espnow_task", 2048, NULL, 5, NULL);
   // xTaskCreate(button_action_task, "button_action_task", 4096, NULL, 5, NULL);
   xTaskCreate(melody_task, "melody_task", 8192, NULL, 4, NULL);
   xTaskCreate(mirror_update_task, "mirror_upd_task", 4096, NULL, 5, NULL);

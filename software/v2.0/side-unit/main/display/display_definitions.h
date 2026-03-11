@@ -76,3 +76,10 @@ extern digit_loop_t dl1;
 extern digit_fade_t df1, df2, df3, df4, df5, df6;
 extern digit_fade_into_t dfi1, dfi2, dfi3, dfi4, dfi5, dfi6;
 extern digit_dot_t dd1, dd2;
+// Logical Digit Mapping (Abstracts Physical TLC/MUX Pins)
+#define DIGIT_1 0
+#define DIGIT_2 1
+#define DIGIT_3 2
+#define DIGIT_4 3
+#define DIGIT_5 4
+#define DIGIT_6 5
