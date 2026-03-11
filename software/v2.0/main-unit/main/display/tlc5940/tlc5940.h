@@ -27,6 +27,7 @@
 #include "tlc_config.h"
 
 extern volatile uint8_t current_mux;
+extern volatile uint8_t target_mux;
 
 class Tlc5940 {
  public:
@@ -44,7 +45,8 @@ class Tlc5940 {
   void clear(void);
   uint8_t update(int mux_idx);
   void setChannel(TLC_CHANNEL_TYPE channel, uint16_t value);
-  void set(TLC_CHANNEL_TYPE channel, uint16_t value, uint8_t side);
+  void setSegment(uint8_t side, uint8_t logical_digit, uint8_t segment, uint16_t value);
+  void set(TLC_CHANNEL_TYPE channel, uint16_t value, uint8_t side = SIDE_BOTH);
   uint16_t get(TLC_CHANNEL_TYPE channel);
   void setAll(uint16_t value);
 #if VPRG_ENABLED
@@ -62,6 +64,8 @@ void init_mux(uint8_t mux_1_pin, uint8_t mux_2_pin, uint8_t mux_3_pin);
 void set_mux(gpio_num_t mux_pin);
 void turn_mux();
 
+void swap_buffers();
+void display_logic_task(void *arg);
 void display_update_task(void *arg);
 
 void tlc_shift8(uint8_t byte);
@@ -73,5 +77,4 @@ void tlc_dcModeStop(void);
 
 extern Tlc5940 Tlc;
 
-uint16_t get_corrected_value(uint8_t channel, uint16_t value);
 uint16_t get_gamma_corrected_value(uint16_t value);

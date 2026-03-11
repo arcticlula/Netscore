@@ -8,65 +8,51 @@
 #include "display/display_definitions.h"
 #include "tlc5940/tlc5940.h"
 
-void show_character(uint8_t side, uint8_t offset_ch, uint8_t character, uint8_t val) {
+void show_character(uint8_t side, uint8_t logical_digit, uint8_t character, uint8_t val) {
   if (val == BLANK) return;
 
   uint16_t value = round(get_brightness(val));
 
   for (uint8_t channel = 0; channel < 7; channel++) {
     int on = (character >> channel) & 1;
-    Tlc.set(offset_ch + channel, on == 1 ? value : 0, side);
+    Tlc.setSegment(side, logical_digit, channel, on == 1 ? value : 0);
   }
 }
 
-void show_number(uint8_t side, uint8_t offset_ch, uint8_t number, uint8_t value) {
-  show_character(side, offset_ch, numbers[number], value);
+void show_number(uint8_t side, uint8_t logical_digit, uint8_t number, uint8_t value) {
+  show_character(side, logical_digit, numbers[number], value);
 }
 
-void show_letter(uint8_t side, uint8_t offset_ch, uint8_t character, uint8_t value) {
-  show_character(side, offset_ch, letters[character], value);
+void show_letter(uint8_t side, uint8_t logical_digit, uint8_t character, uint8_t value) {
+  show_character(side, logical_digit, letters[character], value);
 }
 
-void show_symbol(uint8_t side, uint8_t offset_ch, uint8_t symbol, uint8_t value) {
-  show_character(side, offset_ch, symbols[symbol], value);
+void show_symbol(uint8_t side, uint8_t logical_digit, uint8_t symbol, uint8_t value) {
+  show_character(side, logical_digit, symbols[symbol], value);
 }
 
 void show_text(uint8_t side, uint8_t l_1, uint8_t l_2, uint8_t l_3, uint8_t l_4, uint8_t l_5, uint8_t l_6, uint8_t value) {
-  switch (current_mux) {
-    case 0:
-      // 1
-      show_letter(side, 0, l_1, value);
-      // 5
-      show_letter(side, 8, l_5, value);
-      break;
-    case 1:
-      // 2
-      show_letter(side, 0, l_2, value);
-      // 6
-      show_letter(side, 8, l_6, value);
-      break;
-    case 2:
-      // 3
-      show_letter(side, 0, l_3, value);
-      // 4
-      show_letter(side, 8, l_4, value);
-      break;
-  }
+  show_letter(side, DIGIT_1, l_1, value);
+  show_letter(side, DIGIT_2, l_2, value);
+  show_letter(side, DIGIT_3, l_3, value);
+  show_letter(side, DIGIT_4, l_4, value);
+  show_letter(side, DIGIT_5, l_5, value);
+  show_letter(side, DIGIT_6, l_6, value);
 }
 
 void show_text(uint8_t side, uint8_t text[6], uint8_t value) {
   show_text(side, text[0], text[1], text[2], text[3], text[4], text[5], value);
 }
 
-void show_wave(uint8_t side, uint8_t offset_ch, digit_wave_t *digit, void (*callback)()) {
-  double time = digit->time_ms / (2 * MUX_NUM);  // only called every x time, x is the number of mux outputs, the 2 is bc only called every 2ms
+void show_wave(uint8_t side, uint8_t logical_digit, digit_wave_t *digit, void (*callback)()) {
+  double time = digit->time_ms / FRAME_TIME_MS;  // only called every x time, x is the number of mux outputs, the 2 is bc only called every 2ms
   uint16_t value = round(digit->value);
   uint16_t background = round(digit->background);
   double ratio = (double)(digit->max - digit->min) / time;
 
   for (int channel = 0; channel < 8; channel++) {
     int on = (digit->c.character >> channel) & 1;
-    Tlc.set(offset_ch + channel, on == 1 ? value : background, side);
+    Tlc.setSegment(side, logical_digit, channel, on == 1 ? value : background);
   }
 
   digit->value += digit->direction * ratio;
@@ -83,14 +69,14 @@ void show_wave(uint8_t side, uint8_t offset_ch, digit_wave_t *digit, void (*call
   // Serial.printf("Value: %d, Ratio: %.2f, Direction: %d\n", digit->value, ratio, digit->direction);
 }
 
-void show_zigzag(uint8_t side, uint8_t offset_ch, digit_zigzag_t *digit, void (*callback)()) {
+void show_zigzag(uint8_t side, uint8_t logical_digit, digit_zigzag_t *digit, void (*callback)()) {
   uint8_t last_ch = digit->c.size - 1;
   uint16_t max = round(digit->max);
   uint16_t min = round(digit->min);
   uint16_t background = round(digit->background);
-  double time = digit->time_ms / (2 * MUX_NUM * digit->c.size);  // only called every x time, x is the number of mux outputs, the 2 is bc only called every 2ms
+  double time = digit->time_ms / (FRAME_TIME_MS * digit->c.size);
 
-  if (digit->cnt == time) {
+  if (digit->cnt >= time) {
     digit->channel += digit->direction;
     digit->cnt = 0;
   } else
@@ -117,28 +103,28 @@ void show_zigzag(uint8_t side, uint8_t offset_ch, digit_zigzag_t *digit, void (*
   // Serial.printf("Value: %.2f, Ratio: %.2f, Direction: %d\n", value, ratio, direction);
 
   for (uint8_t i = 0; i < digit->c.background_size; i++) {
-    Tlc.set(offset_ch + digit->c.background_positions[i], background, side);
+    Tlc.setSegment(side, logical_digit, digit->c.background_positions[i], background);
   }
 
   // Set the main channel to maximum brightness
-  Tlc.set(offset_ch + digit->c.positions[digit->channel], max, side);
+  Tlc.setSegment(side, logical_digit, digit->c.positions[digit->channel], max);
 
   // Optional: Set adjacent channels to lower brightness for smooth transition
   if (digit->direction == 1 && digit->channel > 0) {
-    Tlc.set(offset_ch + digit->c.positions[digit->channel - 1], min, side);
+    Tlc.setSegment(side, logical_digit, digit->c.positions[digit->channel - 1], min);
   }
 
   if (digit->direction == -1 && digit->channel < last_ch) {
-    Tlc.set(offset_ch + digit->c.positions[digit->channel + 1], min, side);
+    Tlc.setSegment(side, logical_digit, digit->c.positions[digit->channel + 1], min);
   }
 }
 
-void show_fade_in(uint8_t side, uint8_t offset_ch, digit_fade_t *digit, void (*callback)()) {
-  static double time = digit->time_ms / (2 * MUX_NUM * digit->c.size);  // only called every x time, x is the number of mux outputs, the 2 is bc only called every 2ms
+void show_fade_in(uint8_t side, uint8_t logical_digit, digit_fade_t *digit, void (*callback)()) {
+  static double time = digit->time_ms / (FRAME_TIME_MS * digit->c.size);
   double ratio = (double)(digit->value / time);
 
   if (digit->channel < digit->c.size - 1) {
-    if (digit->cnt == time) digit->cnt = 0;
+    if (digit->cnt >= time) digit->cnt = 0;
     else if (digit->cnt % (uint16_t)(time / 2) == 0) {
       digit->channel++;
       digit->cnt++;
@@ -152,7 +138,7 @@ void show_fade_in(uint8_t side, uint8_t offset_ch, digit_fade_t *digit, void (*c
 
   for (uint8_t channel = 0; channel <= digit->channel; channel++) {
     uint16_t value = round(digit->positions_value[channel]);
-    Tlc.set(offset_ch + digit->c.positions[channel], value, side);
+    Tlc.setSegment(side, logical_digit, digit->c.positions[channel], value);
     digit->positions_value[channel] += ratio;
     if (digit->positions_value[channel] > digit->value) {
       digit->positions_value[channel] = digit->value;
@@ -160,16 +146,14 @@ void show_fade_in(uint8_t side, uint8_t offset_ch, digit_fade_t *digit, void (*c
   }
 }
 
-void show_fade_into(uint8_t side, uint8_t offset_ch, digit_fade_into_t *digit, void (*callback)()) {
-  double time = digit->time_ms / (2 * MUX_NUM);  // only called every x time, x is the number of mux outputs, the 2 is bc only called every 2ms
+void show_fade_into(uint8_t side, uint8_t logical_digit, digit_fade_into_t *digit, void (*callback)()) {
+  double time = digit->time_ms / FRAME_TIME_MS;
   double ratio = (double)(digit->value / time);
-  // Serial.printf("Ratio: %f", ratio);
 
   for (uint8_t channel = 0; channel < 8; channel++) {
     int16_t value = digit->positions_value[channel];
     double direction = digit->positions_dir[channel];
-    // Serial.printf("Direction: %f", direction);
-    Tlc.set(offset_ch + channel, round(value), side);
+    Tlc.setSegment(side, logical_digit, channel, round(value));
     if (direction != 0) {
       digit->positions_value[channel] += direction * ratio;
       if (value > digit->value) {
@@ -181,17 +165,15 @@ void show_fade_into(uint8_t side, uint8_t offset_ch, digit_fade_into_t *digit, v
       }
     }
   }
-
-  // Serial.printf("\n");
 }
 
-void show_dot(uint8_t side, uint8_t offset_ch, uint8_t value) {
+void show_dot(uint8_t side, uint8_t logical_digit, uint8_t value) {
   uint16_t val = round(get_brightness(value));
-  Tlc.set(offset_ch + 7, val, side);
+  Tlc.setSegment(side, logical_digit, 7, val);
 }
 
-void show_dot(uint8_t side, uint8_t offset_ch, digit_dot_t *dot) {
-  double time = dot->time_ms / (2 * MUX_NUM);
+void show_dot(uint8_t side, uint8_t logical_digit, digit_dot_t *dot) {
+  double time = dot->time_ms / FRAME_TIME_MS;
   double ratio = (double)(dot->max - dot->min) / time;
 
   dot->value += dot->direction * ratio;
@@ -204,7 +186,7 @@ void show_dot(uint8_t side, uint8_t offset_ch, digit_dot_t *dot) {
     dot->value = dot->max;
   }
 
-  Tlc.set(offset_ch + 7, dot->value, side);
+  Tlc.setSegment(side, logical_digit, 7, dot->value);
 }
 
 void set_char(digit_character_t *digit, uint8_t character) {

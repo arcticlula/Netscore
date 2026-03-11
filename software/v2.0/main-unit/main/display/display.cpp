@@ -26,9 +26,6 @@ void show_display() {
     case BOOT_4_SCR:
       show_boot_4();
       break;
-    // case PRESS_SCR:
-    //   show_press();
-    //   break;
     case SPORT_SCR:
       show_sport();
       break;
@@ -78,100 +75,42 @@ void show_display() {
 }
 
 void show_boot() {
-  switch (current_mux) {
-    case 0:
-      // 1
-      show_fade_in(SIDE_BOTH, 0, &df1);
-      // 5
-      show_fade_in(SIDE_BOTH, 8, &df5);
-      break;
-    case 1:
-      // 2
-      show_fade_in(SIDE_BOTH, 0, &df2, init_boot_2_scr);
-      // 6
-      show_fade_in(SIDE_BOTH, 8, &df6);
-      break;
-  }
+  show_fade_in(SIDE_BOTH, DIGIT_1, &df1);
+  show_fade_in(SIDE_BOTH, DIGIT_2, &df2, init_boot_2_scr);
+  show_fade_in(SIDE_BOTH, DIGIT_5, &df5);
+  show_fade_in(SIDE_BOTH, DIGIT_6, &df6);
 }
 
 void show_boot_2() {
-  switch (current_mux) {
-    case 0:
-      // 1
-      show_wave(SIDE_BOTH, 0, &dw1, init_boot_3_scr);
-      // 5
-      show_wave(SIDE_BOTH, 8, &dw5);
-      break;
-    case 1:
-      // 2
-      show_wave(SIDE_BOTH, 0, &dw2);
-      // 6
-      show_wave(SIDE_BOTH, 8, &dw6);
-      break;
-  }
+  show_wave(SIDE_BOTH, DIGIT_1, &dw1, init_boot_3_scr);
+  show_wave(SIDE_BOTH, DIGIT_2, &dw2);
+  show_wave(SIDE_BOTH, DIGIT_5, &dw5);
+  show_wave(SIDE_BOTH, DIGIT_6, &dw6);
 }
 
 void show_boot_3() {
-  switch (current_mux) {
-    case 0:
-      // 1
-      show_wave(SIDE_BOTH, 0, &dw1, init_boot_4_scr);
-      // 5
-      show_wave(SIDE_BOTH, 8, &dw5);
-      break;
-    case 1:
-      // 2
-      show_wave(SIDE_BOTH, 0, &dw2);
-      // 6
-      show_wave(SIDE_BOTH, 8, &dw6);
-      break;
-  }
+  show_wave(SIDE_BOTH, DIGIT_1, &dw1, init_boot_4_scr);
+  show_wave(SIDE_BOTH, DIGIT_2, &dw2);
+  show_wave(SIDE_BOTH, DIGIT_5, &dw5);
+  show_wave(SIDE_BOTH, DIGIT_6, &dw6);
 }
 
 void show_boot_4() {
-  switch (current_mux) {
-    case 0:
-      // 1
-      show_fade_into(SIDE_BOTH, 0, &dfi1, init_menu_scr);
-      // 5
-      show_fade_into(SIDE_BOTH, 8, &dfi5);
-      break;
-    case 1:
-      // 2
-      show_fade_into(SIDE_BOTH, 0, &dfi2);
-      // 6
-      show_fade_into(SIDE_BOTH, 8, &dfi6);
-      break;
-    case 2:
-      // 3
-      show_fade_into(SIDE_BOTH, 0, &dfi3);
-      // 4
-      show_fade_into(SIDE_BOTH, 8, &dfi4);
-      break;
-  }
+  show_fade_into(SIDE_BOTH, DIGIT_1, &dfi1, init_menu_scr);
+  show_fade_into(SIDE_BOTH, DIGIT_2, &dfi2);
+  show_fade_into(SIDE_BOTH, DIGIT_3, &dfi3);
+  show_fade_into(SIDE_BOTH, DIGIT_4, &dfi4);
+  show_fade_into(SIDE_BOTH, DIGIT_5, &dfi5);
+  show_fade_into(SIDE_BOTH, DIGIT_6, &dfi6);
 }
 
 void show_press() {
-  switch (current_mux) {
-    case 0:
-      // 1
-      show_wave(SIDE_BOTH, 0, &dw1);
-      // 5
-      show_wave(SIDE_BOTH, 8, &dw5);
-      break;
-    case 1:
-      // 2
-      show_wave(SIDE_BOTH, 0, &dw2);
-      // 6
-      show_zigzag(SIDE_BOTH, 8, &dz1);
-      break;
-    case 2:
-      // 3
-      show_wave(SIDE_BOTH, 0, &dw3);
-      // 4
-      show_wave(SIDE_BOTH, 8, &dw4);
-      break;
-  }
+  show_wave(SIDE_BOTH, DIGIT_1, &dw1);
+  show_wave(SIDE_BOTH, DIGIT_2, &dw2);
+  show_wave(SIDE_BOTH, DIGIT_3, &dw3);
+  show_wave(SIDE_BOTH, DIGIT_4, &dw4);
+  show_wave(SIDE_BOTH, DIGIT_5, &dw5);
+  show_zigzag(SIDE_BOTH, DIGIT_6, &dz1);
 }
 
 void show_sport() {
@@ -192,20 +131,11 @@ void show_sport_ping_pong() {
   static uint16_t cnt = 0;
   static uint8_t alt_letter = I;
 
-  switch (current_mux) {
-    case 0:
-      // 1
-      show_letter(SIDE_BOTH, 0, P, menu_brightness);
-      // 5
-      show_letter(SIDE_BOTH, 8, N, menu_brightness);
-      break;
-    case 1:
-      // 2
-      show_letter(SIDE_BOTH, 0, alt_letter, menu_brightness);
-      // 6
-      show_letter(SIDE_BOTH, 8, G, menu_brightness);
-      break;
-  }
+  show_letter(SIDE_BOTH, DIGIT_1, P, menu_brightness);
+  show_letter(SIDE_BOTH, DIGIT_2, alt_letter, menu_brightness);
+  show_letter(SIDE_BOTH, DIGIT_5, N, menu_brightness);
+  show_letter(SIDE_BOTH, DIGIT_6, G, menu_brightness);
+
   cnt++;
   if (cnt == 500) {
     alt_letter = alt_letter == I ? O : I;
@@ -216,26 +146,12 @@ void show_sport_ping_pong() {
 void show_menu() { show_text(SIDE_BOTH, menu_options[menu], menu_brightness); }
 
 void show_menu_transition() {
-  switch (current_mux) {
-    case 0:
-      // 1
-      show_fade_into(SIDE_BOTH, 0, &dfi1);
-      // 5
-      show_fade_into(SIDE_BOTH, 8, &dfi5);
-      break;
-    case 1:
-      // 2
-      show_fade_into(SIDE_BOTH, 0, &dfi2, init_menu_scr);
-      // 6
-      show_fade_into(SIDE_BOTH, 8, &dfi6);
-      break;
-    case 2:
-      // 3
-      show_fade_into(SIDE_BOTH, 0, &dfi3);
-      // 4
-      show_fade_into(SIDE_BOTH, 8, &dfi4);
-      break;
-  }
+  show_fade_into(SIDE_BOTH, DIGIT_1, &dfi1);
+  show_fade_into(SIDE_BOTH, DIGIT_2, &dfi2, init_menu_scr);
+  show_fade_into(SIDE_BOTH, DIGIT_3, &dfi3);
+  show_fade_into(SIDE_BOTH, DIGIT_4, &dfi4);
+  show_fade_into(SIDE_BOTH, DIGIT_5, &dfi5);
+  show_fade_into(SIDE_BOTH, DIGIT_6, &dfi6);
 }
 
 void show_set_max_score() {
@@ -244,29 +160,17 @@ void show_set_max_score() {
   uint8_t digit_5 = max_score.max / 10;
   uint8_t digit_6 = max_score.max % 10;
 
-  switch (current_mux) {
-    case 0:
-      // 1
-      max_score.current == max_score.min ? show_wave(SIDE_BOTH, 0, &dw1)
-                                         : show_number(SIDE_BOTH, 0, digit_1, 20);
-      // 5
-      max_score.current == max_score.max ? show_wave(SIDE_BOTH, 8, &dw1)
-                                         : show_number(SIDE_BOTH, 8, digit_5, 20);
-      break;
-    case 1:
-      // 2
-      max_score.current == max_score.min ? show_wave(SIDE_BOTH, 0, &dw2)
-                                         : show_number(SIDE_BOTH, 0, digit_2, 20);
-      // 6
-      max_score.current == max_score.max ? show_wave(SIDE_BOTH, 8, &dw2)
-                                         : show_number(SIDE_BOTH, 8, digit_6, 20);
-      break;
-    case 2:
-      // 3 - 4
-      max_score.current == max_score.min ? show_zigzag(SIDE_BOTH, 0, &dz1)
-                                         : show_zigzag(SIDE_BOTH, 8, &dz1);
-      break;
-  }
+  max_score.current == max_score.min ? show_wave(SIDE_BOTH, DIGIT_1, &dw1)
+                                     : show_number(SIDE_BOTH, DIGIT_1, digit_1, 20);
+  max_score.current == max_score.min ? show_wave(SIDE_BOTH, DIGIT_2, &dw2)
+                                     : show_number(SIDE_BOTH, DIGIT_2, digit_2, 20);
+  max_score.current == max_score.min ? show_zigzag(SIDE_BOTH, DIGIT_3, &dz1)
+                                     : show_zigzag(SIDE_BOTH, DIGIT_4, &dz1);
+
+  max_score.current == max_score.max ? show_wave(SIDE_BOTH, DIGIT_5, &dw1)
+                                     : show_number(SIDE_BOTH, DIGIT_5, digit_5, 20);
+  max_score.current == max_score.max ? show_wave(SIDE_BOTH, DIGIT_6, &dw2)
+                                     : show_number(SIDE_BOTH, DIGIT_6, digit_6, 20);
 }
 
 volatile bool inf_patern_a = true;
@@ -293,38 +197,31 @@ void show_set_padel_game_type() {
   uint8_t digit_5 = padel_game_type_option.last[0];
   uint8_t digit_6 = padel_game_type_option.last[1];
 
-  switch (current_mux) {
-    case 0:
-      // 1
-      if (padel_game_type_option.current == FIRST) {
-        if (inf_patern_a) show_zigzag(SIDE_BOTH, 0, &dz2, change_pattern_a);
-        else
-          show_letter(SIDE_BOTH, 0, digit_1, 30);
-      } else
-        show_letter(SIDE_BOTH, 0, digit_1, 20);
-      // 5
-      padel_game_type_option.current == LAST
-          ? show_wave(SIDE_BOTH, 8, &dw1)
-          : show_letter(SIDE_BOTH, 8, digit_5, 20);
-      break;
-    case 1:
-      // 2
-      if (padel_game_type_option.current == FIRST) {
-        if (inf_patern_b) show_zigzag(SIDE_BOTH, 0, &dz3, change_pattern_b);
-        else
-          show_letter(SIDE_BOTH, 0, digit_2, 30);
-      } else
-        show_letter(SIDE_BOTH, 0, digit_2, 20);
-      // 6
-      padel_game_type_option.current == LAST
-          ? show_wave(SIDE_BOTH, 8, &dw2)
-          : show_letter(SIDE_BOTH, 8, digit_6, 20);
-      break;
-    case 2:
-      // 3 - 4
-      padel_game_type_option.current == FIRST ? show_zigzag(SIDE_BOTH, 0, &dz1)
-                                              : show_zigzag(SIDE_BOTH, 8, &dz1);
-      break;
+  if (padel_game_type_option.current == FIRST) {
+    if (inf_patern_a) show_zigzag(SIDE_BOTH, DIGIT_1, &dz2, change_pattern_a);
+    else
+      show_letter(SIDE_BOTH, DIGIT_1, digit_1, 30);
+
+    if (inf_patern_b) show_zigzag(SIDE_BOTH, DIGIT_2, &dz3, change_pattern_b);
+    else
+      show_letter(SIDE_BOTH, DIGIT_2, digit_2, 30);
+
+    show_zigzag(SIDE_BOTH, DIGIT_3, &dz1);
+  } else {
+    show_letter(SIDE_BOTH, DIGIT_1, digit_1, 20);
+    show_letter(SIDE_BOTH, DIGIT_2, digit_2, 20);
+  }
+
+  padel_game_type_option.current == LAST
+      ? show_wave(SIDE_BOTH, DIGIT_5, &dw1)
+      : show_letter(SIDE_BOTH, DIGIT_5, digit_5, 20);
+
+  padel_game_type_option.current == LAST
+      ? show_wave(SIDE_BOTH, DIGIT_6, &dw2)
+      : show_letter(SIDE_BOTH, DIGIT_6, digit_6, 20);
+
+  if (padel_game_type_option.current == LAST) {
+    show_zigzag(SIDE_BOTH, DIGIT_4, &dz1);
   }
 }
 
@@ -334,29 +231,17 @@ void show_set_deuce_type() {
   uint8_t digit_5 = padel_deuce_option.last[0];
   uint8_t digit_6 = padel_deuce_option.last[1];
 
-  switch (current_mux) {
-    case 0:
-      // 1
-      padel_deuce_option.current == FIRST ? show_wave(SIDE_BOTH, 0, &dw1)
-                                          : show_letter(SIDE_BOTH, 0, digit_1, 20);
-      // 5
-      padel_deuce_option.current == LAST ? show_wave(SIDE_BOTH, 8, &dw1)
-                                         : show_letter(SIDE_BOTH, 8, digit_5, 20);
-      break;
-    case 1:
-      // 2
-      padel_deuce_option.current == FIRST ? show_wave(SIDE_BOTH, 0, &dw2)
-                                          : show_letter(SIDE_BOTH, 0, digit_2, 20);
-      // 6
-      padel_deuce_option.current == LAST ? show_wave(SIDE_BOTH, 8, &dw2)
-                                         : show_letter(SIDE_BOTH, 8, digit_6, 20);
-      break;
-    case 2:
-      // 3 - 4
-      padel_deuce_option.current == FIRST ? show_zigzag(SIDE_BOTH, 0, &dz1)
-                                          : show_zigzag(SIDE_BOTH, 8, &dz1);
-      break;
-  }
+  padel_deuce_option.current == FIRST ? show_wave(SIDE_BOTH, DIGIT_1, &dw1)
+                                      : show_letter(SIDE_BOTH, DIGIT_1, digit_1, 20);
+  padel_deuce_option.current == FIRST ? show_wave(SIDE_BOTH, DIGIT_2, &dw2)
+                                      : show_letter(SIDE_BOTH, DIGIT_2, digit_2, 20);
+  padel_deuce_option.current == FIRST ? show_zigzag(SIDE_BOTH, DIGIT_3, &dz1)
+                                      : show_zigzag(SIDE_BOTH, DIGIT_4, &dz1);
+
+  padel_deuce_option.current == LAST ? show_wave(SIDE_BOTH, DIGIT_5, &dw1)
+                                     : show_letter(SIDE_BOTH, DIGIT_5, digit_5, 20);
+  padel_deuce_option.current == LAST ? show_wave(SIDE_BOTH, DIGIT_6, &dw2)
+                                     : show_letter(SIDE_BOTH, DIGIT_6, digit_6, 20);
 }
 
 void show_play() {
@@ -366,48 +251,36 @@ void show_play() {
 void show_play_default() {
   uint8_t set_idx = score.home_sets + score.away_sets;
   uint8_t current_max_score = set_points_max[set_idx];
-  bool home_has_dot = score.home_points + 1 >= current_max_score &&
-                      score.home_points - score.away_points >= 1;
-  bool away_has_dot = score.away_points + 1 >= current_max_score &&
-                      score.away_points - score.home_points >= 1;
+  bool home_set_point = score.home_points + 1 >= current_max_score &&
+                        score.home_points - score.away_points >= 1;
+  bool away_set_point = score.away_points + 1 >= current_max_score &&
+                        score.away_points - score.home_points >= 1;
   uint8_t home_points_1 = score.home_points / 10;
   uint8_t home_points_2 = score.home_points % 10;
   uint8_t away_points_1 = score.away_points / 10;
   uint8_t away_points_2 = score.away_points % 10;
 
-  switch (current_mux) {
-    case 0:
-      // 1
-      show_number(SIDE_A, 0, home_points_1, 50);
-      show_number(SIDE_A, 8, away_points_1, 50);
-      // 5
-      show_number(SIDE_B, 0, away_points_1, 50);
-      show_number(SIDE_B, 8, home_points_1, 50);
-      break;
-    case 1:
-      // 2
-      show_number(SIDE_A, 0, home_points_2, 50);
-      if (home_has_dot) show_dot(SIDE_A, 0, &dd1);
+  show_number(SIDE_A, DIGIT_1, home_points_1, 50);
+  show_number(SIDE_A, DIGIT_2, home_points_2, 50);
+  show_number(SIDE_A, DIGIT_3, score.home_sets, 50);
+  show_number(SIDE_A, DIGIT_4, score.away_sets, 50);
+  show_number(SIDE_A, DIGIT_5, away_points_1, 50);
+  show_number(SIDE_A, DIGIT_6, away_points_2, 50);
 
-      show_number(SIDE_A, 8, away_points_2, 50);
-      if (away_has_dot) show_dot(SIDE_A, 8, &dd2);
+  // If next point is set point, show dot
+  if (home_set_point) show_dot(SIDE_A, DIGIT_2, &dd1);
+  if (away_set_point) show_dot(SIDE_A, DIGIT_6, &dd2);
 
-      // 6
-      show_number(SIDE_B, 0, away_points_2, 50);
-      if (away_has_dot) show_dot(SIDE_B, 0, &dd2);
+  show_number(SIDE_B, DIGIT_1, away_points_1, 50);
+  show_number(SIDE_B, DIGIT_2, away_points_2, 50);
+  show_number(SIDE_B, DIGIT_3, score.away_sets, 50);
+  show_number(SIDE_B, DIGIT_4, score.home_sets, 50);
+  show_number(SIDE_B, DIGIT_5, home_points_1, 50);
+  show_number(SIDE_B, DIGIT_6, home_points_2, 50);
 
-      show_number(SIDE_B, 8, home_points_2, 50);
-      if (home_has_dot) show_dot(SIDE_B, 8, &dd1);
-      break;
-    case 2:
-      // 3 - 4
-      show_number(SIDE_A, 0, score.home_sets, 50);
-      show_number(SIDE_A, 8, score.away_sets, 50);
-
-      show_number(SIDE_B, 0, score.away_sets, 50);
-      show_number(SIDE_B, 8, score.home_sets, 50);
-      break;
-  }
+  // If next point is set point, show dot
+  if (away_set_point) show_dot(SIDE_B, DIGIT_2, &dd2);
+  if (home_set_point) show_dot(SIDE_B, DIGIT_6, &dd1);
 }
 
 void show_play_padel() {
@@ -444,44 +317,35 @@ void show_play_padel() {
     away_set_point = away_game_point && padel_score.away_games >= 5 && (padel_score.away_games - padel_score.home_games >= 1);
   }
 
-  switch (current_mux) {
-    case 0:
-      // 1
-      show_character(SIDE_A, 0, home_points_1, 50);
-      show_character(SIDE_A, 8, away_points_1, 50);
-      // 5
-      show_character(SIDE_B, 0, away_points_1, 50);
-      show_character(SIDE_B, 8, home_points_1, 50);
-      break;
-    case 1:
-      // 2
-      show_character(SIDE_A, 0, home_points_2, 50);
-      if (home_game_point) show_dot(SIDE_A, 0, &dd1);
+  show_character(SIDE_A, DIGIT_1, home_points_1, 50);
+  show_character(SIDE_A, DIGIT_2, home_points_2, 50);
+  show_number(SIDE_A, DIGIT_3, padel_score.home_games, 50);
+  show_number(SIDE_A, DIGIT_4, padel_score.away_games, 50);
+  show_character(SIDE_A, DIGIT_5, away_points_1, 50);
+  show_character(SIDE_A, DIGIT_6, away_points_2, 50);
 
-      show_character(SIDE_A, 8, away_points_2, 50);
-      if (away_game_point) show_dot(SIDE_A, 8, &dd1);
-      // 6
-      show_character(SIDE_B, 0, away_points_2, 50);
-      if (away_game_point) show_dot(SIDE_B, 0, &dd1);
+  // If next point is game point, show dot
+  if (home_game_point) show_dot(SIDE_A, DIGIT_2, &dd1);
+  if (away_game_point) show_dot(SIDE_A, DIGIT_6, &dd1);
 
-      show_character(SIDE_B, 8, home_points_2, 50);
-      if (home_game_point) show_dot(SIDE_B, 8, &dd1);
-      break;
-    case 2:
-      // 3 - 4
-      show_number(SIDE_A, 0, padel_score.home_games, 50);
-      if (home_set_point) show_dot(SIDE_A, 0, &dd2);
+  // If next point is set point, show dot
+  if (home_set_point) show_dot(SIDE_A, DIGIT_3, &dd2);
+  if (away_set_point) show_dot(SIDE_A, DIGIT_4, &dd2);
 
-      show_number(SIDE_A, 8, padel_score.away_games, 50);
-      if (away_set_point) show_dot(SIDE_A, 8, &dd2);
+  show_character(SIDE_B, DIGIT_1, away_points_1, 50);
+  show_character(SIDE_B, DIGIT_2, away_points_2, 50);
+  show_number(SIDE_B, DIGIT_3, padel_score.away_games, 50);
+  show_number(SIDE_B, DIGIT_4, padel_score.home_games, 50);
+  show_character(SIDE_B, DIGIT_5, home_points_1, 50);
+  show_character(SIDE_B, DIGIT_6, home_points_2, 50);
 
-      show_number(SIDE_B, 0, padel_score.away_games, 50);
-      if (away_set_point) show_dot(SIDE_B, 0, &dd2);
+  // If next point is game point, show dot
+  if (away_game_point) show_dot(SIDE_B, DIGIT_2, &dd1);
+  if (home_game_point) show_dot(SIDE_B, DIGIT_6, &dd1);
 
-      show_number(SIDE_B, 8, padel_score.home_games, 50);
-      if (home_set_point) show_dot(SIDE_B, 8, &dd2);
-      break;
-  }
+  // If next point is set point, show dot
+  if (away_set_point) show_dot(SIDE_B, DIGIT_3, &dd2);
+  if (home_set_point) show_dot(SIDE_B, DIGIT_4, &dd2);
 }
 
 void show_play_result(uint8_t team) {
@@ -506,50 +370,35 @@ void show_play_result_default(uint8_t team) {
   set_number(&dw5.c, away_points_1);
   set_number(&dw6.c, away_points_2);
 
-  switch (current_mux) {
-    case 0:
-      // 1
-      if (team == HOME) show_wave(SIDE_A, 0, &dw1);
-      else
-        show_number(SIDE_A, 0, home_points_1, 50);
-      if (team == AWAY) show_wave(SIDE_A, 8, &dw5);
-      else
-        show_number(SIDE_A, 8, away_points_1, 50);
-      // 5
-      if (team == AWAY) show_wave(SIDE_B, 0, &dw5);
-      else
-        show_number(SIDE_B, 0, away_points_1, 50);
-      if (team == HOME) show_wave(SIDE_B, 8, &dw1);
-      else
-        show_number(SIDE_B, 8, home_points_1, 50);
-      break;
-
-    case 1:
-      // 2
-      if (team == HOME) show_wave(SIDE_A, 0, &dw2);
-      else
-        show_number(SIDE_A, 0, home_points_2, 50);
-      if (team == AWAY) show_wave(SIDE_A, 8, &dw6);
-      else
-        show_number(SIDE_A, 8, away_points_2, 50);
-      // 6
-      if (team == AWAY) show_wave(SIDE_B, 0, &dw6);
-      else
-        show_number(SIDE_B, 0, away_points_2, 50);
-      if (team == HOME) show_wave(SIDE_B, 8, &dw2);
-      else
-        show_number(SIDE_B, 8, home_points_2, 50);
-      break;
-
-    case 2:
-      // 3 - 4
-      show_number(SIDE_A, 0, score.home_sets, 50);
-      show_number(SIDE_A, 8, score.away_sets, 50);
-
-      show_number(SIDE_B, 0, score.away_sets, 50);
-      show_number(SIDE_B, 8, score.home_sets, 50);
-      break;
+  if (team == HOME) {
+    show_wave(SIDE_A, DIGIT_1, &dw1);
+    show_wave(SIDE_A, DIGIT_2, &dw2);
+    show_number(SIDE_A, DIGIT_5, away_points_1, 50);
+    show_number(SIDE_A, DIGIT_6, away_points_2, 50);
+  } else {
+    show_number(SIDE_A, DIGIT_1, home_points_1, 50);
+    show_number(SIDE_A, DIGIT_2, home_points_2, 50);
+    show_wave(SIDE_A, DIGIT_5, &dw5);
+    show_wave(SIDE_A, DIGIT_6, &dw6);
   }
+
+  if (team == HOME) {
+    show_number(SIDE_B, DIGIT_1, away_points_1, 50);
+    show_number(SIDE_B, DIGIT_2, away_points_2, 50);
+    show_wave(SIDE_B, DIGIT_5, &dw1);
+    show_wave(SIDE_B, DIGIT_6, &dw2);
+  } else {
+    show_wave(SIDE_B, DIGIT_1, &dw5);
+    show_wave(SIDE_B, DIGIT_2, &dw6);
+    show_number(SIDE_B, DIGIT_5, home_points_1, 50);
+    show_number(SIDE_B, DIGIT_6, home_points_2, 50);
+  }
+
+  show_number(SIDE_A, DIGIT_3, score.home_sets, 50);
+  show_number(SIDE_A, DIGIT_4, score.away_sets, 50);
+
+  show_number(SIDE_B, DIGIT_3, score.away_sets, 50);
+  show_number(SIDE_B, DIGIT_4, score.home_sets, 50);
 }
 
 void show_play_result_padel(uint8_t team) {
@@ -569,154 +418,108 @@ void show_play_result_padel(uint8_t team) {
   set_number(&dw5.c, away_sets_1);
   set_number(&dw6.c, away_sets_2);
 
-  switch (current_mux) {
-    case 0:
-      // 1
-      if (team == HOME)
-        show_wave(SIDE_A, 0, &dw1);
-      else
-        show_number(SIDE_A, 0, home_sets_1, 50);
-      if (team == AWAY)
-        show_wave(SIDE_A, 8, &dw5);
-      else
-        show_number(SIDE_A, 8, away_sets_1, 50);
-      // 5
-      if (team == AWAY)
-        show_wave(SIDE_B, 0, &dw5);
-      else
-        show_number(SIDE_B, 0, away_sets_1, 50);
-      if (team == HOME)
-        show_wave(SIDE_B, 8, &dw1);
-      else
-        show_number(SIDE_B, 8, home_sets_1, 50);
-      break;
-    case 1:
-      // 2
-      if (team == HOME)
-        show_wave(SIDE_A, 0, &dw2);
-      else
-        show_number(SIDE_A, 0, home_sets_2, 50);
-      if (team == AWAY)
-        show_wave(SIDE_A, 8, &dw6);
-      else
-        show_number(SIDE_A, 8, away_sets_2, 50);
-
-      // 6
-      if (team == AWAY)
-        show_wave(SIDE_B, 0, &dw6);
-      else
-        show_number(SIDE_B, 0, away_sets_2, 50);
-      if (team == HOME)
-        show_wave(SIDE_B, 8, &dw2);
-      else
-        show_number(SIDE_B, 8, home_sets_2, 50);
-      break;
-    case 2:
-      // 3 - 4
-      show_number(SIDE_A, 0, home_games, 50);
-      show_number(SIDE_A, 8, away_games, 50);
-
-      show_number(SIDE_B, 0, away_games, 50);
-      show_number(SIDE_B, 8, home_games, 50);
-      break;
+  // Side A
+  if (team == HOME) {
+    show_wave(SIDE_A, DIGIT_1, &dw1);
+    show_wave(SIDE_A, DIGIT_2, &dw2);
+    show_number(SIDE_A, DIGIT_5, away_sets_1, 50);
+    show_number(SIDE_A, DIGIT_6, away_sets_2, 50);
+  } else {
+    show_number(SIDE_A, DIGIT_1, home_sets_1, 50);
+    show_number(SIDE_A, DIGIT_2, home_sets_2, 50);
+    show_wave(SIDE_A, DIGIT_5, &dw5);
+    show_wave(SIDE_A, DIGIT_6, &dw6);
   }
+
+  // Side B
+  if (team == HOME) {
+    show_number(SIDE_B, DIGIT_1, away_sets_1, 50);
+    show_number(SIDE_B, DIGIT_2, away_sets_2, 50);
+    show_wave(SIDE_B, DIGIT_5, &dw1);
+    show_wave(SIDE_B, DIGIT_6, &dw2);
+  } else {
+    show_wave(SIDE_B, DIGIT_1, &dw5);
+    show_wave(SIDE_B, DIGIT_2, &dw6);
+    show_number(SIDE_B, DIGIT_5, home_sets_1, 50);
+    show_number(SIDE_B, DIGIT_6, home_sets_2, 50);
+  }
+
+  show_number(SIDE_A, DIGIT_3, home_games, 50);
+  show_number(SIDE_A, DIGIT_4, away_games, 50);
+
+  show_number(SIDE_B, DIGIT_3, away_games, 50);
+  show_number(SIDE_B, DIGIT_4, home_games, 50);
 }
-
-/*void show_brightness() {
-  switch (current_mux) {
-    case 0:
-      show_letter(SIDE_BOTH, 0, O, 50);
-      if (brightness_index >= 4) show_letter(SIDE_BOTH, 8, O, 50);
-      break;
-    case 1:
-      if (brightness_index >= 1) show_letter(SIDE_BOTH, 0, O, 50);
-      if (brightness_index >= 5) show_letter(SIDE_BOTH, 8, O, 50);
-      break;
-    case 2:
-      // 3 - 4
-      if (brightness_index >= 2) show_letter(SIDE_BOTH, 0, O, 50);
-      if (brightness_index >= 3) show_letter(SIDE_BOTH, 8, O, 50);
-      break;
-  }
-}*/
 
 void show_brightness() {
   uint8_t max_brightness_animated_index = brightness_index * 2 - 1;
-  switch (current_mux) {
-    case 0:
-      // 1
-      if (brightness_index == 0) {
-        show_zigzag(SIDE_BOTH, 0, &dz1, change_brightness_animated_index);
-      } else if (brightness_index >= 1) {
-        if (brightness_animated_index == 0) show_zigzag(SIDE_BOTH, 0, &dz2, change_brightness_animated_index);
-        else
-          show_letter(SIDE_BOTH, 0, O, 30);
-      }
-      // 5
-      if (brightness_index == 4) {
-        if (brightness_animated_index == 4) show_zigzag(SIDE_BOTH, 8, &dz3, change_brightness_animated_index);
-        else
-          show_letter(SIDE_BOTH, 8, O, 30);
-      } else if (brightness_index > 4) {
-        if (brightness_animated_index == 4) show_zigzag(SIDE_BOTH, 8, &dz4, change_brightness_animated_index);
-        else if (brightness_animated_index == max_brightness_animated_index - 3)
-          show_zigzag(SIDE_BOTH, 8, &dz5, change_brightness_animated_index);
-        else
-          show_letter(SIDE_BOTH, 8, O, 30);
-      }
-      break;
-    case 1:
-      // 2
-      if (brightness_index == 1) {
-        if (brightness_animated_index == 1) show_zigzag(SIDE_BOTH, 0, &dz3, change_brightness_animated_index);
-        else
-          show_letter(SIDE_BOTH, 0, O, 30);
-      } else if (brightness_index > 1) {
-        if (brightness_animated_index == 1) show_zigzag(SIDE_BOTH, 0, &dz4, change_brightness_animated_index);
-        else if (brightness_animated_index == max_brightness_animated_index)
-          show_zigzag(SIDE_BOTH, 0, &dz5, change_brightness_animated_index);
-        else
-          show_letter(SIDE_BOTH, 0, O, 30);
-      }
-      // 6
-      if (brightness_index == 5) {
-        if (brightness_animated_index == 5) show_zigzag(SIDE_BOTH, 8, &dz3, change_brightness_animated_index);
-        else
-          show_letter(SIDE_BOTH, 8, O, 30);
-      } else if (brightness_index > 5) {
-        if (brightness_animated_index == 5) show_zigzag(SIDE_BOTH, 8, &dz4, change_brightness_animated_index);
-        else if (brightness_animated_index == max_brightness_animated_index - 4)
-          show_zigzag(SIDE_BOTH, 8, &dz5, change_brightness_animated_index);
-        else
-          show_letter(SIDE_BOTH, 8, O, 30);
-      }
-      break;
-    case 2:
-      // 3 - 4
-      if (brightness_index == 2) {
-        if (brightness_animated_index == 2) show_zigzag(SIDE_BOTH, 0, &dz3, change_brightness_animated_index);
-        else
-          show_letter(SIDE_BOTH, 0, O, 30);
-      } else if (brightness_index > 2) {
-        if (brightness_animated_index == 2) show_zigzag(SIDE_BOTH, 0, &dz4, change_brightness_animated_index);
-        else if (brightness_animated_index == max_brightness_animated_index - 1)
-          show_zigzag(SIDE_BOTH, 0, &dz5, change_brightness_animated_index);
-        else
-          show_letter(SIDE_BOTH, 0, O, 30);
-      }
 
-      if (brightness_index == 3) {
-        if (brightness_animated_index == 3) show_zigzag(SIDE_BOTH, 8, &dz3, change_brightness_animated_index);
-        else
-          show_letter(SIDE_BOTH, 8, O, 30);
-      } else if (brightness_index > 3) {
-        if (brightness_animated_index == 3) show_zigzag(SIDE_BOTH, 8, &dz4, change_brightness_animated_index);
-        else if (brightness_animated_index == max_brightness_animated_index - 2)
-          show_zigzag(SIDE_BOTH, 8, &dz5, change_brightness_animated_index);
-        else
-          show_letter(SIDE_BOTH, 8, O, 30);
-      }
-      break;
+  if (brightness_index == 0) {
+    show_zigzag(SIDE_BOTH, DIGIT_1, &dz1, change_brightness_animated_index);
+  } else if (brightness_index >= 1) {
+    if (brightness_animated_index == 0) show_zigzag(SIDE_BOTH, DIGIT_1, &dz2, change_brightness_animated_index);
+    else
+      show_letter(SIDE_BOTH, DIGIT_1, O, 30);
+  }
+
+  if (brightness_index == 4) {
+    if (brightness_animated_index == 4) show_zigzag(SIDE_BOTH, DIGIT_5, &dz3, change_brightness_animated_index);
+    else
+      show_letter(SIDE_BOTH, DIGIT_5, O, 30);
+  } else if (brightness_index > 4) {
+    if (brightness_animated_index == 4) show_zigzag(SIDE_BOTH, DIGIT_5, &dz4, change_brightness_animated_index);
+    else if (brightness_animated_index == max_brightness_animated_index - 3)
+      show_zigzag(SIDE_BOTH, DIGIT_5, &dz5, change_brightness_animated_index);
+    else
+      show_letter(SIDE_BOTH, DIGIT_5, O, 30);
+  }
+
+  if (brightness_index == 1) {
+    if (brightness_animated_index == 1) show_zigzag(SIDE_BOTH, DIGIT_2, &dz3, change_brightness_animated_index);
+    else
+      show_letter(SIDE_BOTH, DIGIT_2, O, 30);
+  } else if (brightness_index > 1) {
+    if (brightness_animated_index == 1) show_zigzag(SIDE_BOTH, DIGIT_2, &dz4, change_brightness_animated_index);
+    else if (brightness_animated_index == max_brightness_animated_index)
+      show_zigzag(SIDE_BOTH, DIGIT_2, &dz5, change_brightness_animated_index);
+    else
+      show_letter(SIDE_BOTH, DIGIT_2, O, 30);
+  }
+
+  if (brightness_index == 5) {
+    if (brightness_animated_index == 5) show_zigzag(SIDE_BOTH, DIGIT_6, &dz3, change_brightness_animated_index);
+    else
+      show_letter(SIDE_BOTH, DIGIT_6, O, 30);
+  } else if (brightness_index > 5) {
+    if (brightness_animated_index == 5) show_zigzag(SIDE_BOTH, DIGIT_6, &dz4, change_brightness_animated_index);
+    else if (brightness_animated_index == max_brightness_animated_index - 4)
+      show_zigzag(SIDE_BOTH, DIGIT_6, &dz5, change_brightness_animated_index);
+    else
+      show_letter(SIDE_BOTH, DIGIT_6, O, 30);
+  }
+
+  if (brightness_index == 2) {
+    if (brightness_animated_index == 2) show_zigzag(SIDE_BOTH, DIGIT_3, &dz3, change_brightness_animated_index);
+    else
+      show_letter(SIDE_BOTH, DIGIT_3, O, 30);
+  } else if (brightness_index > 2) {
+    if (brightness_animated_index == 2) show_zigzag(SIDE_BOTH, DIGIT_3, &dz4, change_brightness_animated_index);
+    else if (brightness_animated_index == max_brightness_animated_index - 1)
+      show_zigzag(SIDE_BOTH, DIGIT_3, &dz5, change_brightness_animated_index);
+    else
+      show_letter(SIDE_BOTH, DIGIT_3, O, 30);
+  }
+
+  if (brightness_index == 3) {
+    if (brightness_animated_index == 3) show_zigzag(SIDE_BOTH, DIGIT_4, &dz3, change_brightness_animated_index);
+    else
+      show_letter(SIDE_BOTH, DIGIT_4, O, 30);
+  } else if (brightness_index > 3) {
+    if (brightness_animated_index == 3) show_zigzag(SIDE_BOTH, DIGIT_4, &dz4, change_brightness_animated_index);
+    else if (brightness_animated_index == max_brightness_animated_index - 2)
+      show_zigzag(SIDE_BOTH, DIGIT_4, &dz5, change_brightness_animated_index);
+    else
+      show_letter(SIDE_BOTH, DIGIT_4, O, 30);
   }
 }
 
@@ -730,27 +533,13 @@ void show_battery() {
   uint8_t digit_5 = bat_value / 10 % 10;
   uint8_t digit_6 = bat_value % 10;
 
-  switch (current_mux) {
-    case 0:
-      // 1
-      show_number(SIDE_BOTH, 0, digit_1, 50);
-      show_dot(SIDE_BOTH, 0, 50);
-      // 5
-      show_number(SIDE_BOTH, 8, digit_5, 50);
-      break;
-    case 1:
-      // 2
-      show_number(SIDE_BOTH, 0, digit_2, 50);
-      // 6
-      show_number(SIDE_BOTH, 8, digit_6, 50);
-      break;
-    case 2:
-      // 3
-      show_number(SIDE_BOTH, 0, digit_3, 50);
-      // 4
-      show_number(SIDE_BOTH, 8, digit_4, 50);
-      break;
-  }
+  show_number(SIDE_BOTH, DIGIT_1, digit_1, 50);
+  show_dot(SIDE_BOTH, DIGIT_1, 50);
+  show_number(SIDE_BOTH, DIGIT_2, digit_2, 50);
+  show_number(SIDE_BOTH, DIGIT_3, digit_3, 50);
+  show_number(SIDE_BOTH, DIGIT_4, digit_4, 50);
+  show_number(SIDE_BOTH, DIGIT_5, digit_5, 50);
+  show_number(SIDE_BOTH, DIGIT_6, digit_6, 50);
 }
 
 void show_device_battery() {
@@ -764,29 +553,18 @@ void show_device_battery() {
   uint8_t d2_1 = bat_2 / 10;
   uint8_t d2_2 = bat_2 % 10;
 
-  switch (current_mux) {
-    case 0:
-      // 1
-      show_number(SIDE_A, 0, d1_1, 50);
-      show_number(SIDE_A, 8, d2_1, 50);
-      // 5
-      show_number(SIDE_B, 0, d2_1, 50);
-      show_number(SIDE_B, 8, d1_1, 50);
-      break;
-    case 1:
-      // 2
-      show_number(SIDE_A, 0, d1_2, 50);
-      show_number(SIDE_A, 8, d2_2, 50);
-      // 6
-      show_number(SIDE_B, 0, d2_2, 50);
-      show_number(SIDE_B, 8, d1_2, 50);
-      break;
-    case 2:
-      // 3 - 4
-      show_character(SIDE_BOTH, 0, 0b01000000, 50);  // Dash
-      show_character(SIDE_BOTH, 8, 0b01000000, 50);  // Dash
-      break;
-  }
+  show_number(SIDE_A, DIGIT_1, d1_1, 50);
+  show_number(SIDE_A, DIGIT_2, d1_2, 50);
+  show_number(SIDE_A, DIGIT_5, d2_1, 50);
+  show_number(SIDE_A, DIGIT_6, d2_2, 50);
+
+  show_number(SIDE_B, DIGIT_1, d2_1, 50);
+  show_number(SIDE_B, DIGIT_2, d2_2, 50);
+  show_number(SIDE_B, DIGIT_5, d1_1, 50);
+  show_number(SIDE_B, DIGIT_6, d1_2, 50);
+
+  show_character(SIDE_BOTH, DIGIT_3, 0b01000000, 50);  // Dash
+  show_character(SIDE_BOTH, DIGIT_4, 0b01000000, 50);  // Dash
 }
 
 void show_test() {
@@ -795,37 +573,19 @@ void show_test() {
   uint8_t digit_4 = id % 10;
   bool digit_r = gpio_get_level((gpio_num_t)BUTTON_RIGHT_PIN);
 
-  switch (current_mux) {
-    case 0:
-      show_letter(SIDE_A, 0, digit_l ? A : BLANK, 50);
-      show_letter(SIDE_A, 8, digit_r ? B : BLANK, 50);
-      break;
-    case 1:
-      show_letter(SIDE_A, 0, digit_l ? A : BLANK, 50);
-      show_letter(SIDE_A, 8, digit_r ? B : BLANK, 50);
-      break;
-    case 2:
-      show_number(SIDE_A, 0, digit_3, 50);
-      show_number(SIDE_A, 8, digit_4, 50);
-      break;
-  }
+  show_letter(SIDE_A, DIGIT_1, digit_l ? A : BLANK, 50);
+  show_letter(SIDE_A, DIGIT_2, digit_l ? A : BLANK, 50);
+  show_number(SIDE_A, DIGIT_3, digit_3, 50);
+  show_number(SIDE_A, DIGIT_4, digit_4, 50);
+  show_letter(SIDE_A, DIGIT_5, digit_r ? B : BLANK, 50);
+  show_letter(SIDE_A, DIGIT_6, digit_r ? B : BLANK, 50);
 }
 
 void show_off() {
-  switch (current_mux) {
-    case 0:
-      // 1
-      show_wave(SIDE_BOTH, 0, &dw1, init_off_2_scr);
-      // 5
-      show_wave(SIDE_BOTH, 8, &dw5);
-      break;
-    case 1:
-      // 2
-      show_wave(SIDE_BOTH, 0, &dw2);
-      // 6
-      show_wave(SIDE_BOTH, 8, &dw6);
-      break;
-  }
+  show_wave(SIDE_BOTH, DIGIT_1, &dw1, init_off_2_scr);
+  show_wave(SIDE_BOTH, DIGIT_5, &dw5);
+  show_wave(SIDE_BOTH, DIGIT_2, &dw2);
+  show_wave(SIDE_BOTH, DIGIT_6, &dw6);
 }
 
 void show_off_2() { show_text(SIDE_BOTH, B, Y, BLANK, BLANK, E, E, 1); }

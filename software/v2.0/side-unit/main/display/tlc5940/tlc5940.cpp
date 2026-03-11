@@ -46,6 +46,9 @@ gpio_num_t dcprg_pin;
 gpio_num_t xerr_pin;
 
 volatile uint8_t current_mux = 0;
+volatile uint8_t target_mux = 0;
+volatile uint8_t active_buffer = 0;
+volatile uint8_t inactive_buffer = 1;
 uint8_t mux_a[] = {MUX_A_DD_1, MUX_A_DD_2, MUX_A_SD};
 uint8_t mux_b[] = {MUX_B_DD_1, MUX_B_DD_2, MUX_B_SD};
 
@@ -76,7 +79,7 @@ static void (*userCallback)() = nullptr;
     \note Normally packing data like this is bad practice.  But in this
           situation, shifting the data out is really fast because the format of
           the array is the same as the format of the TLC's serial interface. */
-uint8_t tlc_GSData[NUM_TLCS * 24];
+uint8_t gs_buffers[2][3][NUM_TLCS * 24];
 
 /** Packed DOT Correction data, 12 bytes (16 * 6 bits) per TLC. */
 uint8_t tlc_DCData[NUM_TLCS * 12];
@@ -253,10 +256,40 @@ void Tlc5940::set(TLC_CHANNEL_TYPE channel, uint16_t val, uint8_t side) {
   }
 }
 
-void Tlc5940::setChannel(TLC_CHANNEL_TYPE channel, uint16_t val) {
-  uint16_t value = get_corrected_value(channel, val);
+void Tlc5940::setSegment(uint8_t side, uint8_t logical_digit, uint8_t segment, uint16_t val) {
+  // Map logical digit to physical mux: D1/D5→mux0, D2/D6→mux1, D3/D4→mux2
+  static const uint8_t digit_to_mux[] = {0, 1, 2, 2, 0, 1};
+  uint8_t target_mux_internal = digit_to_mux[logical_digit];
+
+  // D1(0),D2(1),D3(2) use channels 0-7; D4(3),D5(4),D6(5) use channels 8-15
+  uint8_t channel = (logical_digit < 3) ? segment : segment + 8;
+  if (side == SIDE_B) channel += 16;
+  else if (side == SIDE_BOTH) {
+    setSegment(SIDE_A, logical_digit, segment, val);
+    setSegment(SIDE_B, logical_digit, segment, val);
+    return;
+  }
+
+  uint16_t offset = channel < 16 ? segment_a[logical_digit] : segment_b[logical_digit];
+  uint32_t corrected_value = (uint32_t)val * offset / 100;
+  uint16_t value = get_gamma_corrected_value((uint16_t)corrected_value);
+
   TLC_CHANNEL_TYPE index8 = (NUM_TLCS * 16 - 1) - channel;
-  uint8_t *index12p = tlc_GSData + ((((uint16_t)index8) * 3) >> 1);
+  uint8_t *index12p = gs_buffers[inactive_buffer][target_mux_internal] + ((((uint16_t)index8) * 3) >> 1);
+  if (index8 & 1) {
+    *index12p = (*index12p & 0xF0) | (value >> 8);
+    *(++index12p) = value & 0xFF;
+  } else {
+    *(index12p++) = value >> 4;
+    *index12p = ((uint8_t)(value << 4)) | (*index12p & 0xF);
+  }
+}
+
+void Tlc5940::setChannel(TLC_CHANNEL_TYPE channel, uint16_t val) {
+  // Legacy function maintained for fallback
+  uint16_t value = get_gamma_corrected_value(val);
+  TLC_CHANNEL_TYPE index8 = (NUM_TLCS * 16 - 1) - channel;
+  uint8_t *index12p = gs_buffers[inactive_buffer][target_mux] + ((((uint16_t)index8) * 3) >> 1);
   if (index8 & 1) {  // starts in the middle
                      // first 4 bits intact | 4 top bits of value
     *index12p = (*index12p & 0xF0) | (value >> 8);
@@ -277,7 +310,7 @@ void Tlc5940::setChannel(TLC_CHANNEL_TYPE channel, uint16_t val) {
     \see set */
 uint16_t Tlc5940::get(TLC_CHANNEL_TYPE channel) {
   TLC_CHANNEL_TYPE index8 = (NUM_TLCS * 16 - 1) - channel;
-  uint8_t *index12p = tlc_GSData + ((((uint16_t)index8) * 3) >> 1);
+  uint8_t *index12p = gs_buffers[inactive_buffer][target_mux] + ((((uint16_t)index8) * 3) >> 1);
   return (index8 & 1) ?                             // starts in the middle
              (((uint16_t)(*index12p & 15)) << 8) |  // upper 4 bits
                  *(index12p + 1)                    // lower 8 bits
@@ -292,11 +325,13 @@ uint16_t Tlc5940::get(TLC_CHANNEL_TYPE channel) {
 void Tlc5940::setAll(uint16_t value) {
   uint8_t first_byte = value >> 4;
   uint8_t second_byte = (value << 4) | (value >> 8);
-  uint8_t *p = tlc_GSData;
-  while (p < tlc_GSData + NUM_TLCS * 24) {
-    *p++ = first_byte;
-    *p++ = second_byte;
-    *p++ = (uint8_t)value;
+  for (int m = 0; m < 3; m++) {
+    uint8_t *p = gs_buffers[inactive_buffer][m];
+    while (p < gs_buffers[inactive_buffer][m] + NUM_TLCS * 24) {
+      *p++ = first_byte;
+      *p++ = second_byte;
+      *p++ = (uint8_t)value;
+    }
   }
 }
 
@@ -432,6 +467,22 @@ void set_mux_b(gpio_num_t mux_pin) {
   mux_b_sel = mux_pin;
 }
 
+void swap_buffers() {
+  uint8_t temp = active_buffer;
+  active_buffer = inactive_buffer;
+  inactive_buffer = temp;
+}
+
+void display_logic_task(void *arg) {
+  while (1) {
+    if (userCallback) {
+      userCallback();
+      swap_buffers();
+    }
+    vTaskDelay(pdMS_TO_TICKS(FRAME_TIME_MS));
+  }
+}
+
 void display_update_task(void *arg) {
   while (1) {
     ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
@@ -461,20 +512,16 @@ void display_update_task(void *arg) {
 
     // Below this we have 4096 cycles to shift in the data for the next cycle
 
-    // Send all grayscale data in one transaction
-    spi_send(tlc_GSData, NUM_TLCS * 24);
+    // Send all grayscale data in one transaction for the active mux and buffer
+    spi_send(gs_buffers[active_buffer][current_mux], NUM_TLCS * 24);
     xlatNeedsPulse = 1;
 
-    if (userCallback) {
-      set_mux_a((gpio_num_t)mux_a[current_mux]);
-      set_mux_b((gpio_num_t)mux_b[current_mux]);
-      if (current_mux < MUX_NUM - 1) {
-        current_mux = current_mux + 1;
-      } else {
-        current_mux = 0;
-      }
-
-      userCallback();
+    set_mux_a((gpio_num_t)mux_a[current_mux]);
+    set_mux_b((gpio_num_t)mux_b[current_mux]);
+    if (current_mux < MUX_NUM - 1) {
+      current_mux = current_mux + 1;
+    } else {
+      current_mux = 0;
     }
   }
 }
@@ -497,23 +544,6 @@ void tlc_dcModeStop(void) {
 }
 
 #endif
-
-static const uint8_t digit_lookup[3][2] = {
-    {4, 0},
-    {5, 1},
-    {3, 2}};
-
-uint16_t get_corrected_value(uint8_t channel, uint16_t value) {
-  uint8_t chan = channel < 16 ? channel : channel - 16;
-  uint8_t first_digit = chan < 8;
-
-  uint8_t index = digit_lookup[current_mux][first_digit];
-
-  uint16_t offset = channel < 16 ? segment_a[index] : segment_b[index];
-  uint32_t corrected_value = (uint32_t)value * offset / 100;
-
-  return get_gamma_corrected_value((uint16_t)corrected_value);
-}
 
 uint16_t get_gamma_corrected_value(uint16_t value) {
   if (value >= 4096) {
