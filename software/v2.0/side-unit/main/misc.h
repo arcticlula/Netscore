@@ -42,3 +42,8 @@ void adc_read_bat(TimerHandle_t xTimer);
 // void adc_task(void *arg);
 uint16_t get_bat_value();
 uint16_t get_bat_percentage();
+
+// Bar LED PWM
+void init_bar_led();
+void bar_led_pulse(uint32_t duration_ms);
+void bar_led_off();

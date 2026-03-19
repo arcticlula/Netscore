@@ -255,32 +255,41 @@ void show_play_default() {
                         score.home_points - score.away_points >= 1;
   bool away_set_point = score.away_points + 1 >= current_max_score &&
                         score.away_points - score.home_points >= 1;
-  uint8_t home_points_1 = score.home_points / 10;
-  uint8_t home_points_2 = score.home_points % 10;
-  uint8_t away_points_1 = score.away_points / 10;
-  uint8_t away_points_2 = score.away_points % 10;
 
-  show_number(SIDE_A, DIGIT_1, home_points_1, 50);
-  show_number(SIDE_A, DIGIT_2, home_points_2, 50);
-  show_number(SIDE_A, DIGIT_3, score.home_sets, 50);
-  show_number(SIDE_A, DIGIT_4, score.away_sets, 50);
-  show_number(SIDE_A, DIGIT_5, away_points_1, 50);
-  show_number(SIDE_A, DIGIT_6, away_points_2, 50);
+  // Resolve left/right based on swap
+  uint8_t left_points = swap ? score.away_points : score.home_points;
+  uint8_t right_points = swap ? score.home_points : score.away_points;
+  bool left_set_point = swap ? away_set_point : home_set_point;
+  bool right_set_point = swap ? home_set_point : away_set_point;
+  uint8_t left_sets = swap ? score.away_sets : score.home_sets;
+  uint8_t right_sets = swap ? score.home_sets : score.away_sets;
 
-  // If next point is set point, show dot
-  if (home_set_point) show_dot(SIDE_A, DIGIT_2, &dd1);
-  if (away_set_point) show_dot(SIDE_A, DIGIT_6, &dd2);
+  uint8_t left_points_1 = left_points / 10;
+  uint8_t left_points_2 = left_points % 10;
+  uint8_t right_points_1 = right_points / 10;
+  uint8_t right_points_2 = right_points % 10;
 
-  show_number(SIDE_B, DIGIT_1, away_points_1, 50);
-  show_number(SIDE_B, DIGIT_2, away_points_2, 50);
-  show_number(SIDE_B, DIGIT_3, score.away_sets, 50);
-  show_number(SIDE_B, DIGIT_4, score.home_sets, 50);
-  show_number(SIDE_B, DIGIT_5, home_points_1, 50);
-  show_number(SIDE_B, DIGIT_6, home_points_2, 50);
+  show_number(SIDE_A, DIGIT_1, left_points_1, 50);
+  show_number(SIDE_A, DIGIT_2, left_points_2, 50);
+  show_number(SIDE_A, DIGIT_3, left_sets, 50);
+  show_number(SIDE_A, DIGIT_4, right_sets, 50);
+  show_number(SIDE_A, DIGIT_5, right_points_1, 50);
+  show_number(SIDE_A, DIGIT_6, right_points_2, 50);
 
   // If next point is set point, show dot
-  if (away_set_point) show_dot(SIDE_B, DIGIT_2, &dd2);
-  if (home_set_point) show_dot(SIDE_B, DIGIT_6, &dd1);
+  if (left_set_point) show_dot(SIDE_A, DIGIT_2, &dd1);
+  if (right_set_point) show_dot(SIDE_A, DIGIT_6, &dd2);
+
+  show_number(SIDE_B, DIGIT_1, right_points_1, 50);
+  show_number(SIDE_B, DIGIT_2, right_points_2, 50);
+  show_number(SIDE_B, DIGIT_3, right_sets, 50);
+  show_number(SIDE_B, DIGIT_4, left_sets, 50);
+  show_number(SIDE_B, DIGIT_5, left_points_1, 50);
+  show_number(SIDE_B, DIGIT_6, left_points_2, 50);
+
+  // If next point is set point, show dot
+  if (right_set_point) show_dot(SIDE_B, DIGIT_2, &dd2);
+  if (left_set_point) show_dot(SIDE_B, DIGIT_6, &dd1);
 }
 
 void show_play_padel() {
@@ -317,35 +326,47 @@ void show_play_padel() {
     away_set_point = away_game_point && padel_score.away_games >= 5 && (padel_score.away_games - padel_score.home_games >= 1);
   }
 
-  show_character(SIDE_A, DIGIT_1, home_points_1, 50);
-  show_character(SIDE_A, DIGIT_2, home_points_2, 50);
-  show_number(SIDE_A, DIGIT_3, padel_score.home_games, 50);
-  show_number(SIDE_A, DIGIT_4, padel_score.away_games, 50);
-  show_character(SIDE_A, DIGIT_5, away_points_1, 50);
-  show_character(SIDE_A, DIGIT_6, away_points_2, 50);
+  // Resolve left/right based on swap
+  uint8_t left_points_1 = swap ? away_points_1 : home_points_1;
+  uint8_t left_points_2 = swap ? away_points_2 : home_points_2;
+  uint8_t right_points_1 = swap ? home_points_1 : away_points_1;
+  uint8_t right_points_2 = swap ? home_points_2 : away_points_2;
+  bool left_game_point = swap ? away_game_point : home_game_point;
+  bool right_game_point = swap ? home_game_point : away_game_point;
+  uint8_t left_games = swap ? padel_score.away_games : padel_score.home_games;
+  uint8_t right_games = swap ? padel_score.home_games : padel_score.away_games;
+  bool left_set_point = swap ? away_set_point : home_set_point;
+  bool right_set_point = swap ? home_set_point : away_set_point;
+
+  show_character(SIDE_A, DIGIT_1, left_points_1, 50);
+  show_character(SIDE_A, DIGIT_2, left_points_2, 50);
+  show_number(SIDE_A, DIGIT_3, left_games, 50);
+  show_number(SIDE_A, DIGIT_4, right_games, 50);
+  show_character(SIDE_A, DIGIT_5, right_points_1, 50);
+  show_character(SIDE_A, DIGIT_6, right_points_2, 50);
 
   // If next point is game point, show dot
-  if (home_game_point) show_dot(SIDE_A, DIGIT_2, &dd1);
-  if (away_game_point) show_dot(SIDE_A, DIGIT_6, &dd1);
+  if (left_game_point) show_dot(SIDE_A, DIGIT_2, &dd1);
+  if (right_game_point) show_dot(SIDE_A, DIGIT_6, &dd1);
 
   // If next point is set point, show dot
-  if (home_set_point) show_dot(SIDE_A, DIGIT_3, &dd2);
-  if (away_set_point) show_dot(SIDE_A, DIGIT_4, &dd2);
+  if (left_set_point) show_dot(SIDE_A, DIGIT_3, &dd2);
+  if (right_set_point) show_dot(SIDE_A, DIGIT_4, &dd2);
 
-  show_character(SIDE_B, DIGIT_1, away_points_1, 50);
-  show_character(SIDE_B, DIGIT_2, away_points_2, 50);
-  show_number(SIDE_B, DIGIT_3, padel_score.away_games, 50);
-  show_number(SIDE_B, DIGIT_4, padel_score.home_games, 50);
-  show_character(SIDE_B, DIGIT_5, home_points_1, 50);
-  show_character(SIDE_B, DIGIT_6, home_points_2, 50);
+  show_character(SIDE_B, DIGIT_1, right_points_1, 50);
+  show_character(SIDE_B, DIGIT_2, right_points_2, 50);
+  show_number(SIDE_B, DIGIT_3, right_games, 50);
+  show_number(SIDE_B, DIGIT_4, left_games, 50);
+  show_character(SIDE_B, DIGIT_5, left_points_1, 50);
+  show_character(SIDE_B, DIGIT_6, left_points_2, 50);
 
   // If next point is game point, show dot
-  if (away_game_point) show_dot(SIDE_B, DIGIT_2, &dd1);
-  if (home_game_point) show_dot(SIDE_B, DIGIT_6, &dd1);
+  if (right_game_point) show_dot(SIDE_B, DIGIT_2, &dd1);
+  if (left_game_point) show_dot(SIDE_B, DIGIT_6, &dd1);
 
   // If next point is set point, show dot
-  if (away_set_point) show_dot(SIDE_B, DIGIT_3, &dd2);
-  if (home_set_point) show_dot(SIDE_B, DIGIT_4, &dd2);
+  if (right_set_point) show_dot(SIDE_B, DIGIT_3, &dd2);
+  if (left_set_point) show_dot(SIDE_B, DIGIT_4, &dd2);
 }
 
 void show_play_result(uint8_t team) {
@@ -365,40 +386,50 @@ void show_play_result_default(uint8_t team) {
   uint8_t away_points_1 = score.set_points_away[set_idx] / 10;
   uint8_t away_points_2 = score.set_points_away[set_idx] % 10;
 
-  set_number(&dw1.c, home_points_1);
-  set_number(&dw2.c, home_points_2);
-  set_number(&dw5.c, away_points_1);
-  set_number(&dw6.c, away_points_2);
+  // Resolve left/right based on swap
+  uint8_t left_points_1 = swap ? away_points_1 : home_points_1;
+  uint8_t left_points_2 = swap ? away_points_2 : home_points_2;
+  uint8_t right_points_1 = swap ? home_points_1 : away_points_1;
+  uint8_t right_points_2 = swap ? home_points_2 : away_points_2;
+  uint8_t left_sets = swap ? score.away_sets : score.home_sets;
+  uint8_t right_sets = swap ? score.home_sets : score.away_sets;
+  uint8_t left_team = swap ? AWAY : HOME;
+  uint8_t right_team = swap ? HOME : AWAY;
 
-  if (team == HOME) {
+  set_number(&dw1.c, left_points_1);
+  set_number(&dw2.c, left_points_2);
+  set_number(&dw5.c, right_points_1);
+  set_number(&dw6.c, right_points_2);
+
+  if (team == left_team) {
     show_wave(SIDE_A, DIGIT_1, &dw1);
     show_wave(SIDE_A, DIGIT_2, &dw2);
-    show_number(SIDE_A, DIGIT_5, away_points_1, 50);
-    show_number(SIDE_A, DIGIT_6, away_points_2, 50);
+    show_number(SIDE_A, DIGIT_5, right_points_1, 50);
+    show_number(SIDE_A, DIGIT_6, right_points_2, 50);
   } else {
-    show_number(SIDE_A, DIGIT_1, home_points_1, 50);
-    show_number(SIDE_A, DIGIT_2, home_points_2, 50);
+    show_number(SIDE_A, DIGIT_1, left_points_1, 50);
+    show_number(SIDE_A, DIGIT_2, left_points_2, 50);
     show_wave(SIDE_A, DIGIT_5, &dw5);
     show_wave(SIDE_A, DIGIT_6, &dw6);
   }
 
-  if (team == HOME) {
-    show_number(SIDE_B, DIGIT_1, away_points_1, 50);
-    show_number(SIDE_B, DIGIT_2, away_points_2, 50);
+  if (team == left_team) {
+    show_number(SIDE_B, DIGIT_1, right_points_1, 50);
+    show_number(SIDE_B, DIGIT_2, right_points_2, 50);
     show_wave(SIDE_B, DIGIT_5, &dw1);
     show_wave(SIDE_B, DIGIT_6, &dw2);
   } else {
     show_wave(SIDE_B, DIGIT_1, &dw5);
     show_wave(SIDE_B, DIGIT_2, &dw6);
-    show_number(SIDE_B, DIGIT_5, home_points_1, 50);
-    show_number(SIDE_B, DIGIT_6, home_points_2, 50);
+    show_number(SIDE_B, DIGIT_5, left_points_1, 50);
+    show_number(SIDE_B, DIGIT_6, left_points_2, 50);
   }
 
-  show_number(SIDE_A, DIGIT_3, score.home_sets, 50);
-  show_number(SIDE_A, DIGIT_4, score.away_sets, 50);
+  show_number(SIDE_A, DIGIT_3, left_sets, 50);
+  show_number(SIDE_A, DIGIT_4, right_sets, 50);
 
-  show_number(SIDE_B, DIGIT_3, score.away_sets, 50);
-  show_number(SIDE_B, DIGIT_4, score.home_sets, 50);
+  show_number(SIDE_B, DIGIT_3, right_sets, 50);
+  show_number(SIDE_B, DIGIT_4, left_sets, 50);
 }
 
 void show_play_result_padel(uint8_t team) {
@@ -413,42 +444,52 @@ void show_play_result_padel(uint8_t team) {
   uint8_t home_games = padel_score.set_games_home[set_idx];
   uint8_t away_games = padel_score.set_games_away[set_idx];
 
-  set_number(&dw1.c, home_sets_1);
-  set_number(&dw2.c, home_sets_2);
-  set_number(&dw5.c, away_sets_1);
-  set_number(&dw6.c, away_sets_2);
+  // Resolve left/right based on swap
+  uint8_t left_sets_1 = swap ? away_sets_1 : home_sets_1;
+  uint8_t left_sets_2 = swap ? away_sets_2 : home_sets_2;
+  uint8_t right_sets_1 = swap ? home_sets_1 : away_sets_1;
+  uint8_t right_sets_2 = swap ? home_sets_2 : away_sets_2;
+  uint8_t left_games = swap ? away_games : home_games;
+  uint8_t right_games = swap ? home_games : away_games;
+  uint8_t left_team = swap ? AWAY : HOME;
+  uint8_t right_team = swap ? HOME : AWAY;
+
+  set_number(&dw1.c, left_sets_1);
+  set_number(&dw2.c, left_sets_2);
+  set_number(&dw5.c, right_sets_1);
+  set_number(&dw6.c, right_sets_2);
 
   // Side A
-  if (team == HOME) {
+  if (team == left_team) {
     show_wave(SIDE_A, DIGIT_1, &dw1);
     show_wave(SIDE_A, DIGIT_2, &dw2);
-    show_number(SIDE_A, DIGIT_5, away_sets_1, 50);
-    show_number(SIDE_A, DIGIT_6, away_sets_2, 50);
+    show_number(SIDE_A, DIGIT_5, right_sets_1, 50);
+    show_number(SIDE_A, DIGIT_6, right_sets_2, 50);
   } else {
-    show_number(SIDE_A, DIGIT_1, home_sets_1, 50);
-    show_number(SIDE_A, DIGIT_2, home_sets_2, 50);
+    show_number(SIDE_A, DIGIT_1, left_sets_1, 50);
+    show_number(SIDE_A, DIGIT_2, left_sets_2, 50);
     show_wave(SIDE_A, DIGIT_5, &dw5);
     show_wave(SIDE_A, DIGIT_6, &dw6);
   }
 
   // Side B
-  if (team == HOME) {
-    show_number(SIDE_B, DIGIT_1, away_sets_1, 50);
-    show_number(SIDE_B, DIGIT_2, away_sets_2, 50);
+  if (team == left_team) {
+    show_number(SIDE_B, DIGIT_1, right_sets_1, 50);
+    show_number(SIDE_B, DIGIT_2, right_sets_2, 50);
     show_wave(SIDE_B, DIGIT_5, &dw1);
     show_wave(SIDE_B, DIGIT_6, &dw2);
   } else {
     show_wave(SIDE_B, DIGIT_1, &dw5);
     show_wave(SIDE_B, DIGIT_2, &dw6);
-    show_number(SIDE_B, DIGIT_5, home_sets_1, 50);
-    show_number(SIDE_B, DIGIT_6, home_sets_2, 50);
+    show_number(SIDE_B, DIGIT_5, left_sets_1, 50);
+    show_number(SIDE_B, DIGIT_6, left_sets_2, 50);
   }
 
-  show_number(SIDE_A, DIGIT_3, home_games, 50);
-  show_number(SIDE_A, DIGIT_4, away_games, 50);
+  show_number(SIDE_A, DIGIT_3, left_games, 50);
+  show_number(SIDE_A, DIGIT_4, right_games, 50);
 
-  show_number(SIDE_B, DIGIT_3, away_games, 50);
-  show_number(SIDE_B, DIGIT_4, home_games, 50);
+  show_number(SIDE_B, DIGIT_3, right_games, 50);
+  show_number(SIDE_B, DIGIT_4, left_games, 50);
 }
 
 void show_brightness() {
@@ -568,17 +609,17 @@ void show_device_battery() {
 }
 
 void show_test() {
-  bool digit_l = gpio_get_level((gpio_num_t)BUTTON_LEFT_PIN);
+  // bool digit_l = gpio_get_level((gpio_num_t)BUTTON_LEFT_PIN);
   uint8_t digit_3 = id / 10 % 10;
   uint8_t digit_4 = id % 10;
-  bool digit_r = gpio_get_level((gpio_num_t)BUTTON_RIGHT_PIN);
+  // bool digit_r = gpio_get_level((gpio_num_t)BUTTON_RIGHT_PIN);
 
-  show_letter(SIDE_A, DIGIT_1, digit_l ? A : BLANK, 50);
-  show_letter(SIDE_A, DIGIT_2, digit_l ? A : BLANK, 50);
+  // show_letter(SIDE_A, DIGIT_1, digit_l ? A : BLANK, 50);
+  // show_letter(SIDE_A, DIGIT_2, digit_l ? A : BLANK, 50);
   show_number(SIDE_A, DIGIT_3, digit_3, 50);
   show_number(SIDE_A, DIGIT_4, digit_4, 50);
-  show_letter(SIDE_A, DIGIT_5, digit_r ? B : BLANK, 50);
-  show_letter(SIDE_A, DIGIT_6, digit_r ? B : BLANK, 50);
+  // show_letter(SIDE_A, DIGIT_5, digit_r ? B : BLANK, 50);
+  // show_letter(SIDE_A, DIGIT_6, digit_r ? B : BLANK, 50);
 }
 
 void show_off() {

@@ -46,12 +46,12 @@
 
 // #define BUTTON_LEFT_PIN   5
 // #define BUTTON_RIGHT_PIN  4
-#define BUTTON_LEFT_PIN 5
 #define BUTTON_RIGHT_PIN 6
 #define VCC_CTRL_EN 14
 // #define LDO_CTRL_EN  4
 #define LDO_LATCH 45
 #define LED_PIN 15
+#define DISPLAY_LED_PIN 5
 // #define BUZZER_PIN   6
 #define BUZZER_A_PIN 42
 #define BUZZER_B_PIN 7
@@ -221,6 +221,8 @@ extern int8_t window;
 extern int8_t sport;
 // Selected options
 extern int8_t menu;
+// Swap home/away sides
+extern bool swap;
 
 // Screen brightness vector
 extern uint8_t brightness[6];

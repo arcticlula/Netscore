@@ -328,6 +328,7 @@ void mirror_update_task(void *arg) {
               default:
                 break;
             }
+            bar_led_pulse(1500);
             break;
           case BRILHO_SCR:
             navigate_brightness(button, option);

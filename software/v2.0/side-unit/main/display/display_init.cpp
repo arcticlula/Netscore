@@ -38,6 +38,7 @@ void init_boot_2_scr() {
   set_letter(&dw6.c, A);
 
   window = BOOT_2_SCR;
+  bar_led_pulse(500);
 }
 
 void init_boot_3_scr() {

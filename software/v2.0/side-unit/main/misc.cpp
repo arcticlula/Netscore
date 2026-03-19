@@ -2,12 +2,9 @@
 
 #include <rom/ets_sys.h>
 
+#include "driver/ledc.h"
 #include "esp_adc/adc_oneshot.h"
 #include "score_board.h"
-// #include <driver/adc.h>
-
-// Preferences prefs;
-
 // Battery value
 uint16_t bat_value;
 uint8_t bat_percentage;
@@ -21,12 +18,98 @@ size_t sample_count = 0;               // Number of samples added so far
 
 void init_gpio() {
   gpio_set_direction((gpio_num_t)LED_PIN, GPIO_MODE_OUTPUT);
+  // gpio_set_direction((gpio_num_t)DISPLAY_LED_PIN, GPIO_MODE_OUTPUT);
   gpio_set_direction((gpio_num_t)VCC_CTRL_EN, GPIO_MODE_OUTPUT);
   gpio_set_direction((gpio_num_t)LDO_LATCH, GPIO_MODE_OUTPUT);
 
   gpio_set_level((gpio_num_t)LED_PIN, HIGH);  // delete after
+  // gpio_set_level((gpio_num_t)DISPLAY_LED_PIN, HIGH);
+
   gpio_set_level((gpio_num_t)VCC_CTRL_EN, HIGH);
   gpio_set_level((gpio_num_t)LDO_LATCH, HIGH);
+}
+
+// --- Bar LED PWM ---
+
+#define BAR_LED_LEDC_TIMER LEDC_TIMER_2
+#define BAR_LED_LEDC_CHANNEL LEDC_CHANNEL_1
+#define BAR_LED_DUTY_RES LEDC_TIMER_10_BIT  // 0-1023
+#define BAR_LED_FREQ_HZ 5000
+#define BAR_LED_MAX_DUTY 1023
+#define BAR_LED_STEP_MS 10  // Timer tick interval
+
+static TimerHandle_t bar_led_timer = nullptr;
+static uint16_t bar_led_total_steps = 0;
+static uint16_t bar_led_current_step = 0;
+
+void init_bar_led() {
+  ledc_timer_config_t timer_cfg = {};
+  timer_cfg.speed_mode = LEDC_LOW_SPEED_MODE;
+  timer_cfg.duty_resolution = BAR_LED_DUTY_RES;
+  timer_cfg.timer_num = BAR_LED_LEDC_TIMER;
+  timer_cfg.freq_hz = BAR_LED_FREQ_HZ;
+  timer_cfg.clk_cfg = LEDC_USE_APB_CLK;
+  ESP_ERROR_CHECK(ledc_timer_config(&timer_cfg));
+
+  ledc_channel_config_t ch_cfg = {};
+  ch_cfg.speed_mode = LEDC_LOW_SPEED_MODE;
+  ch_cfg.channel = BAR_LED_LEDC_CHANNEL;
+  ch_cfg.intr_type = LEDC_INTR_DISABLE;
+  ch_cfg.timer_sel = BAR_LED_LEDC_TIMER;
+  ch_cfg.gpio_num = DISPLAY_LED_PIN;
+  ch_cfg.duty = 0;
+  ch_cfg.hpoint = 0;
+  ESP_ERROR_CHECK(ledc_channel_config(&ch_cfg));
+}
+
+static void bar_led_timer_cb(TimerHandle_t xTimer) {
+  if (bar_led_current_step >= bar_led_total_steps) {
+    // Done — turn off and stop timer
+    ledc_set_duty(LEDC_LOW_SPEED_MODE, BAR_LED_LEDC_CHANNEL, 0);
+    ledc_update_duty(LEDC_LOW_SPEED_MODE, BAR_LED_LEDC_CHANNEL);
+    xTimerStop(xTimer, 0);
+    return;
+  }
+
+  uint16_t half = bar_led_total_steps / 2;
+  uint16_t duty;
+  if (bar_led_current_step <= half) {
+    // Ramp up
+    duty = (uint16_t)((uint32_t)BAR_LED_MAX_DUTY * bar_led_current_step / half);
+  } else {
+    // Ramp down
+    uint16_t down_step = bar_led_current_step - half;
+    uint16_t down_total = bar_led_total_steps - half;
+    duty = (uint16_t)((uint32_t)BAR_LED_MAX_DUTY * (down_total - down_step) / down_total);
+  }
+
+  ledc_set_duty(LEDC_LOW_SPEED_MODE, BAR_LED_LEDC_CHANNEL, duty);
+  ledc_update_duty(LEDC_LOW_SPEED_MODE, BAR_LED_LEDC_CHANNEL);
+  bar_led_current_step++;
+}
+
+void bar_led_pulse(uint32_t duration_ms) {
+  bar_led_total_steps = duration_ms / BAR_LED_STEP_MS;
+  bar_led_current_step = 0;
+
+  if (bar_led_timer == nullptr) {
+    bar_led_timer = xTimerCreate(
+        "BarLED",
+        pdMS_TO_TICKS(BAR_LED_STEP_MS),
+        pdTRUE,
+        (void *)0,
+        bar_led_timer_cb);
+  }
+
+  xTimerStart(bar_led_timer, 0);
+}
+
+void bar_led_off() {
+  if (bar_led_timer != nullptr) {
+    xTimerStop(bar_led_timer, 0);
+  }
+  ledc_set_duty(LEDC_LOW_SPEED_MODE, BAR_LED_LEDC_CHANNEL, 0);
+  ledc_update_duty(LEDC_LOW_SPEED_MODE, BAR_LED_LEDC_CHANNEL);
 }
 
 /**

@@ -26,6 +26,7 @@ extern "C" void app_main(void) {
   // while(!gpio_get_level((gpio_num_t)BUTTON_LEFT_PIN) && !gpio_get_level((gpio_num_t)BUTTON_RIGHT_PIN));
 
   init_gpio();
+  init_bar_led();
 
   init_esp_now();
   // init_inputs();
