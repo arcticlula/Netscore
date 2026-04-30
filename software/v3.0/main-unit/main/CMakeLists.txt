@@ -1,0 +1,45 @@
+idf_component_register(
+    SRCS 
+        "main.cpp"
+        "button/button.cpp"
+        "button/button_actions.cpp"
+        "button/button_actions_helper.cpp"
+        "buzzer/buzzer.cpp"
+        "display/display_definitions.cpp"
+        "display/display_api.cpp"
+        "display/display_init.cpp"
+        "display/display.cpp"
+        "display/tlc5951/tlc5951.cpp"
+        "spi/spi.cpp"
+        "wifi/esp-now.cpp"
+        "ble/ble.c"
+        "ble/ab_shutter.c"
+        "ble/itag.c"
+        "misc.cpp"
+        "score_board.cpp"
+        "tasks.cpp"
+        "definitions.cpp"
+        "storage.cpp"
+        "nvs_store.c"
+        "i2c/i2c_bus.cpp"
+        "power/power.cpp"
+        "rtc/ds3231.cpp"
+        "time/app_time.cpp"
+    INCLUDE_DIRS "."
+    REQUIRES 
+        nvs_flash 
+        esp_event 
+        esp_netif 
+        esp_wifi
+        driver
+        esp_timer
+        esp_adc
+        esp_hid
+        bt
+)
+
+# Force app_time.cpp to be recompiled on every build so __TIME__ is accurate
+add_custom_target(update_time_timestamp ALL
+    COMMAND ${CMAKE_COMMAND} -E touch ${CMAKE_CURRENT_SOURCE_DIR}/time/app_time.cpp
+)
+add_dependencies(${COMPONENT_LIB} update_time_timestamp)

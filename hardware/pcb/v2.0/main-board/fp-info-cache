@@ -1,4 +1,4 @@
-26802293142591527
+26805887840476471
 Audio_Module
 Reverb_BTDR-1H
 Digital Reverberation Unit, http://www.belton.co.kr/inc/downfile.php?seq=17&file=pdf (footprint from http://www.uk-electronic.de/PDF/BTDR-1.pdf)
@@ -70588,6 +70588,13 @@ Luis
 10
 10
 Luis
+7Seg SMD 0.8in Single
+
+
+0
+10
+10
+Luis
 Button_3x4x2.5
 
 
@@ -70644,7 +70651,21 @@ GS-2011AB
 10
 10
 Luis
+Kahil
+
+
+0
+2
+2
+Luis
 Kahil Mute 6.2x6.2x7.3
+
+
+0
+2
+2
+Luis
+LED Bar
 
 
 0
@@ -70663,7 +70684,7 @@ Thumbwheel
 
 0
 5
-5
+4
 Luis
 USB_C_Receptacle_Power_6Pins
 USB Type-C receptacle for USB 2.0 and PD
@@ -70671,13 +70692,6 @@ usb usb-c 2.0 pd
 0
 10
 7
-Luis
-Untitled
-
-
-0
-2
-2
 Luis
 fishing
 
