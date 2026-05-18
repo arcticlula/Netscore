@@ -21,8 +21,10 @@ bool ds3231_init(void) {
   }
   ESP_LOGI(TAG, "DS3231 found.");
 
-  // Clear control registers (disable alarms, SQW output off)
-  uint8_t ctrl[3] = {0x0E, 0x00, 0x00};
+  // Clear control registers (disable alarms)
+  // Register 0x0E (Control): 0x00
+  // Register 0x0F (Status):  0x08 (Bit 3: EN32kHz = 1 to enable 32kHz output)
+  uint8_t ctrl[3] = {0x0E, 0x00, 0x08};
   i2c_write(DS3231_I2C_ADDR, ctrl, 3);
 
   return true;

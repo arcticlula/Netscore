@@ -9,7 +9,7 @@ int8_t sport = SPORT_VOLLEY;
 // Selected options
 int8_t menu = MENU_PLAY;
 // Swap home/away sides
-bool swap = true;
+bool swap = false;
 
 // Screen brightness vector
 uint8_t brightness[6] = {1, 10, 25, 35, 50, 63};

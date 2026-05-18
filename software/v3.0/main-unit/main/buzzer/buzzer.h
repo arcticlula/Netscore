@@ -32,11 +32,7 @@ typedef struct {
   note_t note;
   int8_t divider;
   int16_t octave;
-#ifdef __cplusplus
-  callback_t callback = nullptr;
-#else
-  callback_t callback;
-#endif
+  uint8_t volume;
 } melody_note_t;
 
 #ifdef __cplusplus
@@ -45,12 +41,13 @@ extern "C" {
 
 void init_buzzer();
 void init_melody_timer(void);
+void set_buzzer_volume(uint8_t volume);
+uint16_t calculate_buzzer_volume(uint8_t volume);
 
-void buzzer_start(note_t note, uint8_t octave);
-void buzzer_play(uint8_t buzzer, note_t note, uint8_t octave, int16_t duration_ms);
+void buzzer_play(uint8_t buzzer, note_t note, uint8_t octave, int16_t duration_ms, uint8_t volume);
 void buzzer_stop(uint8_t side);
-void buzzer_enqueue_note(note_t note, uint8_t octave, int16_t duration_ms, callback_t callback);
-void buzzer_enqueue_melody(uint8_t index, callback_t callback);
+void buzzer_enqueue_note(note_t note, uint8_t octave, int16_t duration_ms, uint8_t volume);
+void buzzer_enqueue_melody(uint8_t index);
 melody_note_t *get_melody(uint8_t index, uint8_t *size);
 void timer_melody_callback(void *arg);
 void melody_task(void *arg);

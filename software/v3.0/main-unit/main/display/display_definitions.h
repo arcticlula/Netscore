@@ -80,7 +80,8 @@ typedef struct {
 // Digits
 extern digit_wave_t dw[10];
 extern single_wave_t wc1, wc2;
-extern single_wave_t wbl;
+extern single_wave_t wbl[4];
+extern single_wave_t wled[8];
 extern digit_zigzag_t dz[10];
 extern digit_loop_t dl[10];
 extern digit_fade_t df[10];
@@ -121,16 +122,25 @@ typedef enum {
 #define LED_AWAY_1 2
 #define LED_AWAY_2 3
 #define LED_AWAY_3 4
-#define LED_TEST 7
+#define LED_TEST_1 7
+#ifdef BIG_BOARD
+#define LED_TEST_2 6
+#define LED_TEST_3 7
+#endif
 
 // Time colon and bar LEDs (B group, mux 3)
 #define TIME_COLON_TOP 0
 #define TIME_COLON_BOTTOM 1
-#define BAR_LED 2
+#define BAR_LED_1 2
+#ifdef BIG_BOARD
+#define BAR_LED_2 3
+#define BAR_LED_3 4
+#define BAR_LED_4 5
+#endif
 
-#define POINTS_1 0
-#define POINTS_2 1
-#define SETS 2
+#define POINTS_GP_1 0
+#define POINTS_GP_2 1
+#define SETS_GP 2
 
 typedef enum {
   LEDS_LEFT = 0,

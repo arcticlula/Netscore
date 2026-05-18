@@ -34,47 +34,22 @@ extern "C" void app_main(void) {
   Storage::loadSettings();
 
   init_gpio();
-  set_ldo_enable(HIGH);
-  vTaskDelay(pdMS_TO_TICKS(100));  // Wait for rails to stabilize
-  set_ldo_ctrl(HIGH);
-  vTaskDelay(pdMS_TO_TICKS(100));
-  set_vcc_ctrl(HIGH);
-  vTaskDelay(pdMS_TO_TICKS(100));
-  //   Check how many slots (displays) are connected
-  check_slot_status();
 
-  // blink_led();
+  init_power();
 
-  init_ble();
-  // init_esp_now();
-
-  init_adc();
-  init_display();
-
-  init_buttons();
-  init_buzzer();
-  init_tasks();
-
+  // Initialize I2C and retrieve RTC time early so the display shows the correct time immediately
   i2c_master_init();
   struct tm rtc_time;
   if (ds3231_init()) {
     bool time_ok = ds3231_get_time(&rtc_time);
 
-    // If the RTC time is factory default or frozen at 17:17:17, auto-initialize
-    if (!time_ok || rtc_time.tm_year < 124 || (rtc_time.tm_hour == 17 && rtc_time.tm_min == 17)) {
-      int h = 0, m = 0, s = 0;
-      sscanf(__TIME__, "%d:%d:%d", &h, &m, &s);
-      rtc_time.tm_hour = h;
-      rtc_time.tm_min = m;
-      rtc_time.tm_sec = s;
-      rtc_time.tm_mday = 1;    // Valid day of month (1-31)
-      rtc_time.tm_mon = 0;     // tm_mon is 0-11
-      rtc_time.tm_wday = 0;    // 0-6
-      rtc_time.tm_year = 124;  // 2024 (years since 1900)
-      bool write_ok = ds3231_set_time(&rtc_time);
-      printf("DS3231 auto-initialized to: 2024-01-01 %02d:%02d:%02d (Write OK: %d)\n", h, m, s, write_ok);
+    // Removed the time-setting logic so it only reads the time stored in the RTC.
+    if (time_ok) {
+      printf("DS3231 valid time retained: 20%02d-%02d-%02d %02d:%02d:%02d\n",
+             rtc_time.tm_year % 100, rtc_time.tm_mon + 1, rtc_time.tm_mday,
+             rtc_time.tm_hour, rtc_time.tm_min, rtc_time.tm_sec);
     } else {
-      printf("DS3231 valid time retained: %02d:%02d:%02d\n", rtc_time.tm_hour, rtc_time.tm_min, rtc_time.tm_sec);
+      printf("DS3231 time is invalid or not set!\n");
     }
 
     // Synchronize the system's global timeinfo
@@ -83,13 +58,29 @@ extern "C" void app_main(void) {
     timeinfo.tm_sec = rtc_time.tm_sec;
   }
 
+  //   Check how many slots (displays) are connected
+  check_slot_status();
+
+  // blink_led();
+
+  init_ble();
+  init_esp_now();
+
+  init_adc();
+  init_display();
+
+  init_buttons();
+  init_buzzer();
+  init_tasks();
+
   while (1) {
     vTaskDelay(pdMS_TO_TICKS(1000));
+    usb_display_mode(is_usb_connected());
     // Clear out rtc_time so we don't accidentally print out old data!
-    struct tm zero_time = {};
-    rtc_time = zero_time;
+    // struct tm zero_time = {};
+    // rtc_time = zero_time;
 
-    bool read_ok = ds3231_get_time(&rtc_time);
-    printf("RTC Time: %02d:%02d:%02d (Read OK: %d)\n", rtc_time.tm_hour, rtc_time.tm_min, rtc_time.tm_sec, read_ok);
+    // bool read_ok = ds3231_get_time(&rtc_time);
+    // printf("RTC Time: %02d:%02d:%02d (Read OK: %d)\n", rtc_time.tm_hour, rtc_time.tm_min, rtc_time.tm_sec, read_ok);
   }
 }

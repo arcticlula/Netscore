@@ -1,5 +1,8 @@
 #include "buzzer.h"
 
+#include <cmath>
+#include <cstdint>
+
 #include "driver/gpio.h"
 #include "driver/ledc.h"
 #include "esp_rom_gpio.h"
@@ -9,13 +12,16 @@
 #include "tasks.h"
 
 const uint8_t tempo = 120;
+static uint8_t global_buzzer_volume = 100;  // 0-100 percent
 
 // {Note, Divider, Octave}
-melody_note_t win[] = {
-    {NOTE_C, 8, 5}, {NOTE_E, 8, 5}, {NOTE_G, 8, 5}, {NOTE_C, 2, 6}, {NONE, 4, 5}};
+melody_note_t win[] = {{NOTE_C, 8, 5, 70},
+                       {NOTE_E, 8, 5, 70},
+                       {NOTE_G, 8, 5, 70},
+                       {NOTE_C, 2, 6, 70}};
 
-melody_note_t undo[] = {
-    {NOTE_C, 6, 7}, {NOTE_A, 8, 7}};
+melody_note_t undo[] = {{NOTE_C, 6, 7, 90},
+                        {NOTE_A, 8, 7, 90}};
 
 // this calculates the duration of a whole note in ms
 const uint16_t wholenote = (60000UL * 4) / tempo;
@@ -77,38 +83,63 @@ void init_buzzer() {
   gpio_set_direction((gpio_num_t)DRV_SLEEP_PIN, GPIO_MODE_OUTPUT);
   gpio_set_level((gpio_num_t)DRV_SLEEP_PIN, 0);  // Keep driver asleep initially
 
+  set_buzzer_volume(50);
   init_melody_timer();
 }
 
 void init_melody_timer(void) {
   esp_timer_create_args_t timer_melody_args = {};
   timer_melody_args.callback = &timer_melody_callback;
-  timer_melody_args.arg = (void*)SIDE_A;
+  timer_melody_args.arg = (void*)SIDE_BOTH;
   timer_melody_args.dispatch_method = ESP_TIMER_TASK;
   timer_melody_args.name = "timer melody buzzer";
 
   esp_timer_create(&timer_melody_args, &melody_timer_handle);
 }
 
-void play_note(uint8_t side, uint16_t frequency, uint8_t octave) {
-  ledc_channel_t channel = side == SIDE_A ? BUZZER_A_LEDC_CHN : BUZZER_B_LEDC_CHN;
+void play_note(uint8_t side, uint16_t frequency, uint8_t octave, uint8_t volume) {
   uint16_t adjusted_frequency = frequency * (1 << (octave - 4));  // 4 is the default octave
+  uint16_t adjusted_volume = calculate_buzzer_volume(volume);
   ledc_set_freq(LEDC_LOW_SPEED_MODE, LEDC_TIMER_1, adjusted_frequency);
 
-  ledc_set_duty(LEDC_LOW_SPEED_MODE, channel, 4096);  // 50% duty cycle
-  ledc_update_duty(LEDC_LOW_SPEED_MODE, channel);
+  if (side == SIDE_A || side == SIDE_BOTH) {
+    ledc_set_duty(LEDC_LOW_SPEED_MODE, BUZZER_A_LEDC_CHN, adjusted_volume);
+    ledc_update_duty(LEDC_LOW_SPEED_MODE, BUZZER_A_LEDC_CHN);
+  }
+  if (side == SIDE_B || side == SIDE_BOTH) {
+    ledc_set_duty(LEDC_LOW_SPEED_MODE, BUZZER_B_LEDC_CHN, adjusted_volume);
+    ledc_update_duty(LEDC_LOW_SPEED_MODE, BUZZER_B_LEDC_CHN);
+  }
 }
 
-void buzzer_start(note_t note, uint8_t octave) {
-  play_note(SIDE_A, note, octave);
+void set_buzzer_volume(uint8_t volume) {
+  global_buzzer_volume = (volume > 100) ? 100 : volume;
 }
 
-void buzzer_play(uint8_t buzzer, note_t note, uint8_t octave, int16_t duration_ms) {
-  play_note(buzzer, note, octave);
+uint16_t calculate_buzzer_volume(uint8_t local_volume) {
+  if (global_buzzer_volume == 0 || local_volume == 0) return 0;
+
+  // Combine volumes (0-100 scale)
+  float combined = (float)local_volume * (float)global_buzzer_volume / 100.0f;
+
+  // Human hearing is logarithmic. To make volume feel linear, we use an exponential-style curve.
+  // A common approximation is the Square Law or Cube Law.
+  // Normalized 0.0 to 1.0
+  float normalized = combined / 100.0f;
+
+  // Square curve (v^2) is a good balance for perceived linearity
+  float curve = normalized * normalized;
+
+  // Map to duty cycle: 50% duty (4096 for 13-bit) is maximum buzzer loudness
+  return (uint16_t)(curve * 4096.0f);
+}
+
+void buzzer_play(uint8_t buzzer, note_t note, uint8_t octave, int16_t duration_ms, uint8_t volume) {
+  play_note(buzzer, note, octave, volume);
   esp_timer_start_once(melody_timer_handle, duration_ms * 1000);
 }
 
-void buzzer_enqueue_note(note_t note, uint8_t octave, int16_t duration_ms, callback_t callback) {
+void buzzer_enqueue_note(note_t note, uint8_t octave, int16_t duration_ms, uint8_t volume) {
 #if !ENABLE_BUZZER
   return;
 #endif
@@ -122,12 +153,12 @@ void buzzer_enqueue_note(note_t note, uint8_t octave, int16_t duration_ms, callb
       .note = note,
       .divider = divider,
       .octave = octave,
-      .callback = callback};
+      .volume = volume};
 
-  xQueueSend(melody_queue, &melody_note, portMAX_DELAY);
+  xQueueSend(melody_queue, &melody_note, 0);  // Drop note if queue full — never block button_action_task
 }
 
-void buzzer_enqueue_melody(uint8_t index, callback_t callback) {
+void buzzer_enqueue_melody(uint8_t index, uint8_t volume) {
 #if !ENABLE_BUZZER
   return;
 #endif
@@ -135,24 +166,25 @@ void buzzer_enqueue_melody(uint8_t index, callback_t callback) {
   uint8_t size = 0;
   melody_note_t* notes = get_melody(index, &size);
   if (!notes || size == 0) {
-    if (callback) callback();
     return;
   }
 
   for (uint8_t i = 0; i < size; i++) {
     melody_note_t melody_note = notes[i];
 
-    // Ensure callback is only on the last note
-    melody_note.callback = (i == size - 1) ? callback : NULL;
-
-    xQueueSend(melody_queue, &melody_note, portMAX_DELAY);
+    xQueueSend(melody_queue, &melody_note, 0);  // Drop note if queue full — never block button_action_task
   }
 }
 
 void buzzer_stop(uint8_t side) {
-  ledc_channel_t channel = side == SIDE_A ? BUZZER_A_LEDC_CHN : BUZZER_B_LEDC_CHN;
-  ledc_set_duty(LEDC_LOW_SPEED_MODE, channel, 0);
-  ledc_update_duty(LEDC_LOW_SPEED_MODE, channel);
+  if (side == SIDE_A || side == SIDE_BOTH) {
+    ledc_set_duty(LEDC_LOW_SPEED_MODE, BUZZER_A_LEDC_CHN, 0);
+    ledc_update_duty(LEDC_LOW_SPEED_MODE, BUZZER_A_LEDC_CHN);
+  }
+  if (side == SIDE_B || side == SIDE_BOTH) {
+    ledc_set_duty(LEDC_LOW_SPEED_MODE, BUZZER_B_LEDC_CHN, 0);
+    ledc_update_duty(LEDC_LOW_SPEED_MODE, BUZZER_B_LEDC_CHN);
+  }
 }
 
 melody_note_t* get_melody(uint8_t index, uint8_t* size) {
@@ -174,30 +206,26 @@ void timer_melody_callback(void* arg) {
   uint8_t side_arg = (uint8_t)((uintptr_t)arg);
   buzzer_stop(side_arg);
   note_done = true;
-  if (current_note.callback) {
-    current_note.callback();
-  }
 }
 
 void play_nav_sound(uint8_t button) {
-  buzzer_enqueue_note(button == BLE_BTN_A_PRESS ? NOTE_A : NOTE_B, 4, 100, nullptr);
+  buzzer_enqueue_note(button == BLE_BTN_A_PRESS ? NOTE_A : NOTE_B, 4, 100, 20);
 }
 
 void play_enter_sound(uint8_t button) {
-  buzzer_enqueue_note(button == BLE_BTN_A_HOLD ? NOTE_A : NOTE_B, 5, 200, nullptr);
+  buzzer_enqueue_note(button == BLE_BTN_A_HOLD ? NOTE_A : NOTE_B, 5, 200, 20);
 }
 
 void play_add_point_sound() {
-  buzzer_enqueue_note(NOTE_C, 8, 200, nullptr);
+  buzzer_enqueue_note(NOTE_C, 8, 200, 100);
 }
 
 void play_undo_point_sound() {
-  buzzer_enqueue_note(NOTE_C, 7, 150, nullptr);
-  buzzer_enqueue_note(NOTE_A, 7, 100, nullptr);
+  buzzer_enqueue_melody(UNDO, 70);
 }
 
 void play_win_sound() {
-  buzzer_enqueue_melody(HOME_WIN, nullptr);
+  buzzer_enqueue_melody(HOME_WIN, 70);
 }
 
 void melody_task(void* arg) {
@@ -226,7 +254,7 @@ void melody_task(void* arg) {
       uint32_t pause_duration = total_duration - play_duration;
 
       if (current_note.note != NONE && play_duration > 0) {
-        buzzer_play(SIDE_A, current_note.note, octave, play_duration);
+        buzzer_play(SIDE_BOTH, current_note.note, octave, play_duration, current_note.volume);
         note_done = false;
         while (!note_done) {
           vTaskDelay(pdMS_TO_TICKS(5));

@@ -3,7 +3,6 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-#include "driver/i2c_master.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -14,6 +13,11 @@ extern "C" {
  * @return true if successful, false otherwise.
  */
 bool i2c_master_init(void);
+
+/**
+ * @brief Scans the I2C bus for devices.
+ */
+void i2c_scanner(void);
 
 /**
  * @brief Write bytes directly to an I2C device.
@@ -33,11 +37,6 @@ bool i2c_write(uint8_t dev_addr, const uint8_t *data, size_t len);
  * @return true if successful.
  */
 bool i2c_read(uint8_t dev_addr, uint8_t reg_addr, uint8_t *data, size_t len);
-
-/**
- * @brief Returns the raw I2C master bus handle (for bus reset, diagnostics etc.).
- */
-i2c_master_bus_handle_t i2c_get_bus_handle(void);
 
 #ifdef __cplusplus
 }

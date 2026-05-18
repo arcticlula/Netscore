@@ -409,16 +409,22 @@
             startLoop();
         };
 
-        let animationFrameId;
+        let muxIntervalId, logicIntervalId, animationFrameId;
 
         function startLoop() {
-            if (intervalId) clearInterval(intervalId);
+            if (muxIntervalId) clearInterval(muxIntervalId);
+            if (logicIntervalId) clearInterval(logicIntervalId);
             if (animationFrameId) cancelAnimationFrame(animationFrameId);
 
-            // Simulation Loop (2.05ms)
-            intervalId = setInterval(() => {
-                Module._advance_mux_and_update();
+            // Mux Loop (2.05ms) - Matches hardware timer
+            muxIntervalId = setInterval(() => {
+                Module._advance_mux_only();
             }, 2.05);
+
+            // Logic Loop (30ms) - Matches display_logic_task
+            logicIntervalId = setInterval(() => {
+                Module._run_display();
+            }, 30);
 
             // Render Loop (60Hz / Monitor Refresh Rate)
             render();

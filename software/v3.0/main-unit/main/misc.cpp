@@ -43,7 +43,7 @@ void init_gpio() {
   gpio_set_direction(gpio_num_t(BUTTON_POWER_PIN), GPIO_MODE_INPUT);
 }
 
-void set_debug_led(bool enable) {
+void IRAM_ATTR set_debug_led(bool enable) {
   gpio_set_level((gpio_num_t)LED_PIN, enable);
 }
 
@@ -120,7 +120,7 @@ void adc_read_bat(TimerHandle_t xTimer) {
 
   bool should_read = false;
   // Read every 0.5s if in battery screens, otherwise every 1 minute (120 ticks of 500ms)
-  if (window == BATT_SCR || window == BATT_DEVICE_SCR) {
+  if (window == BATT_SCR) {
     should_read = true;
   } else if (adc_ticks % 120 == 0) {
     should_read = true;
@@ -197,7 +197,14 @@ void blink_led() {
 
 void toggle_display_mode() {
   display_mode = (display_mode_t)((display_mode + 1) % 3);
+  last_display_mode = display_mode;
   Storage::saveSettings();
+}
+
+void usb_display_mode(bool enable) {
+  if (enable) display_mode = DISPLAY_MODE_A;
+  else
+    display_mode = last_display_mode;
 }
 
 void check_slot_status() {

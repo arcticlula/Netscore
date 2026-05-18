@@ -1,6 +1,7 @@
 #include "button_actions_helper.h"
 
 #include "definitions.h"
+#include "display/display_init.h"
 #include "score_board.h"
 #include "storage.h"
 #include "wifi/esp-now.h"
@@ -40,9 +41,6 @@ void enter_menu_option() {
     case MENU_TEST:
       init_test_scr();
       break;
-    case MENU_PRACTICE:
-      init_practice_scr();
-      break;
     case MENU_BRIGHTNESS:
       init_brightness_scr();
       break;
@@ -61,17 +59,20 @@ void enter_menu_option() {
 void navigate_sport(uint8_t button) {
   if (button == BUTTON_B) {
     sport--;
-    if (sport < SPORT_VOLLEY) sport = SPORT_PADEL;
+    if (sport < SPORT_PRACTICE) sport = SPORT_TENNIS;
     play_nav_sound(BLE_BTN_B_PRESS);
   } else {
     sport++;
-    if (sport > SPORT_PADEL) sport = SPORT_VOLLEY;
+    if (sport > SPORT_TENNIS) sport = SPORT_PRACTICE;
     play_nav_sound(BLE_BTN_A_PRESS);
   }
 }
 
 void enter_sport_option() {
   switch (sport) {
+    case SPORT_PRACTICE:
+      init_practice();
+      break;
     case SPORT_VOLLEY:
       init_volley();
       break;
@@ -81,24 +82,34 @@ void enter_sport_option() {
     case SPORT_PADEL:
       init_padel();
       break;
+    case SPORT_TENNIS:
+      init_padel();
+      break;
   }
 }
 
 void navigate_set_max_score(uint8_t button) {
   switch (button) {
     case BUTTON:
-      max_score.current = (max_score.current == max_score.max) ? max_score.min : max_score.max;
+      max_score.index = (max_score.index + 1) % max_score.count;
+      max_score.current = max_score.options[max_score.index];
       play_nav_sound(BLE_BTN_A_PRESS);
       break;
     case BUTTON_A:
-      max_score.current = max_score.max;
+      if (max_score.index < max_score.count - 1) max_score.index++;
+      max_score.current = max_score.options[max_score.index];
       play_nav_sound(BLE_BTN_A_PRESS);
       break;
     case BUTTON_B:
-      max_score.current = max_score.min;
+      if (max_score.index > 0) max_score.index--;
+      max_score.current = max_score.options[max_score.index];
       play_nav_sound(BLE_BTN_B_PRESS);
       break;
   }
+
+  int8_t prev_index = max_score.index - 1;
+  if (prev_index < 0) prev_index = max_score.count - 1;
+  max_score.previous = max_score.options[prev_index];
 
   init_set_max_points_scr();
 }
@@ -146,9 +157,28 @@ void enter_padel_deuce_type() {
   init_set_padel_deuce_type_scr();
 }
 
+void navigate_practice_transition(uint8_t button) {
+  switch (button) {
+    case BUTTON:
+      practice_option.current = toggle_option(practice_option.current);
+      play_nav_sound(BLE_BTN_A_PRESS);
+      break;
+    case BUTTON_A:
+      practice_option.current = LAST;
+      play_nav_sound(BLE_BTN_A_PRESS);
+      break;
+    case BUTTON_B:
+      practice_option.current = FIRST;
+      play_nav_sound(BLE_BTN_B_PRESS);
+      break;
+  }
+
+  init_practice_transition_scr();
+}
+
 void enter_play() {
   play_enter_sound(BLE_BTN_A_HOLD);
-  uint8_t set_idx = score.home_sets + score.away_sets;
+  uint8_t set_idx = score.home_sets + score.away_sets + score.home_sets_practice + score.away_sets_practice;
   if (set_idx < MAX_SETS) {
     set_points_max[set_idx] = max_score.current;
   }
@@ -160,8 +190,19 @@ void enter_play_next() {
   advance_after_set();
 }
 
+void enter_practice_transition() {
+  play_enter_sound(BLE_BTN_A_HOLD);
+  if (practice_option.current == LAST) {
+    sport = SPORT_VOLLEY;
+    init_volley();
+  } else {
+    init_practice();
+  }
+}
+
 void enter_brightness() {
   play_enter_sound(BLE_BTN_A_HOLD);
+  Storage::saveSettings();  // Save once on exit, not on every keypress
   window = MENU_SCR;
 }
 
@@ -180,8 +221,7 @@ void navigate_brightness(uint8_t button) {
       if (brightness_index > 0) brightness_index--;
       break;
   }
-  set_brightness();
-  Storage::saveSettings();
+  set_brightness();  // Apply immediately — NVS save deferred to exit
   init_brightness_scr();
 }
 
@@ -190,23 +230,19 @@ void enter_battery() {
   init_bat_scr();
 }
 
-void enter_battery_device() {
-  play_enter_sound(BLE_BTN_A_HOLD);
-  init_device_bat_scr();
-}
-
 void enter_off() {
   play_enter_sound(BLE_BTN_A_HOLD);
   init_off_scr();
 }
 
 void play_add_point(uint8_t device_id, bool reverse) {
-  if (device_id == DEVICE_1) add_point(reverse ? AWAY : HOME);
-  else if (device_id == DEVICE_2)
+  if (device_id == DEVICE_1) {
+    add_point(reverse ? AWAY : HOME);
+    // send_beep(DEVICE_2, BUTTON_SINGLE_BEEP);
+  } else if (device_id == DEVICE_2) {
     add_point(reverse ? HOME : AWAY);
-
-  // send_beep(DEVICE_1, BUTTON_SINGLE_BEEP);
-  // send_beep(DEVICE_2, BUTTON_SINGLE_BEEP);
+    // send_beep(DEVICE_1, BUTTON_SINGLE_BEEP);
+  }
 }
 
 void play_undo_point(uint8_t device_id, bool reverse) {
@@ -226,7 +262,6 @@ void go_back() {
     case SPORT_SCR:
     case BRILHO_SCR:
     case BATT_SCR:
-    case BATT_DEVICE_SCR:
       init_menu_scr();
       break;
     case SET_MAX_SCORE_SCR:
@@ -238,6 +273,9 @@ void go_back() {
       break;
     case PLAY_HOME_WIN_SCR:
     case PLAY_AWAY_WIN_SCR:
+    case PRACTICE_HOME_WIN_SCR:
+    case PRACTICE_AWAY_WIN_SCR:
+    case PRACTICE_TRANSITION_SCR:
       init_play_scr();
       break;
   }

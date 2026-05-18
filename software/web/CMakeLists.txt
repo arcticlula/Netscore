@@ -21,5 +21,5 @@ add_executable(netscore ${SOURCES})
 # -s NO_EXIT_RUNTIME=1                           : Keep the runtime alive (needed for event loops if we had one)
 set_target_properties(netscore PROPERTIES 
     SUFFIX ".js"
-    LINK_FLAGS "-s EXPORTED_RUNTIME_METHODS=['ccall','cwrap'] -s EXPORTED_FUNCTIONS=['_get_led_value','_init_system','_set_mux','_run_display','_set_window','_trigger_button_event','_advance_mux_and_update','_reset_simulation','_set_muted'] -s WASM=1 -s NO_EXIT_RUNTIME=1"
+    LINK_FLAGS "-s EXPORTED_RUNTIME_METHODS=['ccall','cwrap'] -s EXPORTED_FUNCTIONS=['_get_led_value','_init_system','_set_mux','_run_display','_set_window','_trigger_button_event','_advance_mux_only','_reset_simulation','_set_muted'] -s WASM=1 -s NO_EXIT_RUNTIME=1"
 )

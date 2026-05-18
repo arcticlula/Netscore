@@ -23,15 +23,17 @@ void show_dot(uint8_t side, uint8_t digit_index, digit_dot_t *dot);
 void show_wave(uint8_t side, uint8_t digit_index, digit_wave_t *digit, void (*callback)() = nullptr);
 void show_single_wave(uint8_t side, uint8_t digit_index, single_wave_t *bit);
 void show_zigzag(uint8_t side, uint8_t digit_index, digit_zigzag_t *digit, void (*callback)() = nullptr);
-void show_fade_in(uint8_t side, uint8_t digit_index, digit_fade_t *digit, void (*callback)() = nullptr);
-void show_fade_into(uint8_t side, uint8_t digit_index, digit_fade_into_t *digit, void (*callback)() = nullptr);
+void show_fade_in(uint8_t side, uint8_t digit_index, digit_fade_t *digit);
+void show_fade_into(uint8_t side, uint8_t digit_index, digit_fade_into_t *digit);
 
 void show_led(uint8_t side, uint8_t led_index, uint8_t value);
-void show_test_led(uint8_t side, uint8_t value);
-void show_bar_led(uint8_t side, uint8_t value);
+void show_test_led(uint8_t side, uint8_t led_index, uint8_t value);
+void show_bar_led(uint8_t side, uint8_t led_index, uint8_t value);
 void show_time_colon(uint8_t side, uint8_t value_up, uint8_t value_down);
-void show_wave_colon(uint8_t side, uint8_t digit_index, single_wave_t *bit);
-void show_wave_bar_led(uint8_t side, single_wave_t *bit);
+
+void show_wave_time_colon(uint8_t side);
+void show_wave_bar_led(uint8_t side, uint8_t led_index);
+void show_wave_led(uint8_t side, uint8_t led_index);
 
 void show_text(uint8_t side, const uint8_t *chars, const uint8_t *digits, uint8_t brightness);
 

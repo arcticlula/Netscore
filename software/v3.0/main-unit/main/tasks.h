@@ -22,7 +22,13 @@ extern QueueHandle_t ble_cmd_queue;
 extern QueueHandle_t button_action_queue;
 extern QueueHandle_t melody_queue;
 extern QueueHandle_t espnow_queue;
+
+extern TaskHandle_t display_logic_task_handle;
 extern TaskHandle_t button_task_handle;
+extern TaskHandle_t button_action_task_handle;
+extern TaskHandle_t melody_task_handle;
+extern TaskHandle_t conn_monitor_task_handle;
+extern TaskHandle_t ble_cmd_task_handle;
 extern TaskHandle_t espnow_task_handle;
 
 void ble_event_task(void *arg);

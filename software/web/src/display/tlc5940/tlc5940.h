@@ -10,6 +10,7 @@ class Tlc5940 {
  public:
   void clear();
   void set(uint8_t channel, uint16_t value, uint8_t side);
+  void setSegment(uint8_t logical_digit, uint8_t segment, uint16_t value);
 };
 
 extern Tlc5940 Tlc;

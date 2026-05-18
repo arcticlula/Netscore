@@ -15,6 +15,10 @@ QueueHandle_t espnow_queue;
 
 TaskHandle_t display_logic_task_handle = NULL;
 TaskHandle_t button_task_handle = NULL;
+TaskHandle_t button_action_task_handle = NULL;
+TaskHandle_t melody_task_handle = NULL;
+TaskHandle_t conn_monitor_task_handle = NULL;
+TaskHandle_t ble_cmd_task_handle = NULL;
 TaskHandle_t espnow_task_handle = NULL;
 
 void init_tasks(void) {
@@ -23,13 +27,11 @@ void init_tasks(void) {
   melody_queue = xQueueCreate(MELODY_QUEUE_LENGTH, sizeof(melody_note_t));
   espnow_queue = xQueueCreate(10, sizeof(esp_now_msg_t));
 
-  xTaskCreate(display_logic_task, "display_logic_task", 4096, NULL, 3, &display_logic_task_handle);
-
-  xTaskCreate(button_action_task, "button_action_task", 4096, NULL, 5, NULL);
+  xTaskCreate(display_logic_task, "display_logic_task", 4096, NULL, 6, &display_logic_task_handle);
+  xTaskCreate(button_action_task, "button_action_task", 4096, NULL, 5, &button_action_task_handle);
   xTaskCreate(button_task, "button_task", 4096, NULL, 5, &button_task_handle);
-
-  xTaskCreate(melody_task, "melody_task", 8192, NULL, 4, NULL);
-  xTaskCreate(connection_monitor_task, "conn_monitor", 4 * 1024, NULL, 1, NULL);
-  xTaskCreate(ble_command_task, "ble_cmd_task", 4 * 1024, NULL, 3, NULL);
-  // xTaskCreate(espnow_task, "espnow_task", 4096, NULL, 8, &espnow_task_handle);
+  xTaskCreate(melody_task, "melody_task", 8192, NULL, 4, &melody_task_handle);
+  xTaskCreate(connection_monitor_task, "conn_monitor", 4 * 1024, NULL, 1, &conn_monitor_task_handle);
+  xTaskCreate(ble_command_task, "ble_cmd_task", 4 * 1024, NULL, 3, &ble_cmd_task_handle);
+  xTaskCreate(espnow_task, "espnow_task", 4096, NULL, 8, &espnow_task_handle);
 }

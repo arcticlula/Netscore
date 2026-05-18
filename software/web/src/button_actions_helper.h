@@ -24,6 +24,6 @@ void enter_battery();
 void enter_battery_device();
 void enter_test();
 void enter_off();
-void play_add_point(uint8_t device_id);
-void play_undo_point(uint8_t device_id);
+void play_add_point(uint8_t device_id, bool reverse = false);
+void play_undo_point(uint8_t device_id, bool reverse = false);
 void go_back();

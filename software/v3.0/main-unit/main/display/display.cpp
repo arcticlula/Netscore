@@ -8,12 +8,13 @@
 #include "display/display_definitions.h"
 #include "display/display_init.h"
 #include "display/tlc5951/tlc5951.h"
+#include "esp_log.h"
 #include "esp_random.h"
 #include "misc.h"
+#include "power/power.h"
 #include "score_board.h"
 
 uint8_t menu_brightness = 50;
-bool status = false;
 
 uint16_t transition_frames = 0;
 
@@ -29,23 +30,20 @@ void show_display() {
   if (slots == SIDE_NONE) return;
 
   Tlc.clear();
-  status = !status;
-  set_debug_led(status);
-  // show_all();
+  if (is_usb_connected()) {
+    show_wave_led(SIDE_BOTH, LED_MID);
+  }
+
   if (is_transition) show_transition();
 
   switch (window) {
     case BOOT_SCR:
-      show_boot();
-      break;
     case BOOT_2_SCR:
-      show_boot_2();
-      break;
     case BOOT_3_SCR:
-      show_boot_3();
-      break;
     case BOOT_4_SCR:
-      show_boot_4();
+    case BOOT_5_SCR:
+      // show_time();
+      show_boot();
       break;
     case MENU_SCR:
       show_time();
@@ -56,24 +54,40 @@ void show_display() {
       show_menu_transition();
       break;
     case SPORT_SCR:
+      show_time();
       show_sport();
       break;
     case SET_MAX_SCORE_SCR:
+      show_time();
       show_set_max_score();
       break;
     case SET_PADEL_GAME_TYPE_SCR:
+      show_time();
       show_set_padel_game_type();
       break;
     case SET_PADEL_DEUCE_TYPE_SCR:
+      show_time();
       show_set_deuce_type();
       break;
+    case PRACTICE_TRANSITION_SCR:
+      show_practice_transition_scr();
+      break;
     case PLAY_SCR:
+      show_time();
+      show_play();
+      break;
+    case PRACTICE_SCR:
+      show_time();
       show_play();
       break;
     case PLAY_HOME_WIN_SCR:
+    case PRACTICE_HOME_WIN_SCR:
+      show_time();
       show_play_result(HOME);
       break;
     case PLAY_AWAY_WIN_SCR:
+    case PRACTICE_AWAY_WIN_SCR:
+      show_time();
       show_play_result(AWAY);
       break;
     case BRILHO_SCR:
@@ -81,9 +95,6 @@ void show_display() {
       break;
     case BATT_SCR:
       show_battery();
-      break;
-    case BATT_DEVICE_SCR:
-      show_device_battery();
       break;
     case TEST_SCR:
       show_test();
@@ -99,7 +110,22 @@ void show_display() {
       break;
     case SLEEP_2_SCR:
       break;
+    default:
+      show_oops();
+      break;
   }
+}
+
+void show_oops() {
+  show_letter(SIDE_BOTH, POINTS_HOME_1, 'O', 50);
+  show_letter(SIDE_BOTH, POINTS_HOME_2, 'O', 50);
+  show_letter(SIDE_BOTH, POINTS_AWAY_1, 'P', 50);
+  show_letter(SIDE_BOTH, POINTS_AWAY_2, 'S', 50);
+
+  show_letter(SIDE_BOTH, TIME_1, 'O', 50);
+  show_letter(SIDE_BOTH, TIME_2, 'O', 50);
+  show_letter(SIDE_BOTH, TIME_3, 'P', 50);
+  show_letter(SIDE_BOTH, TIME_4, 'S', 50);
 }
 
 void show_all() {
@@ -116,7 +142,13 @@ void show_all() {
   show_dot(SIDE_BOTH, TIME_2, 50);
   show_dot(SIDE_BOTH, TIME_3, 50);
   show_dot(SIDE_BOTH, TIME_4, 50);
-  show_bar_led(SIDE_BOTH, 50);
+  show_test_led(SIDE_BOTH, LED_TEST_1, 50);
+  show_test_led(SIDE_BOTH, LED_TEST_2, 50);
+  show_test_led(SIDE_BOTH, LED_TEST_3, 50);
+  show_bar_led(SIDE_BOTH, BAR_LED_1, 50);
+  show_bar_led(SIDE_BOTH, BAR_LED_2, 50);
+  show_bar_led(SIDE_BOTH, BAR_LED_3, 50);
+  show_bar_led(SIDE_BOTH, BAR_LED_4, 50);
 }
 
 void show_test() {
@@ -148,8 +180,10 @@ void show_test() {
   show_led(SIDE_BOTH, LED_AWAY_2, hundreds % 2 ? 20 : 0);
   show_led(SIDE_BOTH, LED_AWAY_3, tens % 2 ? 20 : 0);
   show_led(SIDE_BOTH, LED_MID, ((score_counter / 100) % 10) * 10);
-  show_test_led(SIDE_BOTH, 50);
-  show_bar_led(SIDE_BOTH, ((score_counter / 100) % 10) * 7);
+  show_test_led(SIDE_BOTH, LED_TEST_1, 50);
+  show_test_led(SIDE_BOTH, LED_TEST_2, 50);
+  show_test_led(SIDE_BOTH, LED_TEST_3, 50);
+  show_bar_led(SIDE_BOTH, BAR_LED_1, ((score_counter / 100) % 10) * 7);
 
   show_time_colon(SIDE_BOTH, (score_counter / 100) % 2 ? 50 : 0, (score_counter / 100) % 2 ? 0 : 50);
 }
@@ -165,66 +199,78 @@ void show_time() {
   show_number(SIDE_BOTH, TIME_3, minutes_1, 50);
   show_number(SIDE_BOTH, TIME_4, minutes_2, 50);
 
-  show_wave_colon(SIDE_BOTH, 0, &wc1);
-  show_wave_colon(SIDE_BOTH, 1, &wc2);
+  show_wave_time_colon(SIDE_BOTH);
 }
-
-// Show boot
 
 void show_boot() {
-  show_fade_in(SIDE_BOTH, POINTS_HOME_1, &df[POINTS_HOME_1], nullptr);
-  show_fade_in(SIDE_BOTH, POINTS_HOME_2, &df[POINTS_HOME_2], nullptr);
-  show_fade_in(SIDE_BOTH, POINTS_AWAY_1, &df[POINTS_AWAY_1], nullptr);
-  show_fade_in(SIDE_BOTH, POINTS_AWAY_2, &df[POINTS_AWAY_2], nullptr);
+  switch (window) {
+    case BOOT_SCR:
+      show_fade_in(SIDE_BOTH, POINTS_HOME_1, &df[POINTS_HOME_1]);
+      show_fade_in(SIDE_BOTH, POINTS_HOME_2, &df[POINTS_HOME_2]);
+      show_fade_in(SIDE_BOTH, POINTS_AWAY_1, &df[POINTS_AWAY_1]);
+      show_fade_in(SIDE_BOTH, POINTS_AWAY_2, &df[POINTS_AWAY_2]);
+      show_fade_in(SIDE_BOTH, TIME_2, &df[TIME_2]);
+      show_fade_in(SIDE_BOTH, TIME_3, &df[TIME_3]);
+      handle_transition(init_boot_2_scr);
+      break;
+    case BOOT_2_SCR:
+      show_wave(SIDE_BOTH, POINTS_HOME_1, &dw[POINTS_HOME_1], nullptr);
+      show_wave(SIDE_BOTH, POINTS_HOME_2, &dw[POINTS_HOME_2], nullptr);
+      show_wave(SIDE_BOTH, POINTS_AWAY_1, &dw[POINTS_AWAY_1], nullptr);
+      show_wave(SIDE_BOTH, POINTS_AWAY_2, &dw[POINTS_AWAY_2], nullptr);
 
-  handle_transition(init_boot_2_scr);
-}
+      show_fade_into(SIDE_BOTH, TIME_1, &dfi[TIME_1]);
+      show_fade_into(SIDE_BOTH, TIME_2, &dfi[TIME_2]);
+      show_fade_into(SIDE_BOTH, TIME_3, &dfi[TIME_3]);
+      show_fade_into(SIDE_BOTH, TIME_4, &dfi[TIME_4]);
 
-void show_boot_2() {
-  show_wave(SIDE_BOTH, POINTS_HOME_1, &dw[POINTS_HOME_1], nullptr);
-  show_wave(SIDE_BOTH, POINTS_HOME_2, &dw[POINTS_HOME_2], nullptr);
-  show_wave(SIDE_BOTH, POINTS_AWAY_1, &dw[POINTS_AWAY_1], nullptr);
-  show_wave(SIDE_BOTH, POINTS_AWAY_2, &dw[POINTS_AWAY_2], nullptr);
+      handle_transition(init_boot_3_scr);
+      break;
+    case BOOT_3_SCR:
+      show_wave(SIDE_BOTH, POINTS_HOME_1, &dw[POINTS_HOME_1], nullptr);
+      show_wave(SIDE_BOTH, POINTS_HOME_2, &dw[POINTS_HOME_2], nullptr);
+      show_wave(SIDE_BOTH, POINTS_AWAY_1, &dw[POINTS_AWAY_1], nullptr);
+      show_wave(SIDE_BOTH, POINTS_AWAY_2, &dw[POINTS_AWAY_2], nullptr);
 
-  handle_transition(init_boot_3_scr);
-}
+      show_fade_into(SIDE_BOTH, TIME_1, &dfi[TIME_1]);
+      show_fade_into(SIDE_BOTH, TIME_2, &dfi[TIME_2]);
+      show_fade_into(SIDE_BOTH, TIME_3, &dfi[TIME_3]);
+      show_fade_into(SIDE_BOTH, TIME_4, &dfi[TIME_4]);
 
-void show_boot_3() {
-  show_wave(SIDE_BOTH, POINTS_HOME_1, &dw[POINTS_HOME_1], nullptr);
-  show_wave(SIDE_BOTH, POINTS_HOME_2, &dw[POINTS_HOME_2], nullptr);
-  show_wave(SIDE_BOTH, POINTS_AWAY_1, &dw[POINTS_AWAY_1], nullptr);
-  show_wave(SIDE_BOTH, POINTS_AWAY_2, &dw[POINTS_AWAY_2], nullptr);
-
-  handle_transition(init_boot_4_scr);
-}
-
-void show_boot_4() {
-  for (uint8_t i = 0; i < 10; i++) {
-    show_fade_into(SIDE_BOTH, i, &dfi[i], nullptr);
+      handle_transition(init_boot_4_scr);
+      break;
+    case BOOT_4_SCR:
+      for (uint8_t i = 0; i < 10; i++) {
+        show_fade_into(SIDE_BOTH, i, &dfi[i]);
+      }
+      handle_transition(init_boot_5_scr);
+      break;
+    case BOOT_5_SCR:
+      for (uint8_t i = 0; i < 10; i++) {
+        show_fade_into(SIDE_BOTH, i, &dfi[i]);
+      }
+      handle_transition(init_menu_scr);
+      break;
   }
-
-  handle_transition(init_menu_scr);
 }
-
-// Show menu
 
 void show_menu() {
+  uint32_t time_to_sleep = is_usb_connected() ? 10000000LL : 60000000LL;
+
   show_text(SIDE_BOTH, menu_options[menu], menu_options_digits[menu], menu_brightness);
 
-  if (esp_timer_get_time() - last_interaction_time > 60000000LL) {
+  if (esp_timer_get_time() - last_interaction_time > time_to_sleep) {
     init_sleep_scr();
   }
 }
 
 void show_menu_transition() {
   for (uint8_t i = 0; i < 10; i++) {
-    show_fade_into(SIDE_BOTH, i, &dfi[i], nullptr);
+    show_fade_into(SIDE_BOTH, i, &dfi[i]);
   }
 
   handle_transition(init_menu_scr);
 }
-
-// Show sport
 
 void show_sport() {
   switch (sport) {
@@ -256,23 +302,37 @@ void show_sport_ping_pong() {
 // Show set max score
 
 void show_set_max_score() {
-  uint8_t digit_home_1 = max_score.min / 10;
-  uint8_t digit_home_2 = max_score.min % 10;
-  uint8_t digit_away_1 = max_score.max / 10;
-  uint8_t digit_away_2 = max_score.max % 10;
+  uint8_t min_brightness = 30;
+  if (max_score.count == 2) {
+    uint8_t digit_home_1 = max_score.min / 10;
+    uint8_t digit_home_2 = max_score.min % 10;
+    uint8_t digit_away_1 = max_score.max / 10;
+    uint8_t digit_away_2 = max_score.max % 10;
 
-  max_score.current == max_score.min ? show_wave(SIDE_BOTH, POINTS_HOME_1, &dw[POINTS_1])
-                                     : show_number(SIDE_BOTH, POINTS_HOME_1, digit_home_1, 20);
-  max_score.current == max_score.min ? show_wave(SIDE_BOTH, POINTS_HOME_2, &dw[POINTS_2])
-                                     : show_number(SIDE_BOTH, POINTS_HOME_2, digit_home_2, 20);
+    max_score.current == max_score.min ? show_wave(SIDE_BOTH, POINTS_HOME_1, &dw[POINTS_GP_1])
+                                       : show_number(SIDE_BOTH, POINTS_HOME_1, digit_home_1, min_brightness);
+    max_score.current == max_score.min ? show_wave(SIDE_BOTH, POINTS_HOME_2, &dw[POINTS_GP_2])
+                                       : show_number(SIDE_BOTH, POINTS_HOME_2, digit_home_2, min_brightness);
 
-  max_score.current == max_score.max ? show_wave(SIDE_BOTH, POINTS_AWAY_1, &dw[POINTS_1])
-                                     : show_number(SIDE_BOTH, POINTS_AWAY_1, digit_away_1, 20);
-  max_score.current == max_score.max ? show_wave(SIDE_BOTH, POINTS_AWAY_2, &dw[POINTS_2])
-                                     : show_number(SIDE_BOTH, POINTS_AWAY_2, digit_away_2, 20);
+    max_score.current == max_score.max ? show_wave(SIDE_BOTH, POINTS_AWAY_1, &dw[POINTS_GP_1])
+                                       : show_number(SIDE_BOTH, POINTS_AWAY_1, digit_away_1, min_brightness);
+    max_score.current == max_score.max ? show_wave(SIDE_BOTH, POINTS_AWAY_2, &dw[POINTS_GP_2])
+                                       : show_number(SIDE_BOTH, POINTS_AWAY_2, digit_away_2, min_brightness);
 
-  max_score.current == max_score.min ? show_zigzag(SIDE_BOTH, SETS_HOME, &dz[SETS])
-                                     : show_zigzag(SIDE_BOTH, SETS_AWAY, &dz[SETS]);
+    max_score.current == max_score.min ? show_zigzag(SIDE_BOTH, SETS_HOME, &dz[SETS_GP])
+                                       : show_zigzag(SIDE_BOTH, SETS_AWAY, &dz[SETS_GP]);
+  } else {
+    uint8_t digit_1 = max_score.previous / 10;
+    uint8_t digit_2 = max_score.previous % 10;
+
+    show_number(SIDE_BOTH, POINTS_HOME_1, digit_1, min_brightness);
+    show_number(SIDE_BOTH, POINTS_HOME_2, digit_2, min_brightness);
+
+    show_wave(SIDE_BOTH, POINTS_AWAY_1, &dw[POINTS_GP_1]);
+    show_wave(SIDE_BOTH, POINTS_AWAY_2, &dw[POINTS_GP_2]);
+
+    show_zigzag(SIDE_BOTH, SETS_AWAY, &dz[SETS_GP]);
+  }
 }
 
 volatile bool inf_patern_a = true;
@@ -295,30 +355,30 @@ void show_set_padel_game_type() {
   uint8_t digit_6 = padel_game_type_option.last[1];
 
   if (padel_game_type_option.current == FIRST) {
-    if (inf_patern_a) show_zigzag(SIDE_BOTH, POINTS_HOME_1, &dz[POINTS_1], change_pattern_a);
+    if (inf_patern_a) show_zigzag(SIDE_BOTH, POINTS_HOME_1, &dz[POINTS_GP_1], change_pattern_a);
     else
       show_letter(SIDE_BOTH, POINTS_HOME_1, digit_1, 30);
 
-    if (inf_patern_b) show_zigzag(SIDE_BOTH, POINTS_HOME_2, &dz[POINTS_2], change_pattern_b);
+    if (inf_patern_b) show_zigzag(SIDE_BOTH, POINTS_HOME_2, &dz[POINTS_GP_2], change_pattern_b);
     else
       show_letter(SIDE_BOTH, POINTS_HOME_2, digit_2, 30);
 
-    show_zigzag(SIDE_BOTH, SETS_HOME, &dz[SETS]);
+    show_zigzag(SIDE_BOTH, SETS_HOME, &dz[SETS_GP]);
   } else {
     show_letter(SIDE_BOTH, POINTS_HOME_1, digit_1, 20);
     show_letter(SIDE_BOTH, POINTS_HOME_2, digit_2, 20);
   }
 
   padel_game_type_option.current == LAST
-      ? show_wave(SIDE_BOTH, POINTS_AWAY_1, &dw[POINTS_1])
+      ? show_wave(SIDE_BOTH, POINTS_AWAY_1, &dw[POINTS_GP_1])
       : show_letter(SIDE_BOTH, POINTS_AWAY_1, digit_5, 20);
 
   padel_game_type_option.current == LAST
-      ? show_wave(SIDE_BOTH, POINTS_AWAY_2, &dw[POINTS_2])
+      ? show_wave(SIDE_BOTH, POINTS_AWAY_2, &dw[POINTS_GP_2])
       : show_letter(SIDE_BOTH, POINTS_AWAY_2, digit_6, 20);
 
   if (padel_game_type_option.current == LAST) {
-    show_zigzag(SIDE_BOTH, SETS_AWAY, &dz[SETS]);
+    show_zigzag(SIDE_BOTH, SETS_AWAY, &dz[SETS_GP]);
   }
 }
 
@@ -328,31 +388,38 @@ void show_set_deuce_type() {
   uint8_t digit_away_1 = padel_deuce_option.last[0];
   uint8_t digit_away_2 = padel_deuce_option.last[1];
 
-  padel_deuce_option.current == FIRST ? show_wave(SIDE_BOTH, POINTS_HOME_1, &dw[POINTS_1])
+  padel_deuce_option.current == FIRST ? show_wave(SIDE_BOTH, POINTS_HOME_1, &dw[POINTS_GP_1])
                                       : show_letter(SIDE_BOTH, POINTS_HOME_1, digit_home_1, 20);
-  padel_deuce_option.current == FIRST ? show_wave(SIDE_BOTH, POINTS_HOME_2, &dw[POINTS_2])
+  padel_deuce_option.current == FIRST ? show_wave(SIDE_BOTH, POINTS_HOME_2, &dw[POINTS_GP_2])
                                       : show_letter(SIDE_BOTH, POINTS_HOME_2, digit_home_2, 20);
-  padel_deuce_option.current == FIRST ? show_zigzag(SIDE_BOTH, SETS_HOME, &dz[SETS])
-                                      : show_zigzag(SIDE_BOTH, SETS_AWAY, &dz[SETS]);
+  padel_deuce_option.current == FIRST ? show_zigzag(SIDE_BOTH, SETS_HOME, &dz[SETS_GP])
+                                      : show_zigzag(SIDE_BOTH, SETS_AWAY, &dz[SETS_GP]);
 
-  padel_deuce_option.current == LAST ? show_wave(SIDE_BOTH, POINTS_AWAY_1, &dw[POINTS_1])
+  padel_deuce_option.current == LAST ? show_wave(SIDE_BOTH, POINTS_AWAY_1, &dw[POINTS_GP_1])
                                      : show_letter(SIDE_BOTH, POINTS_AWAY_1, digit_away_1, 20);
-  padel_deuce_option.current == LAST ? show_wave(SIDE_BOTH, POINTS_AWAY_2, &dw[POINTS_2])
+  padel_deuce_option.current == LAST ? show_wave(SIDE_BOTH, POINTS_AWAY_2, &dw[POINTS_GP_2])
                                      : show_letter(SIDE_BOTH, POINTS_AWAY_2, digit_away_2, 20);
 }
 
 void show_transition() {
-  show_wave_bar_led(SIDE_BOTH, &wbl);
+#ifdef BIG_BOARD
+  for (uint8_t i = 0; i < 4; i++) {
+    show_wave_bar_led(SIDE_BOTH, BAR_LED_1 + i);
+  }
+#else
+  show_wave_bar_led(SIDE_BOTH, BAR_LED_1);
+#endif
   handle_transition(init_after_transition);
 }
 
 void show_play() {
-  sport == SPORT_PADEL ? show_play_padel() : show_play_default();
-  show_time();
+  if (sport == SPORT_PADEL) show_play_padel();
+  else
+    show_play_default();
 }
 
 void show_play_default() {
-  uint8_t set_idx = score.home_sets + score.away_sets;
+  uint8_t set_idx = score.home_sets + score.away_sets + score.home_sets_practice + score.away_sets_practice;
   uint8_t current_max_score = set_points_max[set_idx];
   bool home_set_point = score.home_points + 1 >= current_max_score &&
                         score.home_points - score.away_points >= 1;
@@ -370,6 +437,8 @@ void show_play_default() {
   show_number(SIDE_A, POINTS_AWAY_1, away_points_1, 50);
   show_number(SIDE_A, POINTS_AWAY_2, away_points_2, 50);
 
+  show_sets_practice(SIDE_A);
+
   // If next point is set point, show dot
   if (home_set_point) show_dot(SIDE_A, POINTS_HOME_2, &dd1);
   if (away_set_point) show_dot(SIDE_A, POINTS_AWAY_2, &dd2);
@@ -382,6 +451,8 @@ void show_play_default() {
   show_number(SIDE_B, SETS_AWAY, score.home_sets, 50);
   show_number(SIDE_B, POINTS_AWAY_1, home_points_1, 50);
   show_number(SIDE_B, POINTS_AWAY_2, home_points_2, 50);
+
+  show_sets_practice(SIDE_B);
 
   // If next point is set point, show dot
   if (away_set_point) show_dot(SIDE_B, POINTS_HOME_2, &dd2);
@@ -462,7 +533,7 @@ void show_play_result(uint8_t team) {
 }
 
 void show_play_result_default(uint8_t team) {
-  uint8_t set_idx = score.home_sets + score.away_sets;
+  uint8_t set_idx = score.home_sets + score.away_sets + score.home_sets_practice + score.away_sets_practice;
   if (set_idx > 0) set_idx--;  // Get the last played set
 
   uint8_t home_points_1 = score.set_points_home[set_idx] / 10;
@@ -471,42 +542,48 @@ void show_play_result_default(uint8_t team) {
   uint8_t away_points_2 = score.set_points_away[set_idx] % 10;
 
   if (team == HOME) {
-    set_number(&dw[POINTS_1].c, home_points_1);
-    set_number(&dw[POINTS_2].c, home_points_2);
+    set_number(&dw[POINTS_GP_1].c, home_points_1);
+    set_number(&dw[POINTS_GP_2].c, home_points_2);
   } else {
-    set_number(&dw[POINTS_1].c, away_points_1);
-    set_number(&dw[POINTS_2].c, away_points_2);
+    set_number(&dw[POINTS_GP_1].c, away_points_1);
+    set_number(&dw[POINTS_GP_2].c, away_points_2);
   }
 
   if (team == HOME) {
-    show_wave(SIDE_A, POINTS_HOME_1, &dw[POINTS_1]);
-    show_wave(SIDE_A, POINTS_HOME_2, &dw[POINTS_2]);
+    show_wave(SIDE_A, POINTS_HOME_1, &dw[POINTS_GP_1]);
+    show_wave(SIDE_A, POINTS_HOME_2, &dw[POINTS_GP_2]);
     show_number(SIDE_A, POINTS_AWAY_1, away_points_1, 50);
     show_number(SIDE_A, POINTS_AWAY_2, away_points_2, 50);
   } else {
     show_number(SIDE_A, POINTS_HOME_1, home_points_1, 50);
     show_number(SIDE_A, POINTS_HOME_2, home_points_2, 50);
-    show_wave(SIDE_A, POINTS_AWAY_1, &dw[POINTS_1]);
-    show_wave(SIDE_A, POINTS_AWAY_2, &dw[POINTS_2]);
-  }
-
-  if (team == HOME) {
-    show_number(SIDE_B, POINTS_HOME_1, away_points_1, 50);
-    show_number(SIDE_B, POINTS_HOME_2, away_points_2, 50);
-    show_wave(SIDE_B, POINTS_AWAY_1, &dw[POINTS_1]);
-    show_wave(SIDE_B, POINTS_AWAY_2, &dw[POINTS_2]);
-  } else {
-    show_wave(SIDE_B, POINTS_HOME_1, &dw[POINTS_1]);
-    show_wave(SIDE_B, POINTS_HOME_2, &dw[POINTS_2]);
-    show_number(SIDE_B, POINTS_AWAY_1, home_points_1, 50);
-    show_number(SIDE_B, POINTS_AWAY_2, home_points_2, 50);
+    show_wave(SIDE_A, POINTS_AWAY_1, &dw[POINTS_GP_1]);
+    show_wave(SIDE_A, POINTS_AWAY_2, &dw[POINTS_GP_2]);
   }
 
   show_number(SIDE_A, SETS_HOME, score.home_sets, 50);
   show_number(SIDE_A, SETS_AWAY, score.away_sets, 50);
 
+  show_sets_practice(SIDE_A);
+
+  if (slots == SIDE_A || slots == SIDE_B) return;
+
+  if (team == HOME) {
+    show_number(SIDE_B, POINTS_HOME_1, away_points_1, 50);
+    show_number(SIDE_B, POINTS_HOME_2, away_points_2, 50);
+    show_wave(SIDE_B, POINTS_AWAY_1, &dw[POINTS_GP_1]);
+    show_wave(SIDE_B, POINTS_AWAY_2, &dw[POINTS_GP_2]);
+  } else {
+    show_wave(SIDE_B, POINTS_HOME_1, &dw[POINTS_GP_1]);
+    show_wave(SIDE_B, POINTS_HOME_2, &dw[POINTS_GP_2]);
+    show_number(SIDE_B, POINTS_AWAY_1, home_points_1, 50);
+    show_number(SIDE_B, POINTS_AWAY_2, home_points_2, 50);
+  }
+
   show_number(SIDE_B, SETS_HOME, score.away_sets, 50);
   show_number(SIDE_B, SETS_AWAY, score.home_sets, 50);
+
+  show_sets_practice(SIDE_B);
 }
 
 void show_play_result_padel(uint8_t team) {
@@ -559,43 +636,93 @@ void show_play_result_padel(uint8_t team) {
   show_number(SIDE_B, SETS_AWAY, home_games, 50);
 }
 
-void show_practice() {
-  uint8_t set_idx = score.home_sets + score.away_sets;
-  uint8_t current_max_score = set_points_max[set_idx];
-  bool home_set_point = score.home_points + 1 >= current_max_score &&
-                        score.home_points - score.away_points >= 1;
-  bool away_set_point = score.away_points + 1 >= current_max_score &&
-                        score.away_points - score.home_points >= 1;
-  uint8_t home_points_1 = score.home_points / 10;
-  uint8_t home_points_2 = score.home_points % 10;
-  uint8_t away_points_1 = score.away_points / 10;
-  uint8_t away_points_2 = score.away_points % 10;
+bool practice_showing_cont = true;
 
-  show_number(SIDE_A, POINTS_HOME_1, home_points_1, 50);
-  show_number(SIDE_A, POINTS_HOME_2, home_points_2, 50);
-  show_number(SIDE_A, SETS_HOME, score.home_sets, 50);
-  show_number(SIDE_A, SETS_AWAY, score.away_sets, 50);
-  show_number(SIDE_A, POINTS_AWAY_1, away_points_1, 50);
-  show_number(SIDE_A, POINTS_AWAY_2, away_points_2, 50);
+void toggle_practice_transition() {
+  uint16_t transition_duration = 1500;
+  practice_showing_cont = !practice_showing_cont;
 
-  // If next point is set point, show dot
-  if (home_set_point) show_dot(SIDE_A, POINTS_HOME_2, &dd1);
-  if (away_set_point) show_dot(SIDE_A, POINTS_AWAY_2, &dd2);
+  if (practice_showing_cont) {
+    set_chars_fade_into(&dfi[TIME_1], letters[practice_option.first[4]], letters[practice_option.first[0]]);  // I -> C
+    set_chars_fade_into(&dfi[TIME_2], letters[practice_option.first[5]], letters[practice_option.first[1]]);  // N -> O
+    set_chars_fade_into(&dfi[TIME_3], letters[practice_option.first[6]], letters[practice_option.first[2]]);  // U -> N
+    set_chars_fade_into(&dfi[TIME_4], letters[practice_option.first[7]], letters[practice_option.first[3]]);  // E -> T
+  } else {
+    set_chars_fade_into(&dfi[TIME_1], letters[practice_option.first[0]], letters[practice_option.first[4]]);  // C -> I
+    set_chars_fade_into(&dfi[TIME_2], letters[practice_option.first[1]], letters[practice_option.first[5]]);  // O -> N
+    set_chars_fade_into(&dfi[TIME_3], letters[practice_option.first[2]], letters[practice_option.first[6]]);  // N -> U
+    set_chars_fade_into(&dfi[TIME_4], letters[practice_option.first[3]], letters[practice_option.first[7]]);  // T -> E
+  }
 
-  // setLed(SIDE_A, L, 50);
+  transition_frames = transition_duration / FRAME_TIME_MS;
+}
 
-  if (slots == SIDE_A || slots == SIDE_B) return;
+void show_practice_transition_scr() {
+  static uint8_t practice_score_counter = 0;
+  static bool practice_run = true;
+  static uint8_t play_score_counter = 0;
+  static uint32_t play_next_increment_ms = 0;
 
-  show_number(SIDE_B, POINTS_HOME_1, away_points_1, 50);
-  show_number(SIDE_B, POINTS_HOME_2, away_points_2, 50);
-  show_number(SIDE_B, SETS_HOME, score.away_sets, 50);
-  show_number(SIDE_B, SETS_AWAY, score.home_sets, 50);
-  show_number(SIDE_B, POINTS_AWAY_1, home_points_1, 50);
-  show_number(SIDE_B, POINTS_AWAY_2, home_points_2, 50);
+  uint32_t t = esp_timer_get_time() / 1000;  // current time in ms
 
-  // If next point is set point, show dot
-  if (away_set_point) show_dot(SIDE_B, POINTS_HOME_2, &dd2);
-  if (home_set_point) show_dot(SIDE_B, POINTS_AWAY_2, &dd1);
+  if (practice_option.current == FIRST) {
+    // --- Home point digits: cycling bracket symbol + practice counter ---
+    uint8_t step = (t / 500) % 4;  // cycle through CC=[ II== DD=] at 500ms each
+
+    if (step == 0) practice_run = true;
+    if (step == 3 && practice_run) {
+      practice_run = false;
+      practice_score_counter = (practice_score_counter + 1) % 100;
+    }
+
+    show_symbol(SIDE_BOTH, POINTS_HOME_1, step, 50);
+    show_number(SIDE_BOTH, POINTS_HOME_2, practice_score_counter % 10, 50);
+
+    // --- Time digits: CONT/INUE cross-fade ---
+    show_fade_into(SIDE_BOTH, TIME_1, &dfi[TIME_1]);
+    show_fade_into(SIDE_BOTH, TIME_2, &dfi[TIME_2]);
+    show_fade_into(SIDE_BOTH, TIME_3, &dfi[TIME_3]);
+    show_fade_into(SIDE_BOTH, TIME_4, &dfi[TIME_4]);
+
+    show_zigzag(SIDE_BOTH, SETS_HOME, &dz[SETS_GP]);
+    handle_transition(toggle_practice_transition);
+  } else {
+    // --- Away point digits: randomly incrementing 2-digit game score ---
+    if (t >= play_next_increment_ms) {
+      play_score_counter = (play_score_counter + 1) % 25;
+      play_next_increment_ms = t + 500 + (esp_random() % 501);
+    }
+
+    show_character(SIDE_BOTH, POINTS_AWAY_1, numbers[play_score_counter / 10], 50);
+    show_character(SIDE_BOTH, POINTS_AWAY_2, numbers[play_score_counter % 10], 50);
+
+    // --- Time digits: PLAY wave ---
+    show_wave(SIDE_BOTH, TIME_1, &dw[TIME_1]);
+    show_wave(SIDE_BOTH, TIME_2, &dw[TIME_2]);
+    show_wave(SIDE_BOTH, TIME_3, &dw[TIME_3]);
+    show_wave(SIDE_BOTH, TIME_4, &dw[TIME_4]);
+    show_zigzag(SIDE_BOTH, SETS_AWAY, &dz[SETS_GP]);
+  }
+}
+
+void show_sets_practice(uint8_t side) {
+  if (side == SIDE_A) {
+    if (score.home_sets_practice >= 1) show_led(SIDE_A, LED_HOME_3, 50);
+    if (score.home_sets_practice >= 2) show_led(SIDE_A, LED_HOME_2, 50);
+    if (score.home_sets_practice >= 3) show_led(SIDE_A, LED_HOME_1, 50);
+
+    if (score.away_sets_practice >= 1) show_led(SIDE_A, LED_AWAY_3, 50);
+    if (score.away_sets_practice >= 2) show_led(SIDE_A, LED_AWAY_2, 50);
+    if (score.away_sets_practice >= 3) show_led(SIDE_A, LED_AWAY_1, 50);
+  } else {
+    if (score.away_sets_practice >= 1) show_led(SIDE_B, LED_HOME_3, 50);
+    if (score.away_sets_practice >= 2) show_led(SIDE_B, LED_HOME_2, 50);
+    if (score.away_sets_practice >= 3) show_led(SIDE_B, LED_HOME_1, 50);
+
+    if (score.home_sets_practice >= 1) show_led(SIDE_B, LED_AWAY_3, 50);
+    if (score.home_sets_practice >= 2) show_led(SIDE_B, LED_AWAY_2, 50);
+    if (score.home_sets_practice >= 3) show_led(SIDE_B, LED_AWAY_1, 50);
+  }
 }
 
 void show_swap() {}
@@ -622,6 +749,8 @@ void show_battery() {
   show_number(SIDE_BOTH, TIME_4, digit_4, 50);
   show_number(SIDE_BOTH, SETS_HOME, digit_5, 50);
   show_number(SIDE_BOTH, SETS_AWAY, digit_6, 50);
+
+  show_device_battery();
 }
 
 void show_device_battery() {
@@ -635,18 +764,20 @@ void show_device_battery() {
   uint8_t d2_1 = bat_2 / 10;
   uint8_t d2_2 = bat_2 % 10;
 
-  show_number(SIDE_A, POINTS_HOME_1, d1_1, 50);
-  show_number(SIDE_A, POINTS_HOME_2, d1_2, 50);
-  show_number(SIDE_A, POINTS_AWAY_1, d2_1, 50);
-  show_number(SIDE_A, POINTS_AWAY_2, d2_2, 50);
-
-  show_number(SIDE_B, POINTS_HOME_1, d2_1, 50);
-  show_number(SIDE_B, POINTS_HOME_2, d2_2, 50);
-  show_number(SIDE_B, POINTS_AWAY_1, d1_1, 50);
-  show_number(SIDE_B, POINTS_AWAY_2, d1_2, 50);
-
-  show_character(SIDE_BOTH, TIME_1, 0b01000000, 50);  // Dash
-  show_character(SIDE_BOTH, TIME_4, 0b01000000, 50);  // Dash
+  if (bat_1 == 0) {
+    show_character(SIDE_A, POINTS_HOME_1, 0b01000000, 50);
+    show_character(SIDE_A, POINTS_HOME_2, 0b01000000, 50);
+  } else {
+    show_number(SIDE_A, POINTS_HOME_1, d1_1, 50);
+    show_number(SIDE_A, POINTS_HOME_2, d1_2, 50);
+  }
+  if (bat_2 == 0) {
+    show_character(SIDE_A, POINTS_AWAY_1, 0b01000000, 50);
+    show_character(SIDE_A, POINTS_AWAY_2, 0b01000000, 50);
+  } else {
+    show_number(SIDE_A, POINTS_AWAY_1, d2_1, 50);
+    show_number(SIDE_A, POINTS_AWAY_2, d2_2, 50);
+  }
 }
 
 void show_off() {

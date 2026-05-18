@@ -152,14 +152,20 @@ void process_button_event(btn_action_t event) {
         case BUTTON_PRESS:
         case ITAG_PRESS:
         case BUTTON_A_PRESS:
-        case BUTTON_B_PRESS:
           play_add_point(device_id);
+          break;
+        case BUTTON_B_PRESS:
+          play_add_point(device_id, true);
           break;
         case BUTTON_HOLD:
         case BUTTON_A_HOLD:
         case ITAG_DOUBLE_PRESS:
-        case BUTTON_B_HOLD:
           play_undo_point(device_id);
+          break;
+        case BUTTON_B_HOLD:
+          play_undo_point(device_id, true);
+          break;
+        default:
           break;
       }
       break;
@@ -227,22 +233,6 @@ void process_button_event(btn_action_t event) {
         case BUTTON_A_PRESS:
         case BUTTON_B_PRESS:
           enter_battery();
-          break;
-        case BUTTON_HOLD:
-        case BUTTON_A_HOLD:
-        case BUTTON_B_HOLD:
-        case ITAG_DOUBLE_PRESS:
-          go_back();
-          break;
-      }
-      break;
-    case TEST_SCR:
-      switch (button_event) {
-        case BUTTON_PRESS:
-        case ITAG_PRESS:
-        case BUTTON_A_PRESS:
-        case BUTTON_B_PRESS:
-          enter_test();
           break;
         case BUTTON_HOLD:
         case BUTTON_A_HOLD:

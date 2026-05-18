@@ -22,6 +22,9 @@ EMSCRIPTEN_KEEPALIVE
 void init_system() { init_display(); }
 
 EMSCRIPTEN_KEEPALIVE
+void advance_mux_only() { advance_mux(); }
+
+EMSCRIPTEN_KEEPALIVE
 void set_mux(int m) {
   if (m >= 0 && m < 3)
     current_mux = m;

@@ -113,7 +113,5 @@ void show_brightness();
 void show_battery();
 void show_device_battery();
 
-void show_test();
-
 void show_off();
 void show_off_2();

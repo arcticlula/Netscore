@@ -1,5 +1,6 @@
 #include "esp-now.h"
 
+#include "ble/ble.h"
 #include "buzzer/buzzer.h"
 #include "definitions.h"
 #include "display/display_init.h"
@@ -36,6 +37,7 @@ void init_esp_now() {
   ESP_ERROR_CHECK(esp_wifi_start());
   ESP_ERROR_CHECK(esp_wifi_set_ps(WIFI_PS_NONE));
   ESP_ERROR_CHECK(esp_wifi_set_channel(1, WIFI_SECOND_CHAN_NONE));
+  ESP_ERROR_CHECK(esp_wifi_set_max_tx_power(44)); // Limit TX power to 11dBm to prevent TLC5951 brown-out resets
 
   ESP_ERROR_CHECK(esp_now_init());
   ESP_ERROR_CHECK(esp_now_register_recv_cb(esp_now_recv_callback));
@@ -56,7 +58,9 @@ void esp_now_recv_callback(const esp_now_recv_info_t *mac_addr, const uint8_t *d
   ESP_LOGI(TAG, "Received message from device: %d", event.device_id);
   ESP_LOGI(TAG, "Event type: %d", event.event_type);
   ESP_LOGI(TAG, "Message: 0x%02X", event.message);
-  xQueueSend(espnow_queue, &event, portMAX_DELAY);
+  if (xQueueSend(espnow_queue, &event, 0) != pdTRUE) {
+    ESP_LOGW(TAG, "espnow_queue full, message dropped");
+  }
 }
 
 void esp_now_send_callback(const uint8_t *mac_addr, esp_now_send_status_t status) {
@@ -68,51 +72,8 @@ void send_message_esp_now(esp_now_msg_t msg) {
   ESP_LOGI(TAG, "Sending HID data over ESP-NOW, result: %s", esp_err_to_name(result));
 }
 
-void esp_now_device_hold_time(uint16_t hold_time_ms) {
-  esp_now_msg_t msg;
-  msg.event_type = BUTTON_HOLD_TIME;
-  msg.device_id = DEVICE_NONE;
-  msg.message = hold_time_ms;
-  send_message_esp_now(msg);
-}
-
-void esp_now_device_beep(device_t device_id, uint16_t duration_ms) {
-  esp_now_msg_t msg;
-  msg.event_type = BUTTON_BEEP;
-  msg.device_id = device_id;
-  msg.message = duration_ms;
-  send_message_esp_now(msg);
-}
-
-void esp_now_device_silence(device_t device_id, bool silence_on) {
-  esp_now_msg_t msg;
-  msg.event_type = BUTTON_SILENCE;
-  msg.device_id = device_id;
-  msg.message = silence_on ? 1 : 0;
-  send_message_esp_now(msg);
-}
-
-void esp_now_device_battery(device_t device_id) {
-  esp_now_msg_t msg;
-  msg.event_type = GET_BATTERY;
-  msg.device_id = device_id;
-  msg.message = 0;
-  send_message_esp_now(msg);
-}
-
-void set_hold_time_ms(uint16_t time_ms) {
-  esp_now_device_hold_time(time_ms);
-}
-
-uint8_t get_device_battery(device_t device_id) {
-  if (device_id == DEVICE_1 || device_id == DEVICE_2) {
-    return device_battery_levels[device_id - 1];
-  }
-  return 0;
-}
-
 void send_beep(device_t device_id, esp_now_button_beep_t beep_type) {
-  esp_now_device_beep(device_id, (uint16_t)beep_type);
+  ble_req_beep(device_id, (uint32_t)beep_type);
 }
 
 void send_mirror_state(device_t device_id, button_event_t button) {
@@ -139,9 +100,9 @@ void send_mirror_state(device_t device_id, button_event_t button) {
     state_payload.away_points = padel_score.away_points;
   }
 
-  if (window == PLAY_HOME_WIN_SCR || window == PLAY_AWAY_WIN_SCR) {
-    if (sport == SPORT_VOLLEY || sport == SPORT_PING_PONG) {
-      uint8_t set_idx = score.home_sets + score.away_sets;
+  if (window == PLAY_HOME_WIN_SCR || window == PLAY_AWAY_WIN_SCR || window == PRACTICE_HOME_WIN_SCR || window == PRACTICE_AWAY_WIN_SCR) {
+    if (sport == SPORT_PRACTICE || sport == SPORT_VOLLEY || sport == SPORT_PING_PONG) {
+      uint8_t set_idx = score.home_sets + score.away_sets + score.home_sets_practice + score.away_sets_practice;
       if (set_idx > 0) set_idx--;  // Get the last played set
 
       state_payload.home_points = score.set_points_home[set_idx];
@@ -209,38 +170,6 @@ void espnow_task(void *arg) {
   }
 }
 
-void handle_button_status_event(device_t device_id, status_event_t status, device_type_t device_type) {
-  // Maintain paired device registry based on status
-  // We only track DEVICE_1 and DEVICE_2 as valid peers
-  switch (status) {
-    case CONNECTED:
-      if (device_id == DEVICE_1 || device_id == DEVICE_2) {
-        g_paired[device_id - 1].paired = true;
-        g_paired[device_id - 1].type = device_type;
-      }
-      buzzer_enqueue_note(NOTE_A, 4, 300, nullptr);
-      buzzer_enqueue_note(NOTE_D, 4, 200, nullptr);
-      break;
-
-    case DISCONNECTED:
-      if (device_id == DEVICE_1 || device_id == DEVICE_2) {
-        g_paired[device_id - 1].paired = false;
-        g_paired[device_id - 1].type = DEVICE_TYPE_UNKNOWN;
-      }
-      buzzer_enqueue_note(NOTE_D, 6, 500, nullptr);
-      buzzer_enqueue_note(NOTE_A, 6, 200, nullptr);
-      break;
-    case NOT_CONNECTED:
-      if (device_id == DEVICE_1 || device_id == DEVICE_2) {
-        g_paired[device_id - 1].paired = false;
-        g_paired[device_id - 1].type = DEVICE_TYPE_UNKNOWN;
-      }
-      break;
-    default:
-      break;
-  }
-}
-
 // Query helpers for paired device registry
 bool is_device_paired(device_t device_id) {
   if (device_id != DEVICE_1 && device_id != DEVICE_2) return false;
@@ -260,11 +189,3 @@ uint8_t get_paired_devices_count() {
 }
 
 btn_action_t btn_action_event;
-
-void handle_button_action_event(device_t device_id, button_event_t button_event) {
-  ESP_LOGI(TAG, "Button %d Action: %d", device_id, button_event);
-
-  btn_action_event.device_id = device_id;
-  btn_action_event.button_event = button_event;
-  xQueueSend(button_action_queue, &btn_action_event, portMAX_DELAY);
-}

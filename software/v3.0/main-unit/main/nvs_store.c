@@ -102,6 +102,10 @@ bool nvs_add_known_device(const esp_bd_addr_t bda) {
     }
   }
   if (count >= NVS_MAX_DEVICES) {
+    // NVS is full, overwrite the first entry (index 0)
+    char key_0[16];
+    make_key(key_0, sizeof(key_0), 0);
+    nvs_set_blob(h, key_0, bda, 6);
     nvs_close(h);
     return true;
   }
@@ -162,4 +166,30 @@ bool nvs_remove_known_device(const esp_bd_addr_t bda) {
   bool ok = write_count(h, count - 1);
   nvs_close(h);
   return ok;
+}
+
+bool nvs_swap_known_devices(void) {
+  nvs_handle_t h;
+  if (nvs_open(NVS_NAMESPACE_DEVICES, NVS_READWRITE, &h) != ESP_OK) return false;
+  int count = 0;
+  if (!read_count(h, &count) || count < 2) {
+    nvs_close(h);
+    return false; // Nothing to swap
+  }
+
+  char key0[16], key1[16];
+  make_key(key0, sizeof(key0), 0);
+  make_key(key1, sizeof(key1), 1);
+
+  uint8_t bda0[6], bda1[6];
+  size_t len0 = 6, len1 = 6;
+  if (nvs_get_blob(h, key0, bda0, &len0) == ESP_OK && 
+      nvs_get_blob(h, key1, bda1, &len1) == ESP_OK) {
+    nvs_set_blob(h, key0, bda1, 6);
+    nvs_set_blob(h, key1, bda0, 6);
+    nvs_commit(h);
+  }
+  
+  nvs_close(h);
+  return true;
 }

@@ -38,9 +38,6 @@ void enter_menu_option() {
     case MENU_BATT:
       init_bat_scr();
       break;
-    case MENU_TEST:
-      init_test_scr();
-      break;
     case MENU_OFF:
       init_off_scr();
       break;
@@ -183,28 +180,23 @@ void enter_battery_device() {
   init_device_bat_scr();
 }
 
-void enter_test() {
-  play_enter_sound(BUTTON_A_HOLD);
-  init_test_scr();
-}
-
 void enter_off() {
   play_enter_sound(BUTTON_A_HOLD);
   init_off_scr();
 }
 
-void play_add_point(uint8_t device_id) {
-  if (device_id == DEVICE_1) add_point(HOME);
+void play_add_point(uint8_t device_id, bool reverse) {
+  if (device_id == DEVICE_1) add_point(reverse ? AWAY : HOME);
   else if (device_id == DEVICE_2)
-    add_point(AWAY);
+    add_point(reverse ? HOME : AWAY);
   send_beep((esp_now_device_t)DEVICE_1, BUTTON_SINGLE_BEEP);
   send_beep((esp_now_device_t)DEVICE_2, BUTTON_SINGLE_BEEP);
 }
 
-void play_undo_point(uint8_t device_id) {
-  if (device_id == DEVICE_1) undo_point(HOME);
+void play_undo_point(uint8_t device_id, bool reverse) {
+  if (device_id == DEVICE_1) undo_point(reverse ? AWAY : HOME);
   else if (device_id == DEVICE_2)
-    undo_point(AWAY);
+    undo_point(reverse ? HOME : AWAY);
   else
     undo_point(LAST_TEAM);
   send_beep((esp_now_device_t)DEVICE_1, BUTTON_DOUBLE_BEEP);
@@ -218,7 +210,6 @@ void go_back() {
     case BRILHO_SCR:
     case BATT_SCR:
     case BATT_DEVICE_SCR:
-    case TEST_SCR:
       init_menu_scr();
       break;
     case SET_MAX_SCORE_SCR:

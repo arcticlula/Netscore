@@ -40,5 +40,7 @@ esp_err_t spi_send(uint8_t *data, int len) {
   t.length = len * 8;
   t.tx_buffer = data;
   t.rx_buffer = NULL;
-  return spi_device_transmit(spi_handle, &t);
+  // Use polling transmit: does not acquire the internal SPI queue semaphore,
+  // which prevents deadlocks when called from a context that holds other locks.
+  return spi_device_polling_transmit(spi_handle, &t);
 }

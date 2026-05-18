@@ -46,7 +46,11 @@ const uint8_t letters[28] = {
     0b01011011   // Z
 };
 
-const uint8_t symbols[3] = {
+const uint8_t symbols[7] = {
+    0,           // blank
+    0b00001000,  // bottom dash
+    0b01001000,  // bottom middle dash
+    0b01001001,  // bottom middle top dash
     0b00111001,  // [
     0b00001001,  // =
     0b00001111   // ]
@@ -89,25 +93,24 @@ enum { CC = 0,
 bool handle_transition();
 
 void show_display();
+void show_oops();
 void show_all();
 void show_transition();
 
 void show_time();
 
 void show_boot();
-void show_boot_2();
-void show_boot_3();
-void show_boot_4();
-
-void show_sport();
-void show_sport_ping_pong();
 
 void show_menu();
 void show_menu_transition();
 
+void show_sport();
+void show_sport_ping_pong();
+
 void show_set_max_score();
 void show_set_padel_game_type();
 void show_set_deuce_type();
+void show_practice_transition_scr();
 void show_play();
 void show_play_default();
 void show_play_padel();
@@ -115,6 +118,7 @@ void show_play_padel_sets(uint8_t team);
 void show_play_result(uint8_t team);
 void show_play_result_default(uint8_t team);
 void show_play_result_padel(uint8_t team);
+void show_sets_practice(uint8_t side);
 void show_display_mode();
 void show_swap();
 void show_brightness();
@@ -127,3 +131,5 @@ void show_off();
 void show_off_2();
 
 void show_sleep();
+
+extern bool practice_showing_cont;

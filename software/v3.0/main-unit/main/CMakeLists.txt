@@ -22,6 +22,7 @@ idf_component_register(
         "storage.cpp"
         "nvs_store.c"
         "i2c/i2c_bus.cpp"
+        "i2c/i2c_scan.cpp"
         "power/power.cpp"
         "rtc/ds3231.cpp"
         "time/app_time.cpp"

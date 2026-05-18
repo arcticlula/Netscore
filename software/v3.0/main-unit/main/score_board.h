@@ -15,8 +15,11 @@ typedef struct {
   uint8_t away_points;
   uint8_t home_sets;
   uint8_t away_sets;
+  uint8_t home_sets_practice;
+  uint8_t away_sets_practice;
   uint8_t set_points_home[MAX_SETS];
   uint8_t set_points_away[MAX_SETS];
+  uint8_t mode[MAX_SETS];
 } score_t;
 
 enum {
@@ -43,9 +46,13 @@ typedef struct {
 } padel_score_t;
 
 typedef struct {
+  uint8_t options[10];
+  uint8_t count;
+  uint8_t index;
+  uint8_t previous;
   uint8_t current;
-  uint8_t min;
-  uint8_t max;
+  uint8_t min;  // For compatibility with old logic
+  uint8_t max;  // For compatibility with old logic
 } max_score_t;
 
 enum class EventType { PointScored };
@@ -54,6 +61,7 @@ struct GameEvent {
   team_t team;
   uint64_t timestamp;
   EventType type;
+  sport_menu_options_t mode;
 };
 
 class Match {
@@ -71,6 +79,9 @@ class Match {
  private:
   void calculateScoreInternal(score_t& state) const;
   void calculatePadelScoreInternal(padel_score_t& state) const;
+
+  void applyPoint(score_t& state, const GameEvent& event) const;
+  void applyPadelPoint(padel_score_t& state, const GameEvent& event) const;
 };
 
 // Global instances

@@ -7,9 +7,12 @@
 #include "driver/ledc.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
 #include "freertos/task.h"
 #include "misc.h"
 #include "spi/spi.h"
+
+SemaphoreHandle_t spi_mutex = NULL;
 
 gpio_num_t gssin_pin;
 gpio_num_t dcsin_pin;
@@ -44,6 +47,10 @@ static void (*user_callback)() = NULL;
 Tlc5951 Tlc;
 
 void Tlc5951::init(uint8_t gssin, uint8_t dcsin, uint8_t sclk, uint8_t xlat, uint8_t blank, uint8_t gsclk) {
+  if (spi_mutex == NULL) {
+    spi_mutex = xSemaphoreCreateMutex();
+  }
+
   gssin_pin = (gpio_num_t)gssin;
   dcsin_pin = (gpio_num_t)dcsin;
   sclk_pin = (gpio_num_t)sclk;
@@ -115,6 +122,7 @@ void Tlc5951::init(uint8_t gssin, uint8_t dcsin, uint8_t sclk, uint8_t xlat, uin
   // Start the timer to match the frame rate requirements
   uint64_t interval = (uint64_t)(1000000 / MUX_FRAME_RATE_HZ) / MUX_NUM;
   ESP_ERROR_CHECK(esp_timer_start_periodic(display_timer, interval));
+  display_timer_started = true;
 }
 
 void Tlc5951::setUserCallback(void (*callback)()) {
@@ -122,7 +130,9 @@ void Tlc5951::setUserCallback(void (*callback)()) {
 }
 
 void Tlc5951::clear(void) {
-  memset(gs_buffers, 0, sizeof(gs_buffers));
+  // Only clear the inactive buffer — the active buffer is currently being read
+  // by display_update_task via DMA and must not be modified mid-transfer.
+  memset(gs_buffers[inactive_buffer], 0, sizeof(gs_buffers[inactive_buffer]));
 }
 
 void Tlc5951::setGroupChannel(uint8_t tlc_index, color_group_t group, uint8_t channel, uint8_t mux_idx, uint16_t value) {
@@ -208,6 +218,22 @@ void Tlc5951::setLed(uint8_t side, uint8_t led_id, uint16_t value) {
   setGroupChannel(side, COLOR_B, led_id, MUX_3, final_value);
 }
 
+void Tlc5951::setTestLed(uint8_t side, uint8_t led_id, uint16_t value) {
+  if (side == SIDE_BOTH) {
+    setTestLed(SIDE_A, led_id, value);
+    setTestLed(SIDE_B, led_id, value);
+    return;
+  }
+
+  if (display_mode == DISPLAY_MODE_A && side == SIDE_B) return;
+  if (display_mode == DISPLAY_MODE_B && side == SIDE_A) return;
+
+  if (led_id > 7) return;
+  uint16_t final_value = get_gamma_corrected_value(value);
+  uint8_t mux = led_id == LED_TEST_1 || led_id == LED_TEST_2 ? MUX_3 : MUX_4;
+  setGroupChannel(side, COLOR_B, led_id, mux, final_value);
+}
+
 void Tlc5951::setTimeColon(uint8_t side, uint8_t digit_index, uint16_t value) {
   if (side == SIDE_BOTH) {
     setTimeColon(SIDE_A, digit_index, value);
@@ -238,10 +264,10 @@ void Tlc5951::setTimeColons(uint8_t side, uint16_t value_top, uint16_t value_bot
   setGroupChannel(side, COLOR_B, TIME_COLON_BOTTOM, MUX_4, final_value_bottom);
 }
 
-void Tlc5951::setBarLed(uint8_t side, uint16_t value) {
+void Tlc5951::setBarLed(uint8_t side, uint8_t led_id, uint16_t value) {
   if (side == SIDE_BOTH) {
-    setBarLed(SIDE_A, value);
-    setBarLed(SIDE_B, value);
+    setBarLed(SIDE_A, led_id, value);
+    setBarLed(SIDE_B, led_id, value);
     return;
   }
 
@@ -249,7 +275,7 @@ void Tlc5951::setBarLed(uint8_t side, uint16_t value) {
   if (display_mode == DISPLAY_MODE_B && side == SIDE_A) return;
 
   uint16_t final_value = get_gamma_corrected_value(value);
-  setGroupChannel(side, COLOR_B, BAR_LED, MUX_4, final_value);
+  setGroupChannel(side, COLOR_B, led_id, MUX_4, final_value);
 }
 
 void Tlc5951::setAll(uint16_t value) {
@@ -329,10 +355,15 @@ void Tlc5951::setGlobalBrightness(uint8_t level) {
   if (level > 100) level = 100;
   global_level = level;
 
-  // Formula: BC = (Global % * Calibration %) * 255 / 10000
-  bc_r_val = ((uint32_t)global_level * group_cal_r * 255) / 10000;
-  bc_g_val = ((uint32_t)global_level * group_cal_g * 255) / 10000;
-  bc_b_val = ((uint32_t)global_level * group_cal_b * 255) / 10000;
+  // Apply gamma correction so equal slider steps feel perceptually equal.
+  // Reuses the existing 12-bit LUT: scale 0-100 → 0-4095, look up, scale back.
+  // No float math needed.
+  uint8_t corrected_level = (uint8_t)(gamma_correction_vector[(uint32_t)level * 4095 / 100] * 100 / 4095);
+
+  // Formula: BC = (Corrected % * Calibration %) * 255 / 10000
+  bc_r_val = ((uint32_t)corrected_level * group_cal_r * 255) / 10000;
+  bc_g_val = ((uint32_t)corrected_level * group_cal_g * 255) / 10000;
+  bc_b_val = ((uint32_t)corrected_level * group_cal_b * 255) / 10000;
 
   updateDcData();
 }
@@ -368,32 +399,42 @@ void Tlc5951::updateDcData() {
   }
 
   // --- Pause display updates ---
-  bool timer_was_active = esp_timer_is_active(display_timer);
-  if (timer_was_active) esp_timer_stop(display_timer);
+  esp_timer_stop(display_timer);  // Safe to call even if not running
+
+  // Take the SPI mutex to avoid collisions with the display_update_task
+  if (spi_mutex != NULL) {
+    xSemaphoreTake(spi_mutex, portMAX_DELAY);
+  }
+
+  // Blank the display during the transfer
+  gpio_set_level(blank_pin, LOW);
 
   // --- Start DC Write Sequence using GSSIN (Pin 11) ---
-  // According to Figure 46/47 and the XLAT-High-Shift method:
-  // 1. Pull XLAT HIGH to indicate Data Control mode
   gpio_set_level(xlat_pin, HIGH);
-  esp_rom_delay_us(10);  // Wait for chip to recognize mode
+  esp_rom_delay_us(10);
 
-  // 2. Transfer the 288-bit block via SPI (GSSIN)
   spi_send(dc_buf, total_bytes);
 
-  // 3. Complete the transfer by pulling XLAT LOW
   gpio_set_level(xlat_pin, LOW);
   esp_rom_delay_us(10);
 
-  // 4. Perform final XLAT Pulse for latching
   gpio_set_level(xlat_pin, HIGH);
   esp_rom_delay_us(10);
   gpio_set_level(xlat_pin, LOW);
   esp_rom_delay_us(10);
 
-  // --- Resume display timer ---
-  if (timer_was_active) {
+  if (spi_mutex != NULL) {
+    xSemaphoreGive(spi_mutex);
+  }
+
+  // --- Always restart the display timer ---
+  // Unconditional restart eliminates the TOCTOU race where timer_was_active
+  // could be false if a concurrent call had already stopped the timer, leaving
+  // it permanently stopped. display_timer_started guards against premature
+  // restarts during the init() sequence before the timer is first armed.
+  if (display_timer_started) {
     uint64_t interval = (uint64_t)(1000000 / MUX_FRAME_RATE_HZ) / MUX_NUM;
-    esp_timer_start_periodic(display_timer, interval);
+    esp_timer_start_periodic(display_timer, interval);  // no-op if already running
   }
 }
 void swap_buffers() {
@@ -410,6 +451,13 @@ void display_logic_task(void *arg) {
 }
 
 IRAM_ATTR void display_update_task(void *arg) {
+  // If the SPI bus is being used by updateDcData, skip this frame to prevent collisions
+  if (spi_mutex != NULL) {
+    if (xSemaphoreTake(spi_mutex, 0) != pdTRUE) {
+      return;
+    }
+  }
+
   // 1. Turn off outputs (LOW = Blank ON)
   gpio_set_level(blank_pin, LOW);
 
@@ -421,7 +469,7 @@ IRAM_ATTR void display_update_task(void *arg) {
   iterate_mux();
 
   // 3. Give the MUX PMOS transistors time to fully stabilize before we latch new data
-  esp_rom_delay_us(200);
+  esp_rom_delay_us(50);
 
   // 4. Latch the data that was shifted in the PREVIOUS interrupt
   gpio_set_level(xlat_pin, HIGH);
@@ -439,6 +487,10 @@ IRAM_ATTR void display_update_task(void *arg) {
   } else if (slots == SIDE_A || slots == SIDE_B) {
     // Send SIDE_A buffer (located at +GS_BYTES_PER_TLC) to the single connected display
     spi_send(gs_buffers[active_buffer][next_mux] + GS_BYTES_PER_TLC, GS_BYTES_PER_TLC);
+  }
+
+  if (spi_mutex != NULL) {
+    xSemaphoreGive(spi_mutex);
   }
 }
 

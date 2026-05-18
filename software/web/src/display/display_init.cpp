@@ -249,15 +249,6 @@ void init_device_bat_scr() {
   window = BATT_DEVICE_SCR;
 }
 
-void init_test_scr() {
-  set_chars_fade_into(&dfi1, letters[T], letters[P]);
-  set_chars_fade_into(&dfi2, letters[E], letters[U]);
-  set_chars_fade_into(&dfi5, letters[S], letters[T]);
-  set_chars_fade_into(&dfi6, letters[T], letters[A]);
-
-  window = TEST_SCR;
-}
-
 void init_off_scr() {
   init_digit_wave(&dw1, 50, 1, 50, 0, -1, 2000);
   init_digit_wave(&dw2, 50, 1, 50, 0, -1, 2000);

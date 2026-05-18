@@ -1,11 +1,11 @@
 #pragma once
 
 // #include <Preferences.h>
-#include <esp_err.h>
-
 #include "button/button.h"
 #include "definitions.h"
 #include "display/tlc5951/tlc5951.h"
+#include "esp_attr.h"
+#include "esp_err.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
 #include "freertos/timers.h"
@@ -21,7 +21,7 @@ extern uint8_t brightness_index;
 extern side_t slots;
 
 void init_gpio();
-void set_debug_led(bool enable);
+void IRAM_ATTR set_debug_led(bool enable);
 /**void get_preferences();
 void reset_preferences();
 void get_brightness_pref();
@@ -45,4 +45,5 @@ uint16_t get_bat_percentage();
 
 void blink_led();
 void toggle_display_mode();
+void usb_display_mode(bool enable);
 void check_slot_status();

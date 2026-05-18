@@ -103,8 +103,10 @@ typedef struct {
 
 void init_button_contexts(void);
 void init_ble(void);
+void ble_restart_scan(void);
+void ble_swap_device_ids(void);
+void set_ble_hold_time_ms(uint16_t time_ms);
 
-void set_hold_time_ms(uint16_t time_ms);
 uint8_t get_device_battery(device_t device_id);
 
 // Find device connection by BDA
@@ -133,8 +135,7 @@ typedef enum {
   BLE_CMD_BEEP,
   BLE_CMD_SILENCE,
   BLE_CMD_RECONNECT,
-  BLE_CMD_GET_BATTERY,
-  BLE_CMD_SET_HOLD_TIME
+  BLE_CMD_GET_BATTERY
 } ble_cmd_type_t;
 
 typedef struct {

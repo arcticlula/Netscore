@@ -60,5 +60,5 @@ cp build/netscore.wasm "$DEST_DIR/build/"
 
 echo "Export complete!"
 echo "To use this in your Vue project:"
-echo "1. Use an iframe pointing to: /netscore/index.html"
+echo "1. Use an iframe pointing to: /netscore/component/index.html"
 echo "   <iframe src=\"/netscore/component/index.html\" ...></iframe>"

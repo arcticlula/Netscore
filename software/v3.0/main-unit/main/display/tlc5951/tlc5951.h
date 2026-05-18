@@ -49,6 +49,12 @@ class Tlc5951 {
       @param value  Brightness (0-4095) */
   void setLed(uint8_t side, uint8_t led_id, uint16_t value);
 
+  /** Set a test LED (B group, mux 3).
+      @param side   SIDE_A or SIDE_B
+      @param led_id LED index (LED_TEST_1..LED_TEST_3)
+      @param value  Brightness (0-4095) */
+  void setTestLed(uint8_t side, uint8_t led_id, uint16_t value);
+
   /** Set the time colon (B group, mux 3).
       @param side   SIDE_A or SIDE_B
       @param digit_index
@@ -63,8 +69,9 @@ class Tlc5951 {
 
   /** Set the bar LED (B group, mux 3).
       @param side   SIDE_A or SIDE_B
+      @param led_id LED index (BAR_LED_1..BAR_LED_4)
       @param value  Brightness (0-4095) */
-  void setBarLed(uint8_t side, uint16_t value);
+  void setBarLed(uint8_t side, uint8_t led_id, uint16_t value);
 
   /** Set all channels to value across all mux positions. */
   void setAll(uint16_t value);
@@ -108,6 +115,7 @@ class Tlc5951 {
   uint8_t bc_b_val = 0;
 
   void updateDcData();
+  bool display_timer_started = false;
 };
 
 void init_mux(uint8_t mux_1_pin, uint8_t mux_2_pin, uint8_t mux_3_pin, uint8_t mux_4_pin);

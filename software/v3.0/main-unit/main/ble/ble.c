@@ -69,6 +69,10 @@ void init_ble() {
   // Load known devices from NVS to pre-populate RAM cache
   if (nvs_load_known_devices(nvs_cache, &nvs_cache_count) && nvs_cache_count > 0) {
     ESP_LOGI(TAG, "Loaded %d known devices from NVS into RAM cache", nvs_cache_count);
+    for (int i = 0; i < nvs_cache_count && i < MAX_DEVICES; ++i) {
+      memcpy(device_connections[i].bda, nvs_cache[i].bda, 6);
+      device_connections[i].device_id = (device_t)(i + 1);
+    }
   }
 }
 
@@ -220,6 +224,24 @@ void assign_device_slot(const esp_bd_addr_t bda) {
       return;
     }
   }
+
+  // If no slots are empty, evict the first disconnected device
+  for (int i = 0; i < MAX_DEVICES; ++i) {
+    if (!device_connections[i].connected) {
+      ESP_LOGW(TAG, "Evicting disconnected device at slot %d for new device", i + 1);
+      memcpy(device_connections[i].bda, bda, 6);
+      device_connections[i].transport = ESP_HID_TRANSPORT_BLE;
+      device_connections[i].addr_type = 0x00;
+      device_connections[i].connected = true;
+      device_connections[i].dev = NULL;
+      // Keep its existing device_id!
+      device_connections[i].last_reconnect_attempt = 0;
+      device_connections[i].device_type = DEVICE_TYPE_UNKNOWN;
+      ESP_LOGI(TAG, "Assigned device slot %d to " ESP_BD_ADDR_STR, i + 1, ESP_BD_ADDR_HEX(bda));
+      return;
+    }
+  }
+
   ESP_LOGW(TAG, "No free device slots to assign for " ESP_BD_ADDR_STR, ESP_BD_ADDR_HEX(bda));
 }
 
@@ -976,10 +998,10 @@ bool reconnect_device(device_connection_t* conn) {
   }
 }
 
-uint16_t hold_time_ms = 300;
+uint16_t ble_hold_time_ms = 500;
 
-void set_hold_time_ms(uint16_t time_ms) {
-  hold_time_ms = time_ms;
+void set_ble_hold_time_ms(uint16_t time_ms) {
+  ble_hold_time_ms = time_ms;
 }
 
 void handle_button_action_event(device_t device_id, button_event_t button_event) {
@@ -1010,8 +1032,8 @@ void handle_button_status_event(device_t device_id, status_event_t status, devic
         g_paired[device_id - 1].paired = true;
         g_paired[device_id - 1].type = device_type;
       }
-      buzzer_enqueue_note(NOTE_A, 4, 300, NULL);
-      buzzer_enqueue_note(NOTE_D, 4, 200, NULL);
+      buzzer_enqueue_note(NOTE_A, 4, 300, 60);
+      buzzer_enqueue_note(NOTE_D, 4, 200, 60);
       break;
 
     case DISCONNECTED:
@@ -1019,8 +1041,8 @@ void handle_button_status_event(device_t device_id, status_event_t status, devic
         g_paired[device_id - 1].paired = false;
         g_paired[device_id - 1].type = DEVICE_TYPE_UNKNOWN;
       }
-      buzzer_enqueue_note(NOTE_D, 6, 500, NULL);
-      buzzer_enqueue_note(NOTE_A, 6, 200, NULL);
+      buzzer_enqueue_note(NOTE_D, 6, 500, 60);
+      buzzer_enqueue_note(NOTE_A, 6, 200, 60);
       break;
     case NOT_CONNECTED:
       if (device_id == DEVICE_1 || device_id == DEVICE_2) {
@@ -1092,7 +1114,7 @@ void start_hold_timer(button_context_t* ctx) {
 
   esp_timer_create(&create_args, &ctx->timer);
   ctx->press_time = esp_timer_get_time();
-  esp_timer_start_once(ctx->timer, hold_time_ms * 1000);
+  esp_timer_start_once(ctx->timer, ble_hold_time_ms * 1000);
 }
 
 void stop_hold_timer(button_context_t* ctx) {
@@ -1253,11 +1275,6 @@ void ble_command_task(void* pvParameters) {
             reconnect_device(dc);
           }
           break;
-
-        case BLE_CMD_SET_HOLD_TIME:
-          set_hold_time_ms((uint16_t)cmd.param);
-          break;
-
         case BLE_CMD_GET_BATTERY:
           ESP_LOGI(TAG, "Requesting battery for all devices");
           for (int i = 0; i < MAX_CONN; i++) {
@@ -1295,4 +1312,33 @@ void ble_req_reconnect(device_t dev) {
 void ble_req_battery(void) {
   ble_cmd_t cmd = {.cmd_type = BLE_CMD_GET_BATTERY, .device_id = DEVICE_ALL, .param = 0};
   xQueueSend(ble_cmd_queue, &cmd, 10 / portTICK_PERIOD_MS);
+}
+
+void ble_swap_device_ids(void) {
+  // Swap known devices in NVS
+  if (nvs_swap_known_devices()) {
+    ESP_LOGI(TAG, "Swapped devices in NVS");
+  }
+
+  // Reload the cache so nvs_cache reflects the new order
+  nvs_load_known_devices(nvs_cache, &nvs_cache_count);
+
+  // Swap the physical device tracking in RAM
+  device_connection_t temp = device_connections[0];
+  device_connections[0] = device_connections[1];
+  device_connections[1] = temp;
+
+  // Restore the static device IDs for their respective slots
+  device_connections[0].device_id = DEVICE_1;
+  device_connections[1].device_id = DEVICE_2;
+
+  // If devices are connected, send an updated status so the rest of the system knows
+  if (device_connections[0].connected) {
+    handle_button_status_event(DEVICE_1, CONNECTED, device_connections[0].device_type);
+  }
+  if (device_connections[1].connected) {
+    handle_button_status_event(DEVICE_2, CONNECTED, device_connections[1].device_type);
+  }
+
+  ESP_LOGI(TAG, "Successfully swapped connected BLE remotes!");
 }

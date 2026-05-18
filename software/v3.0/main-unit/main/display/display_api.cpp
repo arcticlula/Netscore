@@ -72,30 +72,41 @@ void show_wave(uint8_t side, uint8_t digit_index, digit_wave_t *digit, void (*ca
   // Serial.printf("Value: %d, Ratio: %.2f, Direction: %d\n", digit->value, ratio, digit->direction);
 }
 
-void show_wave_colon(uint8_t side, uint8_t digit_index, single_wave_t *bit) {
+void show_wave_time_colon(uint8_t side) {
+  show_single_wave(side, TIME_COLON_TOP, &wc1);
+  show_single_wave(side, TIME_COLON_BOTTOM, &wc2);
+}
+
+void show_wave_bar_led(uint8_t side, uint8_t led_index) {
+  show_single_wave(side, led_index, &wbl[led_index]);
+}
+
+void show_wave_led(uint8_t side, uint8_t led_index) {
+  show_single_wave(side, led_index, &wled[led_index]);
+}
+
+void show_single_wave(uint8_t side, uint8_t digit_index, single_wave_t *bit) {
   double time = bit->time_ms / FRAME_TIME_MS;  // only called every x time, x is the number of mux outputs, the 2 is bc only called every 2ms
   uint16_t value = round(bit->value);
   double ratio = (double)(bit->max - bit->min) / time;
 
-  Tlc.setTimeColon(side, digit_index, value);
-
-  bit->value += bit->direction * ratio;
-
-  if (bit->value <= bit->min) {
-    bit->direction = 1;
-    bit->value = bit->min;
-  } else if (bit->value >= bit->max) {
-    bit->direction = -1;
-    bit->value = bit->max;
+  switch (digit_index) {
+    case TIME_COLON_TOP:
+      Tlc.setTimeColon(side, digit_index, value);
+      break;
+    case TIME_COLON_BOTTOM:
+      Tlc.setTimeColon(side, digit_index, value);
+      break;
+    case BAR_LED_1:
+    case BAR_LED_2:
+    case BAR_LED_3:
+    case BAR_LED_4:
+      Tlc.setBarLed(side, digit_index, value);
+      break;
+    default:
+      Tlc.setLed(side, digit_index, value);
+      break;
   }
-}
-
-void show_wave_bar_led(uint8_t side, single_wave_t *bit) {
-  double time = bit->time_ms / FRAME_TIME_MS;  // only called every x time
-  uint16_t value = round(bit->value);
-  double ratio = (double)(bit->max - bit->min) / time;
-
-  Tlc.setBarLed(side, value);
 
   bit->value += bit->direction * ratio;
 
@@ -158,7 +169,7 @@ void show_zigzag(uint8_t side, uint8_t digit_index, digit_zigzag_t *digit, void 
   }
 }
 
-void show_fade_in(uint8_t side, uint8_t digit_index, digit_fade_t *digit, void (*callback)()) {
+void show_fade_in(uint8_t side, uint8_t digit_index, digit_fade_t *digit) {
   static double time = digit->time_ms / (FRAME_TIME_MS * digit->c.size);
   double ratio = (double)(digit->value / time);
 
@@ -170,9 +181,7 @@ void show_fade_in(uint8_t side, uint8_t digit_index, digit_fade_t *digit, void (
     } else
       digit->cnt++;
   } else {
-    if ((digit->positions_value[digit->c.size - 1] >= digit->value) && callback) callback();
-    else
-      digit->cnt++;
+    digit->cnt++;
   }
 
   for (uint8_t channel = 0; channel <= digit->channel; channel++) {
@@ -185,7 +194,7 @@ void show_fade_in(uint8_t side, uint8_t digit_index, digit_fade_t *digit, void (
   }
 }
 
-void show_fade_into(uint8_t side, uint8_t digit_index, digit_fade_into_t *digit, void (*callback)()) {
+void show_fade_into(uint8_t side, uint8_t digit_index, digit_fade_into_t *digit) {
   portMEMORY_BARRIER();
   digit_fade_into_t *d = digit;
 
@@ -215,10 +224,8 @@ void show_fade_into(uint8_t side, uint8_t digit_index, digit_fade_into_t *digit,
       // Use the updated value from the struct, not the stale local variable
       if (d->positions_value[channel] >= d->value) {
         d->positions_value[channel] = d->value;
-        if (callback) callback();
       } else if (d->positions_value[channel] <= 0) {
         d->positions_value[channel] = 0;
-        if (callback) callback();
       }
     }
   }
@@ -251,25 +258,20 @@ void show_led(uint8_t side, uint8_t led_index, uint8_t value) {
   Tlc.setLed(side, led_index, val);
 }
 
-void show_test_led(uint8_t side, uint8_t value) {
+void show_test_led(uint8_t side, uint8_t led_index, uint8_t value) {
   uint16_t val = round(get_brightness(value));
-  Tlc.setLed(side, LED_TEST, val);
+  Tlc.setTestLed(side, led_index, val);
 }
 
-void show_bar_led(uint8_t side, uint8_t value) {
+void show_bar_led(uint8_t side, uint8_t led_index, uint8_t value) {
   uint16_t val = round(get_brightness(value));
-  Tlc.setBarLed(side, val);
+  Tlc.setBarLed(side, led_index, val);
 }
 
 void show_time_colon(uint8_t side, uint8_t value_up, uint8_t value_down) {
   uint16_t val_up = round(get_brightness(value_up));
   uint16_t val_down = round(get_brightness(value_down));
   Tlc.setTimeColon(side, val_up, val_down);
-}
-
-void show_time_colon_wave(uint8_t side, uint8_t brightness) {
-  show_single_wave(side, TIME_COLON_TOP, &wc1);
-  show_single_wave(side, TIME_COLON_BOTTOM, &wc2);
 }
 
 void set_char(digit_character_t *digit, uint8_t character) {

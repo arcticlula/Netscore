@@ -15,5 +15,6 @@ typedef struct {
 bool nvs_load_known_devices(known_device_t *out_list, int *out_count);
 bool nvs_add_known_device(const esp_bd_addr_t bda);
 bool nvs_remove_known_device(const esp_bd_addr_t bda);
+bool nvs_swap_known_devices(void);
 
 #endif  // NVS_STORE_H

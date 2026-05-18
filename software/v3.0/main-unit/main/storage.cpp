@@ -274,6 +274,7 @@ void loadSettings() {
     err = nvs_get_blob(my_handle, KEY_SETTINGS, &settings, &size);
     if (err == ESP_OK) {
       display_mode = settings.display_mode;
+      last_display_mode = display_mode;
       brightness_index = settings.brightness_index;
       ESP_LOGI(TAG, "Settings loaded: Mode %d, Brightness %d", display_mode, brightness_index);
     } else {

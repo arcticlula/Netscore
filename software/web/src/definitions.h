@@ -17,6 +17,7 @@
 
 #define MAX_VALUE 4095
 #define MUX_NUM 3
+#define FRAME_TIME_MS 30
 #define BAT_MIN_LEVEL 3000
 #define BAT_MAX_LEVEL 4200
 
@@ -44,7 +45,6 @@ typedef enum {
   BOOT_2_SCR,
   BOOT_3_SCR,
   BOOT_4_SCR,
-  // PRESS_SCR,
   SPORT_SCR,
   MENU_SCR,
   MENU_TRANSITION_SCR,
@@ -57,7 +57,6 @@ typedef enum {
   BRILHO_SCR,
   BATT_SCR,
   BATT_DEVICE_SCR,
-  TEST_SCR,
   OFF_SCR,
   OFF_2_SCR,
 } screen_t;
@@ -72,7 +71,6 @@ typedef enum {
   MENU_PLAY = 0,
   MENU_BRILHO,
   MENU_BATT,
-  MENU_TEST,
   MENU_OFF
 } menu_options_t;
 
@@ -131,7 +129,7 @@ typedef struct {
   uint8_t current;
 } option_string_2_t;
 
-extern uint8_t menu_options[5][6];
+extern uint8_t menu_options[4][6];
 
 extern option_string_2_t padel_game_type_option;
 extern option_string_2_t padel_deuce_option;
