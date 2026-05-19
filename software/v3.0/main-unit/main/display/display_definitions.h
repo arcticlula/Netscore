@@ -125,7 +125,7 @@ typedef enum {
 #define LED_TEST_1 7
 #ifdef BIG_BOARD
 #define LED_TEST_2 6
-#define LED_TEST_3 7
+#define LED_TEST_3 17
 #endif
 
 // Time colon and bar LEDs (B group, mux 3)
@@ -133,9 +133,9 @@ typedef enum {
 #define TIME_COLON_BOTTOM 1
 #define BAR_LED_1 2
 #ifdef BIG_BOARD
-#define BAR_LED_2 3
-#define BAR_LED_3 4
-#define BAR_LED_4 5
+#define BAR_LED_2 4
+#define BAR_LED_3 5
+#define BAR_LED_4 3
 #endif
 
 #define POINTS_GP_1 0

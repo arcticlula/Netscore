@@ -75,10 +75,10 @@ extern "C" void app_main(void) {
 
   while (1) {
     vTaskDelay(pdMS_TO_TICKS(1000));
-    usb_display_mode(is_usb_connected());
-    // Clear out rtc_time so we don't accidentally print out old data!
-    // struct tm zero_time = {};
-    // rtc_time = zero_time;
+    // usb_display_mode(is_usb_connected());
+    //  Clear out rtc_time so we don't accidentally print out old data!
+    //  struct tm zero_time = {};
+    //  rtc_time = zero_time;
 
     // bool read_ok = ds3231_get_time(&rtc_time);
     // printf("RTC Time: %02d:%02d:%02d (Read OK: %d)\n", rtc_time.tm_hour, rtc_time.tm_min, rtc_time.tm_sec, read_ok);

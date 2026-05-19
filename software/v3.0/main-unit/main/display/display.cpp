@@ -34,6 +34,9 @@ void show_display() {
     show_wave_led(SIDE_BOTH, LED_MID);
   }
 
+  // show_all();
+  // return;
+
   if (is_transition) show_transition();
 
   switch (window) {
@@ -129,6 +132,14 @@ void show_oops() {
 }
 
 void show_all() {
+  show_number(SIDE_BOTH, POINTS_HOME_1, 8, 50);
+  show_number(SIDE_BOTH, POINTS_HOME_2, 8, 50);
+  show_number(SIDE_BOTH, POINTS_AWAY_1, 8, 50);
+  show_number(SIDE_BOTH, POINTS_AWAY_2, 8, 50);
+  show_dot(SIDE_BOTH, POINTS_HOME_1, 50);
+  show_dot(SIDE_BOTH, POINTS_HOME_2, 50);
+  show_dot(SIDE_BOTH, POINTS_AWAY_1, 50);
+  show_dot(SIDE_BOTH, POINTS_AWAY_2, 50);
   show_number(SIDE_BOTH, SETS_HOME, 8, 50);
   show_number(SIDE_BOTH, SETS_AWAY, 8, 50);
   show_dot(SIDE_BOTH, SETS_HOME, 50);
@@ -149,6 +160,15 @@ void show_all() {
   show_bar_led(SIDE_BOTH, BAR_LED_2, 50);
   show_bar_led(SIDE_BOTH, BAR_LED_3, 50);
   show_bar_led(SIDE_BOTH, BAR_LED_4, 50);
+  show_led(SIDE_BOTH, LED_HOME_1, 50);
+  show_led(SIDE_BOTH, LED_HOME_2, 50);
+  show_led(SIDE_BOTH, LED_HOME_3, 50);
+  show_led(SIDE_BOTH, LED_AWAY_1, 50);
+  show_led(SIDE_BOTH, LED_AWAY_2, 50);
+  show_led(SIDE_BOTH, LED_AWAY_3, 50);
+  show_led(SIDE_BOTH, LED_MID, 50);
+
+  show_time_colon(SIDE_BOTH, 50, 50);
 }
 
 void show_test() {
@@ -403,8 +423,16 @@ void show_set_deuce_type() {
 
 void show_transition() {
 #ifdef BIG_BOARD
-  for (uint8_t i = 0; i < 4; i++) {
-    show_wave_bar_led(SIDE_BOTH, BAR_LED_1 + i);
+  if (transition_team == HOME) {
+    show_wave_bar_led(SIDE_BOTH, BAR_LED_1);
+    show_wave_bar_led(SIDE_BOTH, BAR_LED_4);
+  } else if (transition_team == AWAY) {
+    show_wave_bar_led(SIDE_BOTH, BAR_LED_2);
+    show_wave_bar_led(SIDE_BOTH, BAR_LED_3);
+  } else {
+    for (uint8_t i = 0; i < 4; i++) {
+      show_wave_bar_led(SIDE_BOTH, BAR_LED_1 + i);
+    }
   }
 #else
   show_wave_bar_led(SIDE_BOTH, BAR_LED_1);
@@ -706,22 +734,26 @@ void show_practice_transition_scr() {
 }
 
 void show_sets_practice(uint8_t side) {
+  uint8_t brightness = 30;
+  uint8_t home_sets = score.home_sets_practice;
+  uint8_t away_sets = score.away_sets_practice;
+
   if (side == SIDE_A) {
-    if (score.home_sets_practice >= 1) show_led(SIDE_A, LED_HOME_3, 50);
-    if (score.home_sets_practice >= 2) show_led(SIDE_A, LED_HOME_2, 50);
-    if (score.home_sets_practice >= 3) show_led(SIDE_A, LED_HOME_1, 50);
+    if (home_sets >= 1) show_led(SIDE_A, LED_HOME_3, brightness);
+    if (home_sets >= 2) show_led(SIDE_A, LED_HOME_2, brightness);
+    if (home_sets >= 3) show_led(SIDE_A, LED_HOME_1, brightness);
 
-    if (score.away_sets_practice >= 1) show_led(SIDE_A, LED_AWAY_3, 50);
-    if (score.away_sets_practice >= 2) show_led(SIDE_A, LED_AWAY_2, 50);
-    if (score.away_sets_practice >= 3) show_led(SIDE_A, LED_AWAY_1, 50);
+    if (away_sets >= 1) show_led(SIDE_A, LED_AWAY_3, brightness);
+    if (away_sets >= 2) show_led(SIDE_A, LED_AWAY_2, brightness);
+    if (away_sets >= 3) show_led(SIDE_A, LED_AWAY_1, brightness);
   } else {
-    if (score.away_sets_practice >= 1) show_led(SIDE_B, LED_HOME_3, 50);
-    if (score.away_sets_practice >= 2) show_led(SIDE_B, LED_HOME_2, 50);
-    if (score.away_sets_practice >= 3) show_led(SIDE_B, LED_HOME_1, 50);
+    if (away_sets >= 1) show_led(SIDE_B, LED_HOME_3, brightness);
+    if (away_sets >= 2) show_led(SIDE_B, LED_HOME_2, brightness);
+    if (away_sets >= 3) show_led(SIDE_B, LED_HOME_1, brightness);
 
-    if (score.home_sets_practice >= 1) show_led(SIDE_B, LED_AWAY_3, 50);
-    if (score.home_sets_practice >= 2) show_led(SIDE_B, LED_AWAY_2, 50);
-    if (score.home_sets_practice >= 3) show_led(SIDE_B, LED_AWAY_1, 50);
+    if (home_sets >= 1) show_led(SIDE_B, LED_AWAY_3, brightness);
+    if (home_sets >= 2) show_led(SIDE_B, LED_AWAY_2, brightness);
+    if (home_sets >= 3) show_led(SIDE_B, LED_AWAY_1, brightness);
   }
 }
 

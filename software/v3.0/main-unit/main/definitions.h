@@ -7,7 +7,7 @@
 #define DEBUG_BAT
 
 #define ENABLE_BUZZER 1
-#define BIG_BOARD 0
+#define BIG_BOARD 1
 // #define SKIP_BOOT
 
 #ifndef LOW
@@ -314,8 +314,9 @@ extern int8_t window;
 extern int8_t sport;
 // Selected options
 extern int8_t menu;
-
+extern uint64_t last_touch_time;
 extern bool is_transition;
+extern team_t transition_team;
 
 extern struct tm timeinfo;
 

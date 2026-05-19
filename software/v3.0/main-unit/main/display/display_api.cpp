@@ -255,6 +255,7 @@ void show_dot(uint8_t side, uint8_t digit_index, digit_dot_t *dot) {
 
 void show_led(uint8_t side, uint8_t led_index, uint8_t value) {
   uint16_t val = round(get_brightness(value));
+
   Tlc.setLed(side, led_index, val);
 }
 
@@ -271,7 +272,7 @@ void show_bar_led(uint8_t side, uint8_t led_index, uint8_t value) {
 void show_time_colon(uint8_t side, uint8_t value_up, uint8_t value_down) {
   uint16_t val_up = round(get_brightness(value_up));
   uint16_t val_down = round(get_brightness(value_down));
-  Tlc.setTimeColon(side, val_up, val_down);
+  Tlc.setTimeColons(side, val_up, val_down);
 }
 
 void set_char(digit_character_t *digit, uint8_t character) {

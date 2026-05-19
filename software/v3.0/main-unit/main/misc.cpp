@@ -202,6 +202,8 @@ void toggle_display_mode() {
 }
 
 void usb_display_mode(bool enable) {
+  display_mode = DISPLAY_MODE_BOTH;
+  return;
   if (enable) display_mode = DISPLAY_MODE_A;
   else
     display_mode = last_display_mode;

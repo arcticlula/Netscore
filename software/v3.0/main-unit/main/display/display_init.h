@@ -36,5 +36,5 @@ void init_sleep_scr();
 void init_sleep_2_scr();
 
 void init_after_transition();
-void init_bar_led_wave_transition(uint16_t duration);
+void init_bar_led_wave_transition(uint16_t duration, team_t team = LAST_TEAM);
 void init_wave_led();

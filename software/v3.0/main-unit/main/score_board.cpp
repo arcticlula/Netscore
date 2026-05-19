@@ -78,7 +78,7 @@ void Match::addPoint(team_t team) {
   } else {
     init_play_scr();
     play_add_point_sound();
-    init_bar_led_wave_transition(1500);
+    init_bar_led_wave_transition(1500, team);
   }
 }
 
@@ -93,7 +93,7 @@ void Match::undoPoint(team_t team) {
           score = getScore();
         }
         play_undo_point_sound();
-        init_bar_led_wave_transition(1500);
+        init_bar_led_wave_transition(1500, LAST_TEAM);
         return;
       }
     }

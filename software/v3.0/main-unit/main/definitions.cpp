@@ -5,6 +5,8 @@
 
 // Last action timestamp
 int64_t last_interaction_time = 0;
+bool is_transition = false;
+team_t transition_team = LAST_TEAM;
 
 #include "display/display.h"
 #include "display/display_definitions.h"
@@ -19,8 +21,6 @@ int8_t window = BOOT_SCR;
 int8_t menu = MENU_PLAY;
 // Selected sport
 int8_t sport = SPORT_PRACTICE;
-
-bool is_transition = false;
 
 // Current date time
 struct tm timeinfo = {0};

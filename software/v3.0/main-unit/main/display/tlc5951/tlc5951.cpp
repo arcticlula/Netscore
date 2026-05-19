@@ -228,10 +228,11 @@ void Tlc5951::setTestLed(uint8_t side, uint8_t led_id, uint16_t value) {
   if (display_mode == DISPLAY_MODE_A && side == SIDE_B) return;
   if (display_mode == DISPLAY_MODE_B && side == SIDE_A) return;
 
-  if (led_id > 7) return;
+  uint8_t channel = (led_id == 17) ? 7 : led_id;
+  if (channel > 7) return;
   uint16_t final_value = get_gamma_corrected_value(value);
-  uint8_t mux = led_id == LED_TEST_1 || led_id == LED_TEST_2 ? MUX_3 : MUX_4;
-  setGroupChannel(side, COLOR_B, led_id, mux, final_value);
+  uint8_t mux = (led_id == LED_TEST_1) ? MUX_3 : MUX_4;
+  setGroupChannel(side, COLOR_B, channel, mux, final_value);
 }
 
 void Tlc5951::setTimeColon(uint8_t side, uint8_t digit_index, uint16_t value) {

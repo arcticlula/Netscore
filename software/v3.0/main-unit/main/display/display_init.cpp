@@ -30,8 +30,9 @@ void init_wave_led() {
   init_single_wave(&wled[LED_MID], 0, 20, 60, 1, 1000);
 }
 
-void init_bar_led_wave_transition(uint16_t duration) {
+void init_bar_led_wave_transition(uint16_t duration, team_t team) {
   transition_frames = duration * 2 / FRAME_TIME_MS;
+  transition_team = team;
 #ifdef BIG_BOARD
   for (uint8_t i = 0; i < 4; i++) {
     init_single_wave(&wbl[i], 0, 0, 100, 1, duration);
