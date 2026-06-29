@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scoreboard v3.0 Simulator</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;700&display=swap');
+
+        body {
+            background-color: #050505;
+            background-image: radial-gradient(circle at center, #1a1a2e 0%, #000 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            font-family: 'Outfit', sans-serif;
+            color: #ccc;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        .external-controls {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 30px;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 15px 30px;
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        .external-btn {
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #fff;
+            padding: 12px 24px;
+            border-radius: 12px;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .external-btn:hover {
+            background: rgba(204, 255, 0, 0.15);
+            border-color: #ccff00;
+            box-shadow: 0 0 15px rgba(204, 255, 0, 0.3);
+            color: #ccff00;
+        }
+
+        .external-btn svg {
+            fill: currentColor;
+        }
+
+        .scoreboard-container {
+            display: flex;
+            align-items: center;
+            gap: 40px;
+            background: rgba(10, 10, 10, 0.8);
+            padding: 30px;
+            border-radius: 24px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.9), inset 0 0 60px rgba(30, 30, 30, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(20px);
+        }
+
+        .score-group {
+            display: flex;
+            align-items: center;
+        }
+
+        .digit-container {
+            position: relative;
+        }
+
+        .digit-container.big {
+            width: 180px;
+            height: 280px;
+        }
+
+        .digit-container.small {
+            width: 45px;
+            height: 70px;
+        }
+
+        .label {
+            text-align: center;
+            font-size: 0.9rem;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            margin-bottom: 15px;
+            font-weight: 700;
+        }
+
+        .column {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .center-col {
+            gap: 20px;
+        }
+
+        svg.digit {
+            width: 100%;
+            height: 100%;
+            overflow: visible;
+        }
+
+        .segment {
+            fill: #1a1a1a;
+            fill-opacity: 0.5;
+        }
+
+        /* RED DIGITS */
+        .digit-red .segment.on {
+            fill: #ff0033;
+            filter: drop-shadow(0 0 10px rgba(255, 0, 51, var(--brightness, 1))) drop-shadow(0 0 20px rgba(255, 0, 0, var(--brightness, 1)));
+            fill-opacity: var(--brightness, 1);
+        }
+
+        /* GREEN DIGITS */
+        .digit-green .segment.on {
+            fill: #ccff00;
+            filter: drop-shadow(0 0 8px rgba(204, 255, 0, var(--brightness, 1))) drop-shadow(0 0 15px rgba(187, 255, 0, var(--brightness, 1)));
+            fill-opacity: var(--brightness, 1);
+        }
+
+        /* BLUE DIGITS */
+        .digit-blue .segment.on {
+            fill: #00e5ff;
+            filter: drop-shadow(0 0 8px rgba(0, 229, 255, var(--brightness, 1))) drop-shadow(0 0 15px rgba(0, 184, 212, var(--brightness, 1)));
+            fill-opacity: var(--brightness, 1);
+        }
+
+        .time-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(0, 0, 0, 0.4);
+            padding: 15px;
+            border-radius: 12px;
+            box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.02);
+        }
+
+        .colon {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            padding: 0 5px;
+        }
+
+        .colon-dot,
+        .serve-led {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #1a1a1a;
+        }
+
+        .colon-dot.on {
+            background: #00e5ff;
+            box-shadow: 0 0 8px rgba(0, 229, 255, var(--brightness, 1)), 0 0 15px rgba(0, 184, 212, var(--brightness, 1));
+            opacity: var(--brightness, 1);
+        }
+
+        .led-bars {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            width: 100%;
+            padding: 5px 20px;
+            box-sizing: border-box;
+        }
+
+        .bar-led {
+            width: 100%;
+            height: 6px;
+            background: #1a1a1a;
+            border-radius: 3px;
+        }
+
+        .bar-led.on {
+            background: #00e5ff;
+            box-shadow: 0 0 10px rgba(0, 229, 255, var(--brightness, 1)), 0 0 20px rgba(0, 184, 212, var(--brightness, 1));
+            opacity: var(--brightness, 1);
+        }
+
+        .bar-led:nth-child(1).on,
+        .bar-led:nth-child(4).on {
+            background: #ff0033;
+            box-shadow: 0 0 10px rgba(255, 0, 51, var(--brightness, 1)), 0 0 20px rgba(255, 0, 0, var(--brightness, 1));
+        }
+
+        .sets-row {
+            display: flex;
+            align-items: center;
+            gap: 25px;
+            background: rgba(0, 0, 0, 0.4);
+            padding: 15px 30px;
+            border-radius: 12px;
+            box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.02);
+        }
+
+        .serve-indicators {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .serve-col {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .serve-col-center {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .serve-led.on {
+            background: #00e5ff;
+            box-shadow: 0 0 8px rgba(0, 229, 255, var(--brightness, 1)), 0 0 15px rgba(0, 184, 212, var(--brightness, 1));
+            opacity: var(--brightness, 1);
+        }
+
+        .remotes-wrapper {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 40px;
+            gap: 30px;
+        }
+
+        .controls-container {
+            position: relative;
+            width: 250px;
+        }
+
+        .remote-bg {
+            width: 100%;
+            height: auto;
+            display: block;
+            pointer-events: none;
+            filter: drop-shadow(0 15px 25px rgba(0, 0, 0, 0.6));
+        }
+
+        .overlay-btn {
+            position: absolute;
+            background: rgba(0, 0, 0, 0);
+            border: 1px solid rgba(0, 0, 0, 0);
+            cursor: pointer;
+            border-radius: 50%;
+        }
+
+        .overlay-btn:active {
+            background: rgba(255, 255, 255, 0.2);
+            box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.5);
+        }
+
+        .btn-1-a {
+            width: 21.67%;
+            padding-top: 21.67%;
+            height: 0;
+            left: 39%;
+            top: 28.2%;
+        }
+
+        .btn-1-b {
+            width: 16.33%;
+            padding-top: 15.33%;
+            height: 0;
+            left: 41.6%;
+            top: 54%;
+        }
+
+        .btn-2 {
+            width: 17.67%;
+            padding-top: 17.67%;
+            height: 0;
+            left: 39.6%;
+            top: 34%;
+        }
+
+        .jog-switch-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            margin-left: 10px;
+        }
+
+        .jog-dial-bg {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 10px;
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .jog-dial {
+            width: 40px;
+            height: 100px;
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 4px 0;
+            box-sizing: border-box;
+            position: relative;
+        }
+
+        .jog-btn {
+            background: transparent;
+            border: none;
+            color: rgba(255,255,255,0.5);
+            font-size: 1rem;
+            cursor: pointer;
+            z-index: 2;
+            height: 33%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .jog-btn:hover {
+            color: rgba(255,255,255,0.9);
+            transform: scale(1.1);
+        }
+        
+        .jog-btn:active {
+            transform: scale(0.9);
+            color: #ccff00;
+        }
+
+        .jog-label {
+            font-size: 0.75rem;
+            color: #666;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        @media (max-width: 900px) {
+            .scoreboard-container {
+                transform: scale(0.6);
+                transform-origin: top center;
+                margin-bottom: -200px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <svg width="0" height="0" style="display: none;">
+        <defs>
+            <path id="seg-horz" d="M 24,4 L 76,4 L 82,10 L 76,16 L 24,16 L 18,10 Z" />
+            <path id="seg-vert" d="M 4,24 L 4,61 L 10,67 L 16,61 L 16,24 L 10,18 Z" />
+            <path id="seg-mid" d="M 24,4 L 76,4 L 82,10 L 76,16 L 24,16 L 18,10 Z" />
+            <circle id="seg-dp" cx="6" cy="6" r="6" />
+            <g id="icon-speaker-on">
+                <path
+                    d="M11 5L6 9H2v6h4l5 4V5z m3.71 6c0-1.66-1.01-3.07-2.43-3.64v7.27c1.42-.57 2.43-1.98 2.43-3.63z m-2.43 8.26v2.09c3.02-.63 5.56-2.92 6.22-5.91l-2.06-.41c-.51 2.11-2.29 3.76-4.16 4.23z m4.16-12.26l2.06-.41C17.84 3.73 15.3 1.44 12.28.81V2.9c1.87.47 3.65 2.12 4.16 4.23z" />
+            </g>
+            <g id="icon-speaker-off">
+                <path
+                    d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63z m2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73 4.27 3zM12 4L9.91 6.09 12 8.18V4z" />
+            </g>
+        </defs>
+    </svg>
+
+    <script>
+        function createDigitSVG(idPrefix, colorClass) {
+            return `
+                <svg viewBox="0 0 110 150" class="digit ${colorClass}" id="${idPrefix}">
+                    <g transform="skewX(-6) translate(15, 5)">
+                        <use href="#seg-horz" x="0" y="15" id="${idPrefix}-a" class="segment" />
+                        <use href="#seg-vert" x="72" y="10" id="${idPrefix}-b" class="segment" />
+                        <use href="#seg-vert" x="72" y="65" id="${idPrefix}-c" class="segment" />
+                        <use href="#seg-horz" x="0" y="125" id="${idPrefix}-d" class="segment" />
+                        <use href="#seg-vert" x="8" y="65" id="${idPrefix}-e" class="segment" />
+                        <use href="#seg-vert" x="8" y="10" id="${idPrefix}-f" class="segment" />
+                        <use href="#seg-mid" x="0" y="70" id="${idPrefix}-g" class="segment" />
+                        <use href="#seg-dp" x="90" y="130" id="${idPrefix}-h" class="segment" />
+                    </g>
+                </svg>
+            `;
+        }
+    </script>
+
+    <div class="external-controls">
+        <button id="resetBtn" class="external-btn">Reset Match</button>
+        <button id="muteBtn" class="external-btn" title="Toggle Mute">
+            <svg viewBox="0 0 24 24" id="mute-icon-svg" width="24" height="24">
+                <use href="#icon-speaker-off" id="mute-icon-use" />
+            </svg>
+        </button>
+    </div>
+
+    <div class="scoreboard-container">
+        <!-- Home -->
+        <div class="column">
+            <div class="score-group">
+                <div class="digit-container big">
+                    <script>document.write(createDigitSVG('home-tens', 'digit-red'));</script>
+                </div>
+                <div class="digit-container big">
+                    <script>document.write(createDigitSVG('home-ones', 'digit-red'));</script>
+                </div>
+            </div>
+        </div>
+
+        <!-- Middle -->
+        <div class="column center-col">
+            <!-- Time -->
+            <div class="time-row">
+                <div class="digit-container small">
+                    <script>document.write(createDigitSVG('time-1', 'digit-green'));</script>
+                </div>
+                <div class="digit-container small">
+                    <script>document.write(createDigitSVG('time-2', 'digit-green'));</script>
+                </div>
+                <div class="colon">
+                    <div class="colon-dot" id="colon-top"></div>
+                    <div class="colon-dot" id="colon-bot"></div>
+                </div>
+                <div class="digit-container small">
+                    <script>document.write(createDigitSVG('time-3', 'digit-green'));</script>
+                </div>
+                <div class="digit-container small">
+                    <script>document.write(createDigitSVG('time-4', 'digit-green'));</script>
+                </div>
+            </div>
+
+            <!-- LED Bars -->
+            <div class="led-bars">
+                <div class="bar-led" id="bar-1"></div>
+                <div class="bar-led" id="bar-2"></div>
+                <div class="bar-led" id="bar-3"></div>
+                <div class="bar-led" id="bar-4"></div>
+            </div>
+
+            <!-- Sets & Serve -->
+            <div class="sets-row">
+                <div class="digit-container small">
+                    <script>document.write(createDigitSVG('sets-home', 'digit-blue'));</script>
+                </div>
+                <div class="serve-indicators">
+                    <div class="serve-col">
+                        <div class="serve-led" id="serve-h-3"></div>
+                        <div class="serve-led" id="serve-h-2"></div>
+                        <div class="serve-led" id="serve-h-1"></div>
+                    </div>
+                    <div class="serve-col-center">
+                        <div class="serve-led" id="serve-mid"></div>
+                    </div>
+                    <div class="serve-col">
+                        <div class="serve-led" id="serve-a-3"></div>
+                        <div class="serve-led" id="serve-a-2"></div>
+                        <div class="serve-led" id="serve-a-1"></div>
+                    </div>
+                </div>
+                <div class="digit-container small">
+                    <script>document.write(createDigitSVG('sets-away', 'digit-blue'));</script>
+                </div>
+            </div>
+        </div>
+
+        <!-- Away -->
+        <div class="column">
+            <div class="score-group">
+                <div class="digit-container big">
+                    <script>document.write(createDigitSVG('away-tens', 'digit-red'));</script>
+                </div>
+                <div class="digit-container big">
+                    <script>document.write(createDigitSVG('away-ones', 'digit-red'));</script>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="remotes-wrapper">
+        <div class="controls-container">
+            <img src="ab_shutter_2btn.png" class="remote-bg" alt="Remote Control">
+            <button id="btn_1_A" class="overlay-btn btn-1-a" title="Button_1_A"></button>
+            <button id="btn_1_B" class="overlay-btn btn-1-b" title="Button_1_B"></button>
+        </div>
+        <div class="controls-container">
+            <img src="ab_shutter_1btn.png" class="remote-bg" alt="Remote Control 2">
+            <button id="btn_2" class="overlay-btn btn-2" title="Button_2"></button>
+        </div>
+
+        <!-- Physical System Switch (Jog Dial) -->
+        <div class="jog-switch-container">
+            <div class="jog-dial-bg">
+                <div class="jog-dial">
+                    <button id="sysBtnUp" class="jog-btn up-btn" title="Up Button">▲</button>
+                    <button id="sysBtnCenter" class="jog-btn center-btn" title="Center Button">●</button>
+                    <button id="sysBtnDown" class="jog-btn down-btn" title="Down Button">▼</button>
+                </div>
+            </div>
+            <div class="jog-label">SYSTEM</div>
+        </div>
+    </div>
+
+    <script>
+        var Module = {
+            locateFile: function (path, prefix) {
+                if (path.endsWith('.wasm')) {
+                    return prefix + path + '?v=' + Date.now();
+                }
+                return prefix + path;
+            }
+        };
+        document.write('<script src="build/netscore.js?v=' + Date.now() + '"><\/script>');
+    </script>
+
+    <script>
+        let audioCtx;
+        function initAudio() {
+            if (!audioCtx) {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                audioCtx = new AudioContext();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        window.playTone = function (frequency, durationMs, delayMs) {
+            if (!audioCtx) return;
+            const startTime = audioCtx.currentTime + (delayMs / 1000);
+            const duration = durationMs / 1000;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+
+            osc.type = 'square';
+            osc.frequency.value = frequency;
+
+            gain.gain.setValueAtTime(0, startTime);
+            gain.gain.linearRampToValueAtTime(0.1, startTime + 0.01);
+            gain.gain.setValueAtTime(0.1, startTime + duration - 0.01);
+            gain.gain.linearRampToValueAtTime(0, startTime + duration);
+
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            osc.start(startTime);
+            osc.stop(startTime + duration);
+        };
+
+        // Button Event Enums matching C++ button_event_t
+        const BLE_BTN_PRESS = 0;
+        const BLE_BTN_HOLD = 1;
+        const BLE_BTN_A_PRESS = 2;
+        const BLE_BTN_B_PRESS = 3;
+        const BLE_BTN_A_HOLD = 4;
+        const BLE_BTN_B_HOLD = 5;
+        const BLE_BTN_A_PRESS_BOTH = 6;
+        const BLE_BTN_B_PRESS_BOTH = 7;
+        const ITAG_PRESS = 8;
+        const ITAG_DOUBLE_PRESS = 9;
+        const BUTTON_CENTER_PRESS = 10;
+        const BUTTON_CENTER_DOUBLE_PRESS = 11;
+        const BUTTON_CENTER_HOLD = 12;
+        const BUTTON_CENTER_REPEAT = 13;
+        const BUTTON_CENTER_RELEASE = 14;
+        const BUTTON_UP_PRESS = 15;
+        const BUTTON_UP_DOUBLE_PRESS = 16;
+        const BUTTON_UP_HOLD = 17;
+        const BUTTON_UP_REPEAT = 18;
+        const BUTTON_UP_RELEASE = 19;
+        const BUTTON_DOWN_PRESS = 20;
+        const BUTTON_DOWN_DOUBLE_PRESS = 21;
+        const BUTTON_DOWN_HOLD = 22;
+        const BUTTON_DOWN_REPEAT = 23;
+        const BUTTON_DOWN_RELEASE = 24;
+        const BUTTON_POWER_PRESS = 25;
+        const BUTTON_POWER_DOUBLE_PRESS = 26;
+        const BUTTON_POWER_HOLD = 27;
+
+        const DEVICE_1 = 1;
+        const DEVICE_2 = 2;
+
+        Module.onRuntimeInitialized = function () {
+            Module._init_system();
+            startLoop();
+        };
+
+        let logicIntervalId, animationFrameId;
+
+        function startLoop() {
+            if (logicIntervalId) clearInterval(logicIntervalId);
+            if (animationFrameId) cancelAnimationFrame(animationFrameId);
+
+            // Logic Loop (30ms) - Execute all MUX steps at once for the browser renderer
+            logicIntervalId = setInterval(() => {
+                if (Module._set_time) {
+                    const now = new Date();
+                    Module._set_time(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours(), now.getMinutes(), now.getSeconds());
+                }
+                Module._run_display_all_mux();
+            }, 30);
+
+            // Render Loop (60Hz)
+            render();
+        }
+
+        function render() {
+            updateUI();
+            animationFrameId = requestAnimationFrame(render);
+        }
+
+        function updateDigit(prefix, mux, side, color_group, baseChannel) {
+            const segments = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+            for (let i = 0; i < 8; i++) {
+                const val = Module._get_led_value(mux, side, color_group, baseChannel + i);
+                const el = document.getElementById(`${prefix}-${segments[i]}`);
+                if (el) {
+                    if (val > 0) {
+                        el.classList.add('on');
+                        el.style.setProperty('--brightness', val / 4095.0);
+                    } else {
+                        el.classList.remove('on');
+                        el.style.setProperty('--brightness', 0);
+                    }
+                }
+            }
+        }
+
+        function updateLed(id, val) {
+            const el = document.getElementById(id);
+            if (el) {
+                if (val > 0) {
+                    el.classList.add('on');
+                    el.style.setProperty('--brightness', val / 4095.0);
+                } else {
+                    el.classList.remove('on');
+                    el.style.setProperty('--brightness', 0);
+                }
+            }
+        }
+
+        function updateUI() {
+            const SIDE_A = 0;
+            const COLOR_R = 0, COLOR_G = 1, COLOR_B = 2;
+
+            updateDigit('home-tens', 0, SIDE_A, COLOR_R, 0);
+            updateDigit('home-ones', 1, SIDE_A, COLOR_R, 0);
+            updateDigit('away-tens', 2, SIDE_A, COLOR_R, 0);
+            updateDigit('away-ones', 3, SIDE_A, COLOR_R, 0);
+
+            updateDigit('time-1', 0, SIDE_A, COLOR_G, 0);
+            updateDigit('time-2', 1, SIDE_A, COLOR_G, 0);
+            updateDigit('time-3', 2, SIDE_A, COLOR_G, 0);
+            updateDigit('time-4', 3, SIDE_A, COLOR_G, 0);
+
+            updateDigit('sets-home', 0, SIDE_A, COLOR_B, 0);
+            updateDigit('sets-away', 1, SIDE_A, COLOR_B, 0);
+
+            updateLed('colon-top', Module._get_led_value(3, SIDE_A, COLOR_B, 0));
+            updateLed('colon-bot', Module._get_led_value(3, SIDE_A, COLOR_B, 1));
+
+            updateLed('bar-1', Module._get_led_value(3, SIDE_A, COLOR_B, 2));
+            updateLed('bar-2', Module._get_led_value(3, SIDE_A, COLOR_B, 4));
+            updateLed('bar-3', Module._get_led_value(3, SIDE_A, COLOR_B, 5));
+            updateLed('bar-4', Module._get_led_value(3, SIDE_A, COLOR_B, 3));
+
+            updateLed('serve-h-1', Module._get_led_value(2, SIDE_A, COLOR_B, 0));
+            updateLed('serve-h-2', Module._get_led_value(2, SIDE_A, COLOR_B, 1));
+            updateLed('serve-h-3', Module._get_led_value(2, SIDE_A, COLOR_B, 5));
+
+            updateLed('serve-mid', Module._get_led_value(2, SIDE_A, COLOR_B, 6));
+
+            updateLed('serve-a-1', Module._get_led_value(2, SIDE_A, COLOR_B, 4));
+            updateLed('serve-a-2', Module._get_led_value(2, SIDE_A, COLOR_B, 3));
+            updateLed('serve-a-3', Module._get_led_value(2, SIDE_A, COLOR_B, 2));
+        }
+
+        function setupButton(btn, deviceId, pressEvent, holdEvent) {
+            let timer;
+            let isHold = false;
+
+            const startPress = (e) => {
+                isHold = false;
+                btn.setPointerCapture(e.pointerId); // Capture pointer so we don't lose the event if mouse moves outside
+                const HOLD_TIME = Module._get_hold_time_ms ? Module._get_hold_time_ms() : 500;
+                timer = setTimeout(() => {
+                    isHold = true;
+                    Module._trigger_button_event(deviceId, holdEvent);
+                }, HOLD_TIME);
+            };
+
+            const endPress = (e) => {
+                btn.releasePointerCapture(e.pointerId);
+                if (timer) {
+                    clearTimeout(timer);
+                    timer = null;
+                }
+                if (!isHold) {
+                    Module._trigger_button_event(deviceId, pressEvent);
+                }
+                isHold = false;
+            };
+
+            const cancelPress = (e) => {
+                if (timer) {
+                    clearTimeout(timer);
+                    timer = null;
+                }
+                isHold = false;
+            };
+
+            btn.addEventListener('pointerdown', (e) => { e.preventDefault(); startPress(e); });
+            btn.addEventListener('pointerup', (e) => { e.preventDefault(); endPress(e); });
+            btn.addEventListener('pointercancel', (e) => { e.preventDefault(); cancelPress(e); });
+        }
+
+        const btn1A = document.getElementById('btn_1_A');
+        const btn1B = document.getElementById('btn_1_B');
+        setupButton(btn1A, DEVICE_1, BLE_BTN_A_PRESS, BLE_BTN_A_HOLD);
+        setupButton(btn1B, DEVICE_1, BLE_BTN_B_PRESS, BLE_BTN_B_HOLD);
+
+        const btn2 = document.getElementById('btn_2');
+        setupButton(btn2, 2, BLE_BTN_PRESS, BLE_BTN_HOLD); // DEVICE_2 is 2
+
+        const btnUp = document.getElementById('sysBtnUp');
+        setupButton(btnUp, 1, BUTTON_UP_PRESS, BUTTON_UP_HOLD);
+
+        const btnCenter = document.getElementById('sysBtnCenter');
+        setupButton(btnCenter, 1, BUTTON_CENTER_PRESS, BUTTON_CENTER_HOLD);
+
+        const btnDown = document.getElementById('sysBtnDown');
+        setupButton(btnDown, 1, BUTTON_DOWN_PRESS, BUTTON_DOWN_HOLD);
+
+        const resetBtn = document.getElementById('resetBtn');
+        if (resetBtn) {
+            resetBtn.addEventListener('click', () => {
+                if (Module._reset_simulation) {
+                    Module._reset_simulation();
+                }
+            });
+        }
+
+        let isMuted = true;
+        const muteBtn = document.getElementById('muteBtn');
+        const muteIconUse = document.getElementById('mute-icon-use');
+
+        if (muteBtn) {
+            muteBtn.addEventListener('click', () => {
+                initAudio();
+                isMuted = !isMuted;
+                if (Module._set_muted) {
+                    Module._set_muted(isMuted ? 1 : 0);
+                }
+
+                if (isMuted) {
+                    muteIconUse.setAttribute('href', '#icon-speaker-off');
+                } else {
+                    muteIconUse.setAttribute('href', '#icon-speaker-on');
+                }
+            });
+        }
+    </script>
+</body>
+
+</html>

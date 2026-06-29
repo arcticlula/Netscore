@@ -4,12 +4,15 @@
 #include <string.h>
 
 #include "definitions.h"
+#include "display/display_definitions.h"
+#include "display/display_helper.h"
 #include "driver/ledc.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "freertos/task.h"
 #include "misc.h"
+#include "settings/settings.h"
 #include "spi/spi.h"
 
 SemaphoreHandle_t spi_mutex = NULL;
@@ -28,9 +31,8 @@ volatile uint8_t inactive_buffer = 1;
 
 uint8_t mux[] = {MUX_1_PIN, MUX_2_PIN, MUX_3_PIN, MUX_4_PIN};
 
-// Display brightness layouts (maintained from previous config)
-float segment_a[10] = {DISPLAY_A_LAYOUT};
-float segment_b[10] = {DISPLAY_B_LAYOUT};
+// Dynamic display layouts loaded from settings
+// The float segment_a/b have been removed.
 
 gpio_num_t mux_1, mux_2, mux_3, mux_4;
 
@@ -117,7 +119,7 @@ void Tlc5951::init(uint8_t gssin, uint8_t dcsin, uint8_t sclk, uint8_t xlat, uin
 
   ESP_ERROR_CHECK(esp_timer_create(&periodic_timer_args, &display_timer));
 
-  setGroupCalibration(BC_BIG_DIGITS, BC_TIME_GREEN, BC_SETS_MISC);
+  setGroupCalibration(sys_group_cal_r, sys_group_cal_g, sys_group_cal_b);
   set_brightness();
   // Start the timer to match the frame rate requirements
   uint64_t interval = (uint64_t)(1000000 / MUX_FRAME_RATE_HZ) / MUX_NUM;
@@ -181,6 +183,38 @@ void Tlc5951::setSegment(uint8_t side, uint8_t digit_index, uint8_t segment, uin
   color_group_t color_group;
   uint8_t channel = segment;
 
+  bool should_swap = sys_swap_teams;
+  if (should_swap) {
+    if (window != PLAY_SCR &&
+        window != PLAY_WIN_SCR &&
+        window != PLAY_MENU_SCR) {
+      should_swap = false;
+    }
+  }
+
+  if (should_swap) {
+    switch (digit_index) {
+      case POINTS_HOME_1:
+        digit_index = POINTS_AWAY_1;
+        break;
+      case POINTS_HOME_2:
+        digit_index = POINTS_AWAY_2;
+        break;
+      case POINTS_AWAY_1:
+        digit_index = POINTS_HOME_1;
+        break;
+      case POINTS_AWAY_2:
+        digit_index = POINTS_HOME_2;
+        break;
+      case SETS_HOME:
+        digit_index = SETS_AWAY;
+        break;
+      case SETS_AWAY:
+        digit_index = SETS_HOME;
+        break;
+    }
+  }
+
   // Map flat logical digit index to TLC color group and MUX position
   if (digit_index <= POINTS_AWAY_2) {
     color_group = COLOR_R;
@@ -196,7 +230,7 @@ void Tlc5951::setSegment(uint8_t side, uint8_t digit_index, uint8_t segment, uin
   }
 
   // Retrieve brightness offset using direct mapping
-  uint16_t offset = (side == SIDE_A) ? segment_a[digit_index] : segment_b[digit_index];
+  uint8_t offset = (side == SIDE_A) ? sys_segment_a[digit_index] : sys_segment_b[digit_index];
   uint32_t corrected_value = (uint32_t)value * offset / 100;
   uint16_t final_value = get_gamma_corrected_value((uint16_t)corrected_value);
 
@@ -213,9 +247,56 @@ void Tlc5951::setLed(uint8_t side, uint8_t led_id, uint16_t value) {
   if (display_mode == DISPLAY_MODE_A && side == SIDE_B) return;
   if (display_mode == DISPLAY_MODE_B && side == SIDE_A) return;
 
-  if (led_id > 7) return;
-  uint16_t final_value = get_gamma_corrected_value(value);
-  setGroupChannel(side, COLOR_B, led_id, MUX_3, final_value);
+  bool should_swap = sys_swap_teams;
+  if (should_swap) {
+    if (window != PLAY_SCR &&
+        window != PLAY_WIN_SCR &&
+        window != PLAY_MENU_SCR) {
+      should_swap = false;
+    }
+  }
+
+  if (should_swap) {
+    switch (led_id) {
+      case LED_HOME_1:
+        led_id = LED_AWAY_1;
+        break;
+      case LED_HOME_2:
+        led_id = LED_AWAY_2;
+        break;
+      case LED_HOME_3:
+        led_id = LED_AWAY_3;
+        break;
+      case LED_AWAY_1:
+        led_id = LED_HOME_1;
+        break;
+      case LED_AWAY_2:
+        led_id = LED_HOME_2;
+        break;
+      case LED_AWAY_3:
+        led_id = LED_HOME_3;
+        break;
+      case BAR_LED_1:
+        led_id = BAR_LED_2;
+        break;
+      case BAR_LED_2:
+        led_id = BAR_LED_1;
+        break;
+      case BAR_LED_3:
+        led_id = BAR_LED_4;
+        break;
+      case BAR_LED_4:
+        led_id = BAR_LED_3;
+        break;
+    }
+  }
+
+  uint8_t channel = get_led_index(led_id);
+
+  uint8_t offset = (side == SIDE_A) ? sys_misc_a[led_id] : sys_misc_b[led_id];
+  uint32_t corrected_value = (uint32_t)value * offset / 100;
+  uint16_t final_value = get_gamma_corrected_value((uint16_t)corrected_value);
+  setGroupChannel(side, COLOR_B, channel, MUX_3, final_value);
 }
 
 void Tlc5951::setTestLed(uint8_t side, uint8_t led_id, uint16_t value) {
@@ -225,12 +306,14 @@ void Tlc5951::setTestLed(uint8_t side, uint8_t led_id, uint16_t value) {
     return;
   }
 
+  uint8_t channel = get_led_index(led_id);
+
   if (display_mode == DISPLAY_MODE_A && side == SIDE_B) return;
   if (display_mode == DISPLAY_MODE_B && side == SIDE_A) return;
 
-  uint8_t channel = (led_id == 17) ? 7 : led_id;
-  if (channel > 7) return;
-  uint16_t final_value = get_gamma_corrected_value(value);
+  uint8_t offset = (side == SIDE_A) ? sys_misc_a[led_id] : sys_misc_b[led_id];
+  uint32_t corrected_value = (uint32_t)value * offset / 100;
+  uint16_t final_value = get_gamma_corrected_value((uint16_t)corrected_value);
   uint8_t mux = (led_id == LED_TEST_1) ? MUX_3 : MUX_4;
   setGroupChannel(side, COLOR_B, channel, mux, final_value);
 }
@@ -242,11 +325,16 @@ void Tlc5951::setTimeColon(uint8_t side, uint8_t digit_index, uint16_t value) {
     return;
   }
 
+  uint8_t channel = get_led_index(digit_index);
+
   if (display_mode == DISPLAY_MODE_A && side == SIDE_B) return;
   if (display_mode == DISPLAY_MODE_B && side == SIDE_A) return;
 
-  uint16_t final_value = get_gamma_corrected_value(value);
-  setGroupChannel(side, COLOR_B, digit_index, MUX_4, final_value);
+  uint8_t led_id = digit_index;  // time colon macro
+  uint8_t offset = (side == SIDE_A) ? sys_misc_a[led_id] : sys_misc_b[led_id];
+  uint32_t corrected_value = (uint32_t)value * offset / 100;
+  uint16_t final_value = get_gamma_corrected_value((uint16_t)corrected_value);
+  setGroupChannel(side, COLOR_B, channel, MUX_4, final_value);
 }
 
 void Tlc5951::setTimeColons(uint8_t side, uint16_t value_top, uint16_t value_bottom) {
@@ -259,10 +347,16 @@ void Tlc5951::setTimeColons(uint8_t side, uint16_t value_top, uint16_t value_bot
   if (display_mode == DISPLAY_MODE_A && side == SIDE_B) return;
   if (display_mode == DISPLAY_MODE_B && side == SIDE_A) return;
 
-  uint16_t final_value_top = get_gamma_corrected_value(value_top);
-  uint16_t final_value_bottom = get_gamma_corrected_value(value_bottom);
-  setGroupChannel(side, COLOR_B, TIME_COLON_TOP, MUX_4, final_value_top);
-  setGroupChannel(side, COLOR_B, TIME_COLON_BOTTOM, MUX_4, final_value_bottom);
+  uint8_t offset_top = (side == SIDE_A) ? sys_misc_a[TIME_COLON_TOP] : sys_misc_b[TIME_COLON_TOP];
+  uint8_t offset_bottom = (side == SIDE_A) ? sys_misc_a[TIME_COLON_BOTTOM] : sys_misc_b[TIME_COLON_BOTTOM];
+
+  uint32_t corrected_top = (uint32_t)value_top * offset_top / 100;
+  uint32_t corrected_bottom = (uint32_t)value_bottom * offset_bottom / 100;
+
+  uint16_t final_value_top = get_gamma_corrected_value((uint16_t)corrected_top);
+  uint16_t final_value_bottom = get_gamma_corrected_value((uint16_t)corrected_bottom);
+  setGroupChannel(side, COLOR_B, get_led_index(TIME_COLON_TOP), MUX_4, final_value_top);
+  setGroupChannel(side, COLOR_B, get_led_index(TIME_COLON_BOTTOM), MUX_4, final_value_bottom);
 }
 
 void Tlc5951::setBarLed(uint8_t side, uint8_t led_id, uint16_t value) {
@@ -272,11 +366,15 @@ void Tlc5951::setBarLed(uint8_t side, uint8_t led_id, uint16_t value) {
     return;
   }
 
+  uint8_t channel = get_led_index(led_id);
+
   if (display_mode == DISPLAY_MODE_A && side == SIDE_B) return;
   if (display_mode == DISPLAY_MODE_B && side == SIDE_A) return;
 
-  uint16_t final_value = get_gamma_corrected_value(value);
-  setGroupChannel(side, COLOR_B, led_id, MUX_4, final_value);
+  uint8_t offset = (side == SIDE_A) ? sys_misc_a[led_id] : sys_misc_b[led_id];
+  uint32_t corrected_value = (uint32_t)value * offset / 100;
+  uint16_t final_value = get_gamma_corrected_value((uint16_t)corrected_value);
+  setGroupChannel(side, COLOR_B, channel, MUX_4, final_value);
 }
 
 void Tlc5951::setAll(uint16_t value) {
@@ -356,15 +454,17 @@ void Tlc5951::setGlobalBrightness(uint8_t level) {
   if (level > 100) level = 100;
   global_level = level;
 
-  // Apply gamma correction so equal slider steps feel perceptually equal.
-  // Reuses the existing 12-bit LUT: scale 0-100 → 0-4095, look up, scale back.
-  // No float math needed.
-  uint8_t corrected_level = (uint8_t)(gamma_correction_vector[(uint32_t)level * 4095 / 100] * 100 / 4095);
+  uint32_t target_bc = 0;
+  if (level > 0) {
+    // Logarithmic-like perceived brightness curve (exponential mapping of physical current).
+    // Using a gamma correction power curve with gamma = 2.5, mapping input level 1-100 to target BC 1-255.
+    target_bc = 1 + (uint32_t)round(254.0 * pow((double)level / 100.0, 2.5));
+  }
 
-  // Formula: BC = (Corrected % * Calibration %) * 255 / 10000
-  bc_r_val = ((uint32_t)corrected_level * group_cal_r * 255) / 10000;
-  bc_g_val = ((uint32_t)corrected_level * group_cal_g * 255) / 10000;
-  bc_b_val = ((uint32_t)corrected_level * group_cal_b * 255) / 10000;
+  // Apply group calibration (0-100%) to the 0-255 target BC
+  bc_r_val = (target_bc * group_cal_r) / 100;
+  bc_g_val = (target_bc * group_cal_g) / 100;
+  bc_b_val = (target_bc * group_cal_b) / 100;
 
   updateDcData();
 }
@@ -389,7 +489,6 @@ void Tlc5951::setBrightnessControl(uint8_t bc_r, uint8_t bc_g, uint8_t bc_b) {
 void Tlc5951::updateDcData() {
   // Determine how many TLCs to shift based on slot detection
   int num_to_send = (slots == SIDE_BOTH) ? 2 : 1;
-  if (slots == SIDE_NONE) num_to_send = 1;
 
   const int total_bytes = GS_BYTES_PER_TLC * num_to_send;
   uint8_t dc_buf[GS_BYTES_TOTAL];

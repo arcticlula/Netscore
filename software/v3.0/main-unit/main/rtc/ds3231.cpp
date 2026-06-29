@@ -39,9 +39,15 @@ bool ds3231_get_time(struct tm *timeinfo) {
   timeinfo->tm_sec  = bcd_to_dec(data[0] & 0x7F);
   timeinfo->tm_min  = bcd_to_dec(data[1] & 0x7F);
   timeinfo->tm_hour = bcd_to_dec(data[2] & 0x3F);
-  timeinfo->tm_wday = bcd_to_dec(data[3] & 0x07);
+  
+  uint8_t wday = bcd_to_dec(data[3] & 0x07);
+  timeinfo->tm_wday = (wday > 0) ? wday - 1 : 0;
+  
   timeinfo->tm_mday = bcd_to_dec(data[4] & 0x3F);
-  timeinfo->tm_mon  = bcd_to_dec(data[5] & 0x1F);
+  
+  uint8_t mon = bcd_to_dec(data[5] & 0x1F);
+  timeinfo->tm_mon  = (mon > 0) ? mon - 1 : 0;
+  
   timeinfo->tm_year = bcd_to_dec(data[6]) + 100;
   return true;
 }
@@ -52,9 +58,9 @@ bool ds3231_set_time(const struct tm *timeinfo) {
   data[1] = dec_to_bcd(timeinfo->tm_sec)  & 0x7F;
   data[2] = dec_to_bcd(timeinfo->tm_min);
   data[3] = dec_to_bcd(timeinfo->tm_hour) & 0x3F;
-  data[4] = dec_to_bcd(timeinfo->tm_wday);
+  data[4] = dec_to_bcd(timeinfo->tm_wday + 1);
   data[5] = dec_to_bcd(timeinfo->tm_mday);
-  data[6] = dec_to_bcd(timeinfo->tm_mon);
+  data[6] = dec_to_bcd(timeinfo->tm_mon + 1);
   data[7] = dec_to_bcd(timeinfo->tm_year - 100);
   return i2c_write(DS3231_I2C_ADDR, data, 8);
 }

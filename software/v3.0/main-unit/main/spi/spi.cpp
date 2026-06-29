@@ -25,7 +25,7 @@ esp_err_t spi_init(uint8_t sclk_pin, uint8_t gssin_pin) {
   ESP_ERROR_CHECK(spi_bus_initialize(SPI_BUS, &bus_config, SPI_DMA_CH_AUTO));
 
   spi_device_interface_config_t dev_config = {};
-  dev_config.mode = 0; // Mode 0 (Idle LOW, sample on rising edge)
+  dev_config.mode = 0;  // Mode 0 (Idle LOW, sample on rising edge)
   dev_config.clock_speed_hz = SPI_CLK_SPEED;
   dev_config.spics_io_num = -1;
   dev_config.queue_size = 1;

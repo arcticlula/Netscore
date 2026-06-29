@@ -6,13 +6,15 @@
 #include "display/display_init.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "misc.h"
+#include "power/power.h"
 #include "score_board.h"
+#include "settings/settings.h"
 #include "tasks.h"
 
 #define TAG "ESP-NOW"
 
-// uint8_t mac_address[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-uint8_t mac_address[] = {0x7C, 0xDF, 0xA1, 0x1E, 0x83, 0x5C};
+uint8_t mac_address[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
 // Paired devices registry (indexed by esp_now_device_t)
 typedef struct {
@@ -33,11 +35,11 @@ void init_esp_now() {
 
   wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
   ESP_ERROR_CHECK(esp_wifi_init(&cfg));
-  ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
+  ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA));
   ESP_ERROR_CHECK(esp_wifi_start());
+  ESP_ERROR_CHECK(esp_wifi_set_max_tx_power(34));  // Lower TX power (8.5 dBm) to prevent RF brownouts with BLE running
   ESP_ERROR_CHECK(esp_wifi_set_ps(WIFI_PS_NONE));
   ESP_ERROR_CHECK(esp_wifi_set_channel(1, WIFI_SECOND_CHAN_NONE));
-  ESP_ERROR_CHECK(esp_wifi_set_max_tx_power(44)); // Limit TX power to 11dBm to prevent TLC5951 brown-out resets
 
   ESP_ERROR_CHECK(esp_now_init());
   ESP_ERROR_CHECK(esp_now_register_recv_cb(esp_now_recv_callback));
@@ -46,7 +48,7 @@ void init_esp_now() {
   esp_now_peer_info_t peerInfo = {};
   memcpy(peerInfo.peer_addr, mac_address, 6);
   peerInfo.channel = 1;
-  peerInfo.ifidx = WIFI_IF_STA;
+  peerInfo.ifidx = WIFI_IF_AP;
   peerInfo.encrypt = false;
   ESP_ERROR_CHECK(esp_now_add_peer(&peerInfo));
 }
@@ -90,6 +92,8 @@ void send_mirror_state(device_t device_id, button_event_t button) {
   state_payload.away_points = score.away_points;
   state_payload.home_sets = score.home_sets;
   state_payload.away_sets = score.away_sets;
+  state_payload.home_sets_practice = score.home_sets_practice;
+  state_payload.away_sets_practice = score.away_sets_practice;
 
   if (sport == SPORT_PADEL) {
     state_payload.home_games = padel_score.home_games;
@@ -100,8 +104,8 @@ void send_mirror_state(device_t device_id, button_event_t button) {
     state_payload.away_points = padel_score.away_points;
   }
 
-  if (window == PLAY_HOME_WIN_SCR || window == PLAY_AWAY_WIN_SCR || window == PRACTICE_HOME_WIN_SCR || window == PRACTICE_AWAY_WIN_SCR) {
-    if (sport == SPORT_PRACTICE || sport == SPORT_VOLLEY || sport == SPORT_PING_PONG) {
+  if (window == PLAY_WIN_SCR) {
+    if (sport == SPORT_VOLLEY || sport == SPORT_PING_PONG) {
       uint8_t set_idx = score.home_sets + score.away_sets + score.home_sets_practice + score.away_sets_practice;
       if (set_idx > 0) set_idx--;  // Get the last played set
 
@@ -119,14 +123,27 @@ void send_mirror_state(device_t device_id, button_event_t button) {
 
   if (window == BRILHO_SCR) {
     state_payload.generic_option = brightness_index;
+  } else if (window == SET_SPORT_MODE_SCR) {
+    state_payload.generic_option = game_mode;
   } else if (window == SET_MAX_SCORE_SCR) {
-    state_payload.generic_option = max_score.current;
+    state_payload.generic_option = max_score.index;
   } else if (window == SET_PADEL_GAME_TYPE_SCR) {
     state_payload.generic_option = padel_game_type_option.current;
   } else if (window == SET_PADEL_DEUCE_TYPE_SCR) {
     state_payload.generic_option = padel_deuce_option.current;
+  } else if (window == PRACTICE_TRANSITION_SCR) {
+    state_payload.generic_option = practice_option.current;
+  } else if (window == TEST_MENU_SCR) {
+    state_payload.generic_option = test_menu_option.current;
   } else {
     state_payload.generic_option = 0;
+  }
+
+  uint8_t set_idx = score.home_sets + score.away_sets + score.home_sets_practice + score.away_sets_practice;
+  if (set_idx < MAX_SETS && set_points_max[set_idx] > 0) {
+    state_payload.current_max_score = set_points_max[set_idx];
+  } else {
+    state_payload.current_max_score = max_score.current;
   }
 
   uint8_t buffer[sizeof(esp_now_event_type_t) + sizeof(mirror_state_t)];
@@ -160,6 +177,11 @@ void espnow_task(void *arg) {
           if (event.device_id == DEVICE_1 || event.device_id == DEVICE_2) {
             device_battery_levels[event.device_id - 1] = event.message;
             ESP_LOGI(TAG, "Device %d Battery: %d%%", event.device_id, event.message);
+          }
+          break;
+        case MIRROR_STATE:
+          if (sys_mirror_mode) {
+            xQueueSend(mirror_action_queue, &event.mirror_state, 0);
           }
           break;
         default:

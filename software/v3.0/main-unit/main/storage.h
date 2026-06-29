@@ -26,17 +26,22 @@ size_t getMatchCount();
 /**
  * @brief Save the current match history to NVS (uses current slot)
  *
- * @param history The vector of GameEvents to save
+ * @param record The MatchRecord containing config and events to save
  */
-void saveMatch(const std::vector<GameEvent>& history);
+void saveMatch(const MatchRecord& record);
 
 /**
  * @brief Load the match history from NVS
  *
  * @param match_index Index of the match to load (0 to count-1). If -1, loads current.
- * @return std::vector<GameEvent> The loaded match history
+ * @return MatchRecord The loaded match record
  */
-std::vector<GameEvent> loadMatch(int match_index = -1);
+MatchRecord loadMatch(int match_index = -1);
+
+/**
+ * @brief Clear all saved matches by resetting the metadata
+ */
+void clearMatches();
 
 /**
  * @brief Save system settings (brightness, display mode, etc.)
@@ -47,4 +52,10 @@ void saveSettings();
  * @brief Load system settings
  */
 void loadSettings();
+
+/**
+ * @brief Load/Save battery calibration limits from NVS
+ */
+void loadBatteryLimits(uint16_t* min_val, uint16_t* max_val);
+void saveBatteryLimits(uint16_t min_val, uint16_t max_val);
 }  // namespace Storage

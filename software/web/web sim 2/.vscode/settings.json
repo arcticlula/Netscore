@@ -1,0 +1,7 @@
+{
+    "idf.currentSetup": "/Users/luis_f/esp/esp-idf",
+    "idf.port": "/dev/tty.usbmodem101",
+    "idf.openOcdConfigs": [
+        "board/esp32s3-builtin.cfg"
+    ]
+}

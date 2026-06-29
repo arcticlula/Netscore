@@ -6,16 +6,18 @@
 #include <freertos/task.h>
 
 #include "button_actions.h"
+#include "definitions.h"
 #include "power/power.h"
 #include "tasks.h"
 
 #define DOUBLE_CLICK_TIMEOUT_MS 250
-#define HOLD_MS 500
 
-static const char* TAG = "BUTTONS";
+// static const char* TAG = "BUTTONS";
+
 typedef enum {
   MODE_NORMAL_AND_LONG_CLICK,
-  MODE_AUTO_FIRE_AND_DOUBLE_CLICK
+  MODE_AUTO_FIRE_AND_DOUBLE_CLICK,
+  MODE_POWER_BUTTON
 } button_mode_t;
 
 struct polling_btn_state_t {
@@ -24,6 +26,7 @@ struct polling_btn_state_t {
   button_event_t hold_event;
   button_event_t double_press_event;
   button_event_t repeat_event;
+  button_event_t release_event;
   button_mode_t mode;
   bool is_pressed;
   uint32_t press_time;
@@ -32,13 +35,14 @@ struct polling_btn_state_t {
   bool hold_triggered;
   uint8_t click_count;
   uint8_t stable_count;
+  uint16_t repeat_count;
 };
 
 static polling_btn_state_t buttons[4] = {
-    {(gpio_num_t)BUTTON_UP_PIN, BUTTON_UP_PRESS, BUTTON_UP_HOLD, BUTTON_UP_DOUBLE_PRESS, BUTTON_UP_REPEAT, MODE_NORMAL_AND_LONG_CLICK, false, 0, 0, 0, false, 0, 0},
-    {(gpio_num_t)BUTTON_DOWN_PIN, BUTTON_DOWN_PRESS, BUTTON_DOWN_HOLD, BUTTON_DOWN_DOUBLE_PRESS, BUTTON_DOWN_REPEAT, MODE_NORMAL_AND_LONG_CLICK, false, 0, 0, 0, false, 0, 0},
-    {(gpio_num_t)BUTTON_CENTER_PIN, BUTTON_CENTER_PRESS, BUTTON_CENTER_HOLD, BUTTON_CENTER_DOUBLE_PRESS, BUTTON_CENTER_REPEAT, MODE_NORMAL_AND_LONG_CLICK, false, 0, 0, 0, false, 0, 0},
-    {(gpio_num_t)BUTTON_POWER_PIN, BUTTON_POWER_PRESS, BUTTON_POWER_HOLD, BUTTON_POWER_DOUBLE_PRESS, BUTTON_POWER_REPEAT, MODE_NORMAL_AND_LONG_CLICK, false, 0, 0, 0, false, 0, 0}};
+    {(gpio_num_t)BUTTON_UP_PIN, BUTTON_UP_PRESS, BUTTON_UP_HOLD, BUTTON_UP_DOUBLE_PRESS, BUTTON_UP_REPEAT, BUTTON_UP_RELEASE, MODE_NORMAL_AND_LONG_CLICK, false, 0, 0, 0, false, 0, 0, 0},
+    {(gpio_num_t)BUTTON_DOWN_PIN, BUTTON_DOWN_PRESS, BUTTON_DOWN_HOLD, BUTTON_DOWN_DOUBLE_PRESS, BUTTON_DOWN_REPEAT, BUTTON_DOWN_RELEASE, MODE_NORMAL_AND_LONG_CLICK, false, 0, 0, 0, false, 0, 0, 0},
+    {(gpio_num_t)BUTTON_CENTER_PIN, BUTTON_CENTER_PRESS, BUTTON_CENTER_HOLD, BUTTON_CENTER_DOUBLE_PRESS, BUTTON_CENTER_REPEAT, BUTTON_CENTER_RELEASE, MODE_NORMAL_AND_LONG_CLICK, false, 0, 0, 0, false, 0, 0, 0},
+    {(gpio_num_t)BUTTON_POWER_PIN, BUTTON_POWER_PRESS, BUTTON_POWER_HOLD, BUTTON_POWER_DOUBLE_PRESS, BUTTON_POWER_PRESS, BUTTON_POWER_PRESS, MODE_POWER_BUTTON, false, 0, 0, 0, false, 0, 0, 0}};
 
 static QueueHandle_t button_isr_queue;
 static volatile int active_button_idx = -1;
@@ -46,6 +50,9 @@ static volatile int active_button_idx = -1;
 static void IRAM_ATTR button_isr_handler(void* arg) {
   int btn_idx = (int)arg;
   if (active_button_idx == -1) {
+    // Disable interrupt immediately to prevent bounce storms
+    gpio_intr_disable(buttons[btn_idx].pin);
+
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
     xQueueSendFromISR(button_isr_queue, &btn_idx, &xHigherPriorityTaskWoken);
     if (xHigherPriorityTaskWoken) {
@@ -68,6 +75,7 @@ void button_task(void* arg) {
       b->is_pressed = false;
       b->hold_triggered = false;
       b->click_count = 0;
+      b->repeat_count = 0;
       int idle_count = 0;
 
       // Inner polling loop for this specific button
@@ -76,8 +84,8 @@ void button_task(void* arg) {
 
         // Dynamically determine the effective mode
         button_mode_t effective_mode = b->mode;
-        if (window == PLAY_SCR || window == PLAY_HOME_WIN_SCR || window == PLAY_AWAY_WIN_SCR || window == PRACTICE_SCR || window == PRACTICE_HOME_WIN_SCR || window == PRACTICE_AWAY_WIN_SCR) {
-          if (b->pin != BUTTON_POWER_PIN) {
+        if (window == PLAY_SCR || window == PLAY_WIN_SCR || window == BRILHO_SCR) {
+          if (b->pin != BUTTON_POWER_PIN && b->pin != BUTTON_CENTER_PIN) {
             effective_mode = MODE_AUTO_FIRE_AND_DOUBLE_CLICK;
           }
         }
@@ -128,7 +136,7 @@ void button_task(void* arg) {
                 xQueueSend(button_action_queue, &action, 0);
               }
               b->click_count = 0;
-            } else if (effective_mode == MODE_AUTO_FIRE_AND_DOUBLE_CLICK) {
+            } else if (effective_mode == MODE_AUTO_FIRE_AND_DOUBLE_CLICK || effective_mode == MODE_POWER_BUTTON) {
               if (b->hold_triggered) {
                 b->click_count = 0;
               } else if (b->click_count == 2) {
@@ -145,28 +153,34 @@ void button_task(void* arg) {
         // Logic for Hold and Auto-repeat
         if (b->is_pressed) {
           uint32_t elapsed = now - b->press_time;
-          if (!b->hold_triggered && elapsed >= HOLD_MS) {
+
+          uint32_t current_hold_ms = (effective_mode == MODE_POWER_BUTTON) ? 1500 : hold_time_ms;
+
+          if (!b->hold_triggered && elapsed >= current_hold_ms) {
             b->hold_triggered = true;
 
-            if (effective_mode == MODE_NORMAL_AND_LONG_CLICK) {
+            if (effective_mode == MODE_NORMAL_AND_LONG_CLICK || effective_mode == MODE_POWER_BUTTON) {
               btn_action_t action = {DEVICE_1, b->hold_event};
               xQueueSend(button_action_queue, &action, 0);
             } else if (effective_mode == MODE_AUTO_FIRE_AND_DOUBLE_CLICK) {
               btn_action_t action = {DEVICE_1, b->repeat_event};
               xQueueSend(button_action_queue, &action, 0);
               b->last_repeat_time = now;
+              b->repeat_count = 1;
               b->click_count = 0;  // Prevent single/double click
             }
           } else if (b->hold_triggered && effective_mode == MODE_AUTO_FIRE_AND_DOUBLE_CLICK) {
-            if (now - b->last_repeat_time >= 200) {
+            uint32_t interval = (b->repeat_count >= 5) ? 50 : 200;
+            if (now - b->last_repeat_time >= interval) {
               btn_action_t action = {DEVICE_1, b->repeat_event};
               xQueueSend(button_action_queue, &action, 0);
               b->last_repeat_time = now;
+              b->repeat_count++;
             }
           }
         } else {
           // Wait for double click timeout, if it expires, fire single press
-          if (effective_mode == MODE_AUTO_FIRE_AND_DOUBLE_CLICK && b->click_count == 1) {
+          if ((effective_mode == MODE_AUTO_FIRE_AND_DOUBLE_CLICK || effective_mode == MODE_POWER_BUTTON) && b->click_count == 1) {
             if (now - b->release_time >= DOUBLE_CLICK_TIMEOUT_MS) {
               btn_action_t action = {DEVICE_1, b->press_event};
               xQueueSend(button_action_queue, &action, 0);
@@ -179,8 +193,12 @@ void button_task(void* arg) {
         if (!b->is_pressed && idle_count > 5) {
           if (effective_mode == MODE_NORMAL_AND_LONG_CLICK) {
             break;  // Fully released and action already fired
-          } else if (effective_mode == MODE_AUTO_FIRE_AND_DOUBLE_CLICK) {
+          } else if (effective_mode == MODE_AUTO_FIRE_AND_DOUBLE_CLICK || effective_mode == MODE_POWER_BUTTON) {
             if (b->click_count == 0) {
+              if (b->hold_triggered && effective_mode == MODE_AUTO_FIRE_AND_DOUBLE_CLICK && b->release_event != b->press_event) {
+                btn_action_t action = {DEVICE_1, b->release_event};
+                xQueueSend(button_action_queue, &action, 0);
+              }
               break;  // Fully released and no pending single/double click timeout
             }
           }
@@ -191,6 +209,11 @@ void button_task(void* arg) {
 
       // Interaction completely finished
       active_button_idx = -1;
+
+      // Clear any pending interrupts that occurred during the polling phase
+      // then re-enable the interrupt
+      gpio_intr_disable(buttons[current_idx].pin);
+      gpio_intr_enable(buttons[current_idx].pin);
     }
   }
 }
@@ -202,7 +225,7 @@ void init_buttons() {
     gpio_config_t io_conf = {};
     io_conf.pin_bit_mask = (1ULL << buttons[i].pin);
     io_conf.mode = GPIO_MODE_INPUT;
-    io_conf.pull_up_en = GPIO_PULLUP_DISABLE;
+    io_conf.pull_up_en = (buttons[i].pin == BUTTON_POWER_PIN) ? GPIO_PULLUP_ENABLE : GPIO_PULLUP_DISABLE;
     io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
     io_conf.intr_type = GPIO_INTR_NEGEDGE;
     gpio_config(&io_conf);
@@ -217,7 +240,7 @@ void set_button_pullups(bool internal) {
   }
 }
 
-extern "C" uint16_t hold_time_ms = 300;
+uint16_t hold_time_ms = 300;
 
 void set_hold_time_ms(uint16_t time_ms) {
   hold_time_ms = time_ms;

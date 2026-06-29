@@ -1,9 +1,6 @@
 #ifndef ESP_HID_HOST_BLE_H
 #define ESP_HID_HOST_BLE_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 #include "definitions.h"
 #include "esp_bt_defs.h"
@@ -11,7 +8,10 @@ extern "C" {
 #include "esp_gatt_common_api.h"
 #include "esp_gatt_defs.h"
 #include "esp_gattc_api.h"
+#include "esp_gatts_api.h"
 #include "esp_hidh.h"
+
+#define DEVICE_NAME          "Netscore"
 
 #ifndef ESP_BLE_AD_TYPE_MANUFACTURER_SPECIFIC
 #define ESP_BLE_AD_TYPE_MANUFACTURER_SPECIFIC 0xFF
@@ -103,6 +103,9 @@ typedef struct {
 
 void init_button_contexts(void);
 void init_ble(void);
+void ble_disable(void);
+void ble_enable(void);
+void disconnect_devices(void);
 void ble_restart_scan(void);
 void ble_swap_device_ids(void);
 void set_ble_hold_time_ms(uint16_t time_ms);
@@ -152,8 +155,5 @@ void ble_req_silence(device_t dev, bool silence);
 void ble_req_reconnect(device_t dev);
 void ble_req_battery(void);
 
-#ifdef __cplusplus
-}
-#endif
 
 #endif  // ESP_HID_HOST_BLE_H

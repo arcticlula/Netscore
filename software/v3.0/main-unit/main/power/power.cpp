@@ -20,7 +20,7 @@ static bool system_is_sleeping = false;
 static void IRAM_ATTR vbus_isr_handler(void* arg) {
   uint32_t gpio_num = (uint32_t)arg;
   int level = gpio_get_level((gpio_num_t)gpio_num);
-  set_debug_led(level == HIGH);
+  usb_display_mode(level == HIGH);
 }
 
 void init_power() {
@@ -54,7 +54,7 @@ void init_usb_interrupt() {
   }
 
   bool initial_state = gpio_get_level((gpio_num_t)VBUS_DETECT_PIN);
-  set_debug_led(initial_state);
+  usb_display_mode(initial_state);
 }
 
 void set_ldo_enable(bool enable) {
@@ -110,7 +110,7 @@ void wake_up() {
   if (ble_cmd_task_handle) vTaskResume(ble_cmd_task_handle);
   if (espnow_task_handle) vTaskResume(espnow_task_handle);
   */
-  
+
   system_is_sleeping = false;
   init_menu_scr();
 }

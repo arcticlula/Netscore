@@ -13,27 +13,29 @@ typedef struct {
   button_event_t button_event;
 } btn_action_t;
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 extern QueueHandle_t ble_event_queue;
 extern QueueHandle_t ble_cmd_queue;
 extern QueueHandle_t button_action_queue;
+extern QueueHandle_t mirror_action_queue;
 extern QueueHandle_t melody_queue;
 extern QueueHandle_t espnow_queue;
+extern QueueHandle_t save_queue;
 
 extern TaskHandle_t display_logic_task_handle;
 extern TaskHandle_t button_task_handle;
 extern TaskHandle_t button_action_task_handle;
+extern TaskHandle_t mirror_action_task_handle;
 extern TaskHandle_t melody_task_handle;
 extern TaskHandle_t conn_monitor_task_handle;
 extern TaskHandle_t ble_cmd_task_handle;
 extern TaskHandle_t espnow_task_handle;
+extern TaskHandle_t save_task_handle;
+
+typedef enum {
+  SAVE_SETTINGS,
+  SAVE_MATCH
+} save_type_t;
 
 void ble_event_task(void *arg);
+void save_task(void *arg);
 void init_tasks(void);
-
-#ifdef __cplusplus
-}
-#endif

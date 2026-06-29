@@ -105,7 +105,7 @@ class Tlc5951 {
   void setFunctionControl(uint8_t fc);
 
  private:
-  uint8_t fc_data = 0x18;
+  uint8_t fc_data = 0x1F;  // 0x1F enables High DC Range for all color groups
   uint8_t global_level = 30;
   uint8_t group_cal_r = 255;
   uint8_t group_cal_g = 255;

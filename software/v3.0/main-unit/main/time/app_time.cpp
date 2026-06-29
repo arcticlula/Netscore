@@ -1,32 +1,37 @@
 #include "app_time.h"
 
 #include <stdio.h>
+#include <sys/time.h>
 
 #include "../definitions.h"
 #include "esp_timer.h"
+#include "i2c/i2c_bus.h"
+#include "rtc/ds3231.h"
 
 void time_update_callback(void* arg) {
-  timeinfo.tm_sec++;
-  if (timeinfo.tm_sec >= 60) {
-    timeinfo.tm_sec = 0;
-    timeinfo.tm_min++;
-    if (timeinfo.tm_min >= 60) {
-      timeinfo.tm_min = 0;
-      timeinfo.tm_hour++;
-      if (timeinfo.tm_hour >= 24) {
-        timeinfo.tm_hour = 0;
-      }
-    }
-  }
+  time_t now;
+  time(&now);
+  localtime_r(&now, &timeinfo);
 }
 
 void init_time(void) {
-  // Set timeinfo based on compile time (__TIME__ e.g., "15:23:45")
-  int h = 0, m = 0, s = 1;
-  sscanf(__TIME__, "%d:%d:%d", &h, &m, &s);
-  timeinfo.tm_hour = h;
-  timeinfo.tm_min = m;
-  timeinfo.tm_sec = s;
+  i2c_master_init();
+  struct tm rtc_time = {0};
+  rtc_time.tm_isdst = -1;
+  
+  if (ds3231_init()) {
+    bool time_ok = ds3231_get_time(&rtc_time);
+
+    if (time_ok) {
+      printf("DS3231 valid time retained: 20%02d-%02d-%02d %02d:%02d:%02d\n",
+             rtc_time.tm_year % 100, rtc_time.tm_mon + 1, rtc_time.tm_mday,
+             rtc_time.tm_hour, rtc_time.tm_min, rtc_time.tm_sec);
+    } else {
+      printf("DS3231 time is invalid or not set!\n");
+    }
+
+    set_system_time(&rtc_time);
+  }
 
   // Create update task timer to tick the clock
   const esp_timer_create_args_t periodic_timer_args = {
@@ -38,4 +43,15 @@ void init_time(void) {
   esp_timer_handle_t time_timer;
   ESP_ERROR_CHECK(esp_timer_create(&periodic_timer_args, &time_timer));
   ESP_ERROR_CHECK(esp_timer_start_periodic(time_timer, 1000000));  // 1 second intervals
+}
+
+void set_system_time(struct tm* t_info) {
+  // Update the global timeinfo used by the display
+  timeinfo = *t_info;
+
+  // Update the system POSIX time so time(NULL) works for timestamps
+  struct timeval tv;
+  tv.tv_sec = mktime(t_info);
+  tv.tv_usec = 0;
+  settimeofday(&tv, NULL);
 }

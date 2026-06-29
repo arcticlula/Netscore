@@ -6,21 +6,25 @@ idf_component_register(
         "button/button_actions_helper.cpp"
         "buzzer/buzzer.cpp"
         "display/display_definitions.cpp"
+        "display/display_helper.cpp"
         "display/display_api.cpp"
         "display/display_init.cpp"
         "display/display.cpp"
         "display/tlc5951/tlc5951.cpp"
         "spi/spi.cpp"
         "wifi/esp-now.cpp"
-        "ble/ble.c"
-        "ble/ab_shutter.c"
-        "ble/itag.c"
+        "wifi/mirror_actions.cpp"
+        "ble/ble.cpp"
+        "ble/ab_shutter.cpp"
+        "ble/itag.cpp"
         "misc.cpp"
+        "battery.cpp"
         "score_board.cpp"
         "tasks.cpp"
         "definitions.cpp"
         "storage.cpp"
-        "nvs_store.c"
+        "settings/settings.cpp"
+        "nvs_store.cpp"
         "i2c/i2c_bus.cpp"
         "i2c/i2c_scan.cpp"
         "power/power.cpp"
@@ -37,6 +41,7 @@ idf_component_register(
         esp_adc
         esp_hid
         bt
+        json
 )
 
 # Force app_time.cpp to be recompiled on every build so __TIME__ is accurate

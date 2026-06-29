@@ -5,9 +5,6 @@
 
 #define DS3231_I2C_ADDR 0x68
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /**
  * @brief Check if the DS3231 is responding on the configured I2C bus.
@@ -29,6 +26,3 @@ bool ds3231_get_time(struct tm *timeinfo);
  */
 bool ds3231_set_time(const struct tm *timeinfo);
 
-#ifdef __cplusplus
-}
-#endif

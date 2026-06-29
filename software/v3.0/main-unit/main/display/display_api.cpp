@@ -7,6 +7,7 @@
 #include "display.h"  // Added this line
 #include "display/display.h"
 #include "display/display_definitions.h"
+#include "display/display_helper.h"
 #include "esp_log.h"
 #include "tlc5951/tlc5951.h"
 
@@ -15,7 +16,7 @@ void show_character(uint8_t side, uint8_t digit_index, uint8_t character, uint8_
 
   uint16_t value = round(get_brightness(val));
 
-  for (uint8_t channel = 0; channel < 7; channel++) {
+  for (uint8_t channel = 0; channel < 8; channel++) {
     int on = (character >> channel) & 1;
     Tlc.setSegment(side, digit_index, channel, on == 1 ? value : 0);
   }
@@ -47,7 +48,7 @@ void show_led_group(uint8_t side, uint8_t group, uint8_t index, uint8_t value) {
   Tlc.setLed(side, index, value);
 }
 
-void show_wave(uint8_t side, uint8_t digit_index, digit_wave_t *digit, void (*callback)()) {
+void show_wave(uint8_t side, uint8_t digit_index, digit_wave_t *digit) {
   double time = digit->time_ms / FRAME_TIME_MS;  // only called every x time, x is the number of mux outputs, the 2 is bc only called every 2ms
   uint16_t value = round(digit->value);
   uint16_t background = round(digit->background);
@@ -63,11 +64,9 @@ void show_wave(uint8_t side, uint8_t digit_index, digit_wave_t *digit, void (*ca
   if (digit->value <= digit->min) {
     digit->direction = 1;
     digit->value = digit->min;
-    if (callback) callback();
   } else if (digit->value >= digit->max) {
     digit->direction = -1;
     digit->value = digit->max;
-    if (callback) callback();
   }
   // Serial.printf("Value: %d, Ratio: %.2f, Direction: %d\n", digit->value, ratio, digit->direction);
 }
@@ -78,22 +77,77 @@ void show_wave_time_colon(uint8_t side) {
 }
 
 void show_wave_bar_led(uint8_t side, uint8_t led_index) {
-  show_single_wave(side, led_index, &wbl[led_index]);
+  uint8_t bar_led_index = 0;
+  switch (led_index) {
+    case BAR_LED_1:
+      bar_led_index = 0;
+      break;
+    case BAR_LED_2:
+      bar_led_index = 1;
+      break;
+    case BAR_LED_3:
+      bar_led_index = 2;
+      break;
+    case BAR_LED_4:
+      bar_led_index = 3;
+      break;
+  }
+  show_single_wave(side, led_index, &wbl[bar_led_index]);
 }
 
 void show_wave_led(uint8_t side, uint8_t led_index) {
-  show_single_wave(side, led_index, &wled[led_index]);
+  show_single_wave(side, led_index, &wled[get_led_index(led_index)]);
 }
 
 void show_single_wave(uint8_t side, uint8_t digit_index, single_wave_t *bit) {
-  double time = bit->time_ms / FRAME_TIME_MS;  // only called every x time, x is the number of mux outputs, the 2 is bc only called every 2ms
+  if (bit->time_down_ms == 0 && !bit->exponential_down) {
+    // Legacy simple linear up/down
+    double time = bit->time_ms / FRAME_TIME_MS;
+    double ratio = (double)(bit->max - bit->min) / time;
+    bit->value += bit->direction * ratio;
+
+    if (bit->value <= bit->min) {
+      bit->direction = 1;
+      bit->value = bit->min;
+    } else if (bit->value >= bit->max) {
+      bit->direction = -1;
+      bit->value = bit->max;
+    }
+  } else {
+    // Advanced sequenced animation using 'cnt'
+    double duration = (bit->direction == 1) ? bit->time_ms : bit->time_down_ms;
+    double frames = duration / FRAME_TIME_MS;
+
+    bit->cnt++;
+    double t = (double)bit->cnt / frames;
+    if (t > 1.0) t = 1.0;
+
+    if (bit->direction == 1) {
+      // Linear up
+      bit->value = bit->min + (bit->max - bit->min) * t;
+    } else {
+      if (bit->exponential_down) {
+        // Pseudo-exponential down (ease out quint inverted)
+        // t goes from 0 to 1 as we move from max to min
+        double inv = 1.0 - t;
+        double ease = 1.0 - (inv * inv * inv * inv * inv);
+        bit->value = bit->max - (bit->max - bit->min) * ease;
+      } else {
+        // Linear down
+        bit->value = bit->max - (bit->max - bit->min) * t;
+      }
+    }
+
+    if (bit->cnt >= frames) {
+      bit->direction *= -1;
+      bit->cnt = 0;
+    }
+  }
+
   uint16_t value = round(bit->value);
-  double ratio = (double)(bit->max - bit->min) / time;
 
   switch (digit_index) {
     case TIME_COLON_TOP:
-      Tlc.setTimeColon(side, digit_index, value);
-      break;
     case TIME_COLON_BOTTOM:
       Tlc.setTimeColon(side, digit_index, value);
       break;
@@ -106,16 +160,6 @@ void show_single_wave(uint8_t side, uint8_t digit_index, single_wave_t *bit) {
     default:
       Tlc.setLed(side, digit_index, value);
       break;
-  }
-
-  bit->value += bit->direction * ratio;
-
-  if (bit->value <= bit->min) {
-    bit->direction = 1;
-    bit->value = bit->min;
-  } else if (bit->value >= bit->max) {
-    bit->direction = -1;
-    bit->value = bit->max;
   }
 }
 
@@ -194,10 +238,8 @@ void show_fade_in(uint8_t side, uint8_t digit_index, digit_fade_t *digit) {
   }
 }
 
-void show_fade_into(uint8_t side, uint8_t digit_index, digit_fade_into_t *digit) {
+void show_fade_into(uint8_t side, uint8_t digit_index, digit_fade_into_t *d) {
   portMEMORY_BARRIER();
-  digit_fade_into_t *d = digit;
-
   bool active = false;
   for (uint8_t i = 0; i < 8; i++) {
     if (d->positions_value[i] != 0 || d->positions_dir[i] != 0) {
@@ -211,9 +253,8 @@ void show_fade_into(uint8_t side, uint8_t digit_index, digit_fade_into_t *digit)
   double ratio = (double)(d->value / time);
 
   for (uint8_t channel = 0; channel < 8; channel++) {
-    int16_t value = d->positions_value[channel];
     double direction = d->positions_dir[channel];
-    Tlc.setSegment(side, digit_index, channel, round(value));
+
     if (direction != 0) {
       d->positions_value[channel] += direction * ratio;
 
@@ -228,6 +269,9 @@ void show_fade_into(uint8_t side, uint8_t digit_index, digit_fade_into_t *digit)
         d->positions_value[channel] = 0;
       }
     }
+
+    int16_t value = d->positions_value[channel];
+    Tlc.setSegment(side, digit_index, channel, round(value));
   }
 }
 
@@ -363,12 +407,15 @@ void init_digit_wave(digit_wave_t *d, uint8_t value, uint8_t min, uint8_t max, u
   d->time_ms = time_ms;
 }
 
-void init_single_wave(single_wave_t *d, uint8_t value, uint8_t min, uint8_t max, int8_t direction, uint16_t time_ms) {
+void init_single_wave(single_wave_t *d, uint8_t value, uint8_t min, uint8_t max, int8_t direction, uint16_t time_ms, uint16_t time_down_ms, bool exponential_down) {
   d->value = get_brightness(value);
   d->min = get_brightness(min);
   d->max = get_brightness(max);
   d->direction = direction;
   d->time_ms = time_ms;
+  d->time_down_ms = time_down_ms;
+  d->exponential_down = exponential_down;
+  d->cnt = 0;
 }
 
 void init_digit_loop(digit_loop_t *d, uint8_t channel, uint8_t min, uint8_t max, uint8_t background, int8_t direction, uint16_t time_ms) {
@@ -435,6 +482,165 @@ void show_text(uint8_t side, const uint8_t *chars, const uint8_t *digits, uint8_
     if (chars[i] == END_FRAME) break;
     if (chars[i] != BLANK) {
       show_letter(side, digits[i], chars[i], brightness);
+    }
+  }
+}
+
+static uint8_t shift_char_left(uint8_t c) {
+  uint8_t out = 0;
+  if (c & (1 << 1)) out |= (1 << 5);  // B -> F
+  if (c & (1 << 2)) out |= (1 << 4);  // C -> E
+  return out;
+}
+
+static uint8_t shift_char_right(uint8_t c) {
+  uint8_t out = 0;
+  if (c & (1 << 5)) out |= (1 << 1);  // F -> B
+  if (c & (1 << 4)) out |= (1 << 2);  // E -> C
+  return out;
+}
+
+void init_text_scroll(const uint8_t *text, uint8_t text_len, const uint8_t *digits, uint8_t num_digits, int8_t direction, uint16_t time_ms, uint8_t brightness, uint8_t padding) {
+  ts.text_len = (text_len > MAX_SCROLL_TEXT_LEN) ? MAX_SCROLL_TEXT_LEN : text_len;
+  for (uint8_t i = 0; i < ts.text_len; i++) {
+    ts.text[i] = text[i];
+  }
+
+  ts.num_display_digits = (num_digits > 10) ? 10 : num_digits;
+  for (uint8_t i = 0; i < ts.num_display_digits; i++) {
+    ts.display_digits[i] = digits[i];
+  }
+
+  ts.direction = direction;
+  ts.time_ms = time_ms;
+  ts.cnt = 0;
+  ts.offset = (direction == 1) ? (ts.text_len + padding) : 0;  // Start offset
+  ts.brightness = brightness;
+  ts.padding = padding;
+}
+
+void show_scroll_text(uint8_t side) {
+  if (ts.text_len == 0 || ts.num_display_digits == 0) return;
+
+  uint32_t threshold = ts.time_ms / FRAME_TIME_MS;
+  if (threshold == 0) threshold = 1;
+
+  uint8_t total_len = ts.text_len + ts.padding * 2;
+
+  if (ts.cnt >= threshold) {
+    if (ts.direction == 1) {  // Left to Right
+      ts.offset--;
+      if (ts.offset < 0) {
+        ts.offset = total_len - 1;
+      }
+    } else {  // Right to Left
+      ts.offset++;
+      if (ts.offset >= total_len) {
+        ts.offset = 0;
+      }
+    }
+    ts.cnt = 0;
+  } else {
+    ts.cnt++;
+  }
+
+  for (uint8_t i = 0; i < ts.num_display_digits; i++) {
+    int16_t char_idx = (ts.offset + i) % total_len;
+    if (char_idx < 0) char_idx += total_len;
+
+    if (char_idx >= ts.padding && char_idx < (ts.padding + ts.text_len)) {
+      show_character(side, ts.display_digits[i], ts.text[char_idx - ts.padding], ts.brightness);
+    } else {
+      // Padding space (blank)
+      show_character(side, ts.display_digits[i], 0, BLANK);
+    }
+  }
+}
+
+#define TEXT_MATRIX_TRANSITION_MS 20  // Constant duration for the intermediate slide frame
+
+void init_text_matrix(const uint8_t *text, uint8_t text_len, const uint8_t *digits, uint8_t num_digits, int8_t direction, uint16_t time_ms, uint8_t brightness, uint8_t padding) {
+  tm.text_len = (text_len > MAX_SCROLL_TEXT_LEN) ? MAX_SCROLL_TEXT_LEN : text_len;
+  for (uint8_t i = 0; i < tm.text_len; i++) {
+    tm.text[i] = text[i];
+  }
+
+  tm.num_display_digits = (num_digits > 10) ? 10 : num_digits;
+  for (uint8_t i = 0; i < tm.num_display_digits; i++) {
+    tm.display_digits[i] = digits[i];
+  }
+
+  tm.direction = direction;
+  tm.time_ms = time_ms;
+  tm.cnt = 0;
+  tm.offset = (direction == 1) ? 0 : (tm.text_len + padding - 1);  // Start offset
+  tm.sub_offset = 0;
+  tm.brightness = brightness;
+  tm.padding = padding;
+}
+
+void show_matrix(uint8_t side) {
+  if (tm.text_len == 0 || tm.num_display_digits == 0) return;
+
+  uint32_t duration_ms = tm.time_ms;
+  if (tm.time_ms > TEXT_MATRIX_TRANSITION_MS) {
+    duration_ms = (tm.sub_offset == 0) ? (tm.time_ms - TEXT_MATRIX_TRANSITION_MS) : TEXT_MATRIX_TRANSITION_MS;
+  } else {
+    duration_ms = tm.time_ms / 2;  // Fallback if scrolling extremely fast
+  }
+
+  uint32_t threshold = duration_ms / FRAME_TIME_MS;
+  if (threshold == 0) threshold = 1;
+
+  if (tm.cnt >= threshold) {
+    if (tm.sub_offset == 0) {
+      tm.sub_offset = 1;
+    } else {
+      tm.sub_offset = 0;
+      if (tm.direction == 1) {  // Left to Right
+        tm.offset--;
+        if (tm.offset < 0) {
+          tm.offset = tm.text_len + tm.padding - 1;
+        }
+      } else {  // Right to Left
+        tm.offset++;
+        if (tm.offset >= (tm.text_len + tm.padding)) {
+          tm.offset = 0;
+        }
+      }
+    }
+    tm.cnt = 0;
+  } else {
+    tm.cnt++;
+  }
+
+  uint8_t total_len = tm.text_len + tm.padding;
+
+  for (uint8_t i = 0; i < tm.num_display_digits; i++) {
+    int16_t char_idx = (tm.offset + i) % total_len;
+    if (char_idx < 0) char_idx += total_len;
+
+    uint8_t char_curr = (char_idx < tm.text_len) ? tm.text[char_idx] : 0;
+
+    if (tm.sub_offset == 0) {
+      show_character(side, tm.display_digits[i], char_curr, tm.brightness);
+    } else {
+      // Calculate intermediate frame
+      int16_t next_idx = char_idx - tm.direction;
+      if (next_idx < 0) next_idx += total_len;
+      if (next_idx >= total_len) next_idx -= total_len;
+
+      uint8_t char_next = (next_idx < tm.text_len) ? tm.text[next_idx] : 0;
+
+      uint8_t intermediate = 0;
+      if (tm.direction == 1) {  // Left to Right
+        // char_curr moves out to right, char_next enters from left
+        intermediate = shift_char_right(char_curr) | shift_char_left(char_next);
+      } else {  // Right to Left
+        // char_curr moves out to left, char_next enters from right
+        intermediate = shift_char_left(char_curr) | shift_char_right(char_next);
+      }
+      show_character(side, tm.display_digits[i], intermediate, tm.brightness);
     }
   }
 }

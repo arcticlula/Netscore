@@ -1,6 +1,8 @@
 #include "ble.h"
 
+#include <inttypes.h>
 #include <string.h>
+#include <time.h>
 
 #include "ab_shutter.h"
 #include "buzzer/buzzer.h"
@@ -8,9 +10,15 @@
 #include "esp_bt.h"
 #include "esp_bt_main.h"
 #include "esp_log.h"
+#include "esp_wifi.h"
 #include "itag.h"
+#include "misc.h"
 #include "nvs_store.h"
+#include "rtc/ds3231.h"
+#include "settings/settings.h"
 #include "tasks.h"
+#include "time/app_time.h"
+#include "battery.h"
 
 static const char* TAG = "BLE";
 
@@ -18,6 +26,7 @@ extern gattc_profile_inst_t gl_profile_tab[PROFILE_NUM];
 button_context_t button_contexts[2][3] = {0};  // [device][button]
 
 int active_conn_count = 0;
+bool is_ble_connected = false;
 esp_gattc_char_elem_t* char_elem_result = NULL;
 esp_gattc_descr_elem_t* descr_elem_result = NULL;
 
@@ -25,7 +34,7 @@ static known_device_t nvs_cache[NVS_MAX_DEVICES];
 static int nvs_cache_count = 0;
 
 conn_ctx_t s_conns[MAX_CONN] = {0};
-device_connection_t device_connections[MAX_DEVICES] = {0};
+device_connection_t device_connections[MAX_DEVICES] = {};
 
 esp_bt_uuid_t notify_descr_uuid = {
     .len = ESP_UUID_LEN_16,
@@ -34,14 +43,519 @@ esp_bt_uuid_t notify_descr_uuid = {
     },
 };
 
+// --- GATTS Setup for Generic BLE UART ---
+
+#define GATTS_PROFILE_A_APP_ID 0
+#define GATTS_NUM_HANDLE 10
+
+static void gatts_profile_a_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_if, esp_ble_gatts_cb_param_t* param);
+
+struct gatts_profile_inst {
+  esp_gatts_cb_t gatts_cb;
+  uint16_t gatts_if;
+  uint16_t app_id;
+  uint16_t conn_id;
+  uint16_t service_handle;
+  esp_gatt_srvc_id_t service_id;
+  uint16_t char_rx_handle;
+  uint16_t char_tx_handle;
+  uint16_t descr_handle;
+};
+
+static struct gatts_profile_inst gatts_profile_tab[1] = {
+    [GATTS_PROFILE_A_APP_ID] = {
+        .gatts_cb = gatts_profile_a_event_handler,
+        .gatts_if = ESP_GATT_IF_NONE,
+    },
+};
+
+static uint8_t nus_service_uuid[16] = {
+    0x9E, 0xCA, 0xDC, 0x24, 0x0E, 0xE5, 0xA9, 0xE0, 0x93, 0xF3, 0xA3, 0xB5, 0x01, 0x00, 0x40, 0x6E};
+
+static uint8_t nus_rx_uuid[16] = {
+    0x9E, 0xCA, 0xDC, 0x24, 0x0E, 0xE5, 0xA9, 0xE0, 0x93, 0xF3, 0xA3, 0xB5, 0x02, 0x00, 0x40, 0x6E};
+
+static uint8_t nus_tx_uuid[16] = {
+    0x9E, 0xCA, 0xDC, 0x24, 0x0E, 0xE5, 0xA9, 0xE0, 0x93, 0xF3, 0xA3, 0xB5, 0x03, 0x00, 0x40, 0x6E};
+
+static esp_ble_adv_data_t adv_data = {
+    .set_scan_rsp = false,
+    .include_name = false, // Name goes in scan_rsp
+    .include_txpower = false,
+    .min_interval = 0x0006,
+    .max_interval = 0x0010,
+    .appearance = 0x00,
+    .manufacturer_len = 0,
+    .p_manufacturer_data = NULL,
+    .service_data_len = 0,
+    .p_service_data = NULL,
+    .service_uuid_len = 16,
+    .p_service_uuid = nus_service_uuid,
+    .flag = (ESP_BLE_ADV_FLAG_GEN_DISC | ESP_BLE_ADV_FLAG_BREDR_NOT_SPT),
+};
+
+static esp_ble_adv_data_t scan_rsp_data = {
+    .set_scan_rsp = true,
+    .include_name = true,
+    .include_txpower = false,
+    .appearance = 0x00,
+    .manufacturer_len = 0,
+    .p_manufacturer_data = NULL,
+    .service_data_len = 0,
+    .p_service_data = NULL,
+    .service_uuid_len = 0,
+    .p_service_uuid = NULL,
+    .flag = (ESP_BLE_ADV_FLAG_GEN_DISC | ESP_BLE_ADV_FLAG_BREDR_NOT_SPT),
+};
+
+static uint8_t adv_config_done = 0;
+
+static esp_ble_adv_params_t adv_params = {
+    .adv_int_min = 0x20,
+    .adv_int_max = 0x40,
+    .adv_type = ADV_TYPE_IND,
+    .own_addr_type = BLE_ADDR_TYPE_PUBLIC,
+    .channel_map = ADV_CHNL_ALL,
+    .adv_filter_policy = ADV_FILTER_ALLOW_SCAN_ANY_CON_ANY,
+};
+
+extern void set_brightness_percent(uint8_t percent);
+extern void set_volume_percent(uint8_t percent);
+
+void ble_send_json(const char* json_str) {
+  if (gatts_profile_tab[GATTS_PROFILE_A_APP_ID].conn_id != 0xFFFF && gatts_profile_tab[GATTS_PROFILE_A_APP_ID].char_tx_handle) {
+    size_t len = strlen(json_str);
+    size_t chunk_size = 244;  // Safe size for MTU
+
+    // Allocate buffer with space for newline
+    char* buffer = (char*)malloc(len + 2);
+    if (!buffer) return;
+
+    memcpy(buffer, json_str, len);
+    buffer[len] = '\n';
+    buffer[len + 1] = '\0';
+    len += 1;
+
+    size_t offset = 0;
+    while (offset < len) {
+      size_t send_len = (len - offset > chunk_size) ? chunk_size : (len - offset);
+      esp_ble_gatts_send_indicate(gatts_profile_tab[GATTS_PROFILE_A_APP_ID].gatts_if,
+                                  gatts_profile_tab[GATTS_PROFILE_A_APP_ID].conn_id,
+                                  gatts_profile_tab[GATTS_PROFILE_A_APP_ID].char_tx_handle,
+                                  send_len,
+                                  (uint8_t*)(buffer + offset),
+                                  false);  // false = notify, true = indicate
+      offset += send_len;
+      if (offset < len) vTaskDelay(pdMS_TO_TICKS(10));  // Prevent flooding
+    }
+
+    free(buffer);
+  }
+}
+
+#include "cJSON.h"
+
+void handle_button_action_event(device_t device_id, button_event_t button_event);
+
+static void process_json_command(const char* json_str) {
+  cJSON* root = cJSON_Parse(json_str);
+  if (!root) return;
+
+  cJSON* cmd = cJSON_GetObjectItem(root, "cmd");
+  if (cmd && cJSON_IsString(cmd)) {
+    if (strcmp(cmd->valuestring, "setTime") == 0) {
+      cJSON* val = cJSON_GetObjectItem(root, "val");
+      if (val && cJSON_IsNumber(val)) {
+        time_t t = val->valueint;
+        struct tm* t_info = localtime(&t);
+        ds3231_set_time(t_info);
+
+        set_system_time(t_info);
+
+        ESP_LOGI(TAG, "Time updated via BLE UART");
+      }
+    } else if (strcmp(cmd->valuestring, "setBrightnessVal") == 0) {
+      cJSON* val = cJSON_GetObjectItem(root, "val");
+      if (val && cJSON_IsNumber(val)) {
+        uint8_t brightness_val = (uint8_t)val->valueint;
+        settings_set_system_brightness(brightness_val, false);
+        ESP_LOGI(TAG, "Brightness updated via BLE UART to %d%%", brightness_val);
+      }
+    } else if (strcmp(cmd->valuestring, "setVolumeVal") == 0) {
+      cJSON* val = cJSON_GetObjectItem(root, "val");
+      if (val && cJSON_IsNumber(val)) {
+        uint8_t volume_val = (uint8_t)val->valueint;
+        settings_set_system_volume(volume_val, false);
+        ESP_LOGI(TAG, "Volume updated via BLE UART to %d%%", volume_val);
+      }
+    } else if (strcmp(cmd->valuestring, "getSettings") == 0) {
+      // Reply with settings
+      cJSON* reply = cJSON_CreateObject();
+      cJSON_AddStringToObject(reply, "type", "settings");
+      cJSON_AddNumberToObject(reply, "brightness", brightness_percent);
+      cJSON_AddNumberToObject(reply, "volume", volume_percent);
+      cJSON_AddNumberToObject(reply, "board_type", sys_big_board ? 1 : 0);
+      cJSON_AddBoolToObject(reply, "buzzer", sys_enable_buzzer);
+      cJSON_AddBoolToObject(reply, "swap_teams", sys_swap_teams);
+      cJSON_AddNumberToObject(reply, "display_mode", display_mode);
+      cJSON_AddNumberToObject(reply, "slots", slots);
+      cJSON_AddNumberToObject(reply, "srv_bypass", sys_serve_bypass);
+
+      cJSON_AddNumberToObject(reply, "gr", sys_group_cal_r);
+      cJSON_AddNumberToObject(reply, "gg", sys_group_cal_g);
+      cJSON_AddNumberToObject(reply, "gb", sys_group_cal_b);
+
+      cJSON* arr_a = cJSON_CreateArray();
+      for (int i = 0; i < 10; i++) cJSON_AddItemToArray(arr_a, cJSON_CreateNumber(sys_segment_a[i]));
+      cJSON_AddItemToObject(reply, "a", arr_a);
+
+      cJSON* arr_b = cJSON_CreateArray();
+      for (int i = 0; i < 10; i++) cJSON_AddItemToArray(arr_b, cJSON_CreateNumber(sys_segment_b[i]));
+      cJSON_AddItemToObject(reply, "b", arr_b);
+
+      cJSON* arr_ma = cJSON_CreateArray();
+      for (int i = 0; i < 32; i++) cJSON_AddItemToArray(arr_ma, cJSON_CreateNumber(sys_misc_a[i]));
+      cJSON_AddItemToObject(reply, "ma", arr_ma);
+
+      cJSON* arr_mb = cJSON_CreateArray();
+      for (int i = 0; i < 32; i++) cJSON_AddItemToArray(arr_mb, cJSON_CreateNumber(sys_misc_b[i]));
+      cJSON_AddItemToObject(reply, "mb", arr_mb);
+
+      cJSON_AddStringToObject(reply, "ble_name", sys_ble_name);
+
+      auto add_shortcut = [&](const char* key, const boot_shortcut_t& sc) {
+        cJSON* obj = cJSON_CreateObject();
+        cJSON_AddBoolToObject(obj, "en", sc.enabled);
+        cJSON_AddNumberToObject(obj, "sp", sc.sport);
+        cJSON_AddNumberToObject(obj, "m", sc.mode);
+        cJSON_AddNumberToObject(obj, "max", sc.max_score);
+        cJSON_AddNumberToObject(obj, "pt", sc.padel_type);
+        cJSON_AddNumberToObject(obj, "pd", sc.padel_deuce);
+        cJSON_AddItemToObject(reply, key, obj);
+      };
+      add_shortcut("sc_up", sys_shortcut_up);
+      add_shortcut("sc_down", sys_shortcut_down);
+      add_shortcut("sc_center", sys_shortcut_center);
+
+      cJSON* batteryObj = cJSON_CreateObject();
+      cJSON_AddNumberToObject(batteryObj, "main", get_bat_percentage());
+      cJSON_AddNumberToObject(batteryObj, "device_1", get_device_battery(DEVICE_1));
+      cJSON_AddNumberToObject(batteryObj, "device_2", get_device_battery(DEVICE_2));
+      cJSON_AddNumberToObject(batteryObj, "min", sys_bat_min);
+      cJSON_AddNumberToObject(batteryObj, "max", sys_bat_max);
+      cJSON_AddItemToObject(reply, "battery", batteryObj);
+
+      char* reply_str = cJSON_PrintUnformatted(reply);
+      ble_send_json(reply_str);
+      free(reply_str);
+      cJSON_Delete(reply);
+    } else if (strcmp(cmd->valuestring, "setSettings") == 0) {
+      cJSON* board_type = cJSON_GetObjectItem(root, "board_type");
+      cJSON* buzzer = cJSON_GetObjectItem(root, "buzzer");
+      if (board_type && cJSON_IsNumber(board_type)) {
+        settings_set_board_type(board_type->valueint != 0, false);
+        ESP_LOGI(TAG, "Settings updated via BLE: BigBoard=%d", sys_big_board);
+      }
+      if (buzzer && cJSON_IsBool(buzzer)) {
+        settings_set_buzzer(cJSON_IsTrue(buzzer), false);
+        ESP_LOGI(TAG, "Settings updated via BLE: Buzzer=%d", sys_enable_buzzer);
+      }
+    } else if (strcmp(cmd->valuestring, "setDisplayMode") == 0) {
+      cJSON* val = cJSON_GetObjectItem(root, "val");
+      if (val && cJSON_IsNumber(val)) {
+        settings_set_display_mode((display_mode_t)val->valueint, false);
+        ESP_LOGI(TAG, "Display mode updated via BLE UART to %d", val->valueint);
+      }
+    } else if (strcmp(cmd->valuestring, "setSwapTeams") == 0) {
+      cJSON* val = cJSON_GetObjectItem(root, "val");
+      if (val && cJSON_IsBool(val)) {
+        settings_set_swap_teams(cJSON_IsTrue(val), false);
+        ESP_LOGI(TAG, "Swap teams updated via BLE UART to %d", sys_swap_teams);
+      }
+    } else if (strcmp(cmd->valuestring, "setGroupCal") == 0) {
+      cJSON* r = cJSON_GetObjectItem(root, "r");
+      cJSON* g = cJSON_GetObjectItem(root, "g");
+      cJSON* b = cJSON_GetObjectItem(root, "b");
+      if (r && cJSON_IsNumber(r) && g && cJSON_IsNumber(g) && b && cJSON_IsNumber(b)) {
+        settings_set_group_cal(r->valueint, g->valueint, b->valueint, false);
+      }
+    } else if (strcmp(cmd->valuestring, "setDigitCal") == 0) {
+      cJSON* side = cJSON_GetObjectItem(root, "side");
+      cJSON* idx = cJSON_GetObjectItem(root, "idx");
+      cJSON* val = cJSON_GetObjectItem(root, "val");
+      if (side && cJSON_IsNumber(side) && idx && cJSON_IsNumber(idx) && val && cJSON_IsNumber(val)) {
+        settings_set_segment_cal(side->valueint, idx->valueint, val->valueint, false);
+      }
+    } else if (strcmp(cmd->valuestring, "setMiscCal") == 0) {
+      cJSON* side = cJSON_GetObjectItem(root, "side");
+      cJSON* idx = cJSON_GetObjectItem(root, "idx");
+      cJSON* val = cJSON_GetObjectItem(root, "val");
+      if (side && cJSON_IsNumber(side) && idx && cJSON_IsNumber(idx) && val && cJSON_IsNumber(val)) {
+        settings_set_misc_cal(side->valueint, idx->valueint, val->valueint, false);
+      }
+    } else if (strcmp(cmd->valuestring, "setAllCal") == 0) {
+      cJSON* gr = cJSON_GetObjectItem(root, "gr");
+      cJSON* gg = cJSON_GetObjectItem(root, "gg");
+      cJSON* gb = cJSON_GetObjectItem(root, "gb");
+      if (gr && cJSON_IsNumber(gr) && gg && cJSON_IsNumber(gg) && gb && cJSON_IsNumber(gb)) {
+        settings_set_group_cal(gr->valueint, gg->valueint, gb->valueint, false);
+      }
+      
+      cJSON* a = cJSON_GetObjectItem(root, "a");
+      if (a && cJSON_IsArray(a)) {
+        for (int i = 0; i < 10 && i < cJSON_GetArraySize(a); i++) {
+          cJSON* item = cJSON_GetArrayItem(a, i);
+          if (cJSON_IsNumber(item)) sys_segment_a[i] = item->valueint;
+        }
+      }
+      cJSON* b = cJSON_GetObjectItem(root, "b");
+      if (b && cJSON_IsArray(b)) {
+        for (int i = 0; i < 10 && i < cJSON_GetArraySize(b); i++) {
+          cJSON* item = cJSON_GetArrayItem(b, i);
+          if (cJSON_IsNumber(item)) sys_segment_b[i] = item->valueint;
+        }
+      }
+      cJSON* ma = cJSON_GetObjectItem(root, "ma");
+      if (ma && cJSON_IsArray(ma)) {
+        for (int i = 0; i < 32 && i < cJSON_GetArraySize(ma); i++) {
+          cJSON* item = cJSON_GetArrayItem(ma, i);
+          if (cJSON_IsNumber(item)) sys_misc_a[i] = item->valueint;
+        }
+      }
+      cJSON* mb = cJSON_GetObjectItem(root, "mb");
+      if (mb && cJSON_IsArray(mb)) {
+        for (int i = 0; i < 32 && i < cJSON_GetArraySize(mb); i++) {
+          cJSON* item = cJSON_GetArrayItem(mb, i);
+          if (cJSON_IsNumber(item)) sys_misc_b[i] = item->valueint;
+        }
+      }
+      settings_commit();
+      ESP_LOGI(TAG, "Bulk calibration template applied via BLE UART");
+    } else if (strcmp(cmd->valuestring, "commitSettings") == 0) {
+      settings_commit();
+      ESP_LOGI(TAG, "Settings manually committed via BLE");
+    } else if (strcmp(cmd->valuestring, "setBleName") == 0) {
+      cJSON* val = cJSON_GetObjectItem(root, "val");
+      if (val && cJSON_IsString(val)) {
+        settings_set_ble_name(val->valuestring, true);
+        esp_ble_gap_set_device_name(sys_ble_name);
+        esp_ble_gap_config_adv_data(&adv_data);
+        adv_config_done |= 1;
+        esp_ble_gap_config_adv_data(&scan_rsp_data);
+        adv_config_done |= 2;
+        ESP_LOGI(TAG, "BLE Name updated via BLE UART to %s", sys_ble_name);
+      }
+    } else if (strcmp(cmd->valuestring, "getHistory") == 0) {
+      char* history_json = get_match_history_json();
+      if (history_json) {
+        ble_send_json(history_json);
+        free(history_json);
+      }
+    } else if (strcmp(cmd->valuestring, "getMatchCount") == 0) {
+      cJSON* reply = cJSON_CreateObject();
+      cJSON_AddStringToObject(reply, "type", "matchCount");
+      cJSON_AddNumberToObject(reply, "count", get_saved_match_count());
+      char* reply_str = cJSON_PrintUnformatted(reply);
+      ble_send_json(reply_str);
+      free(reply_str);
+      cJSON_Delete(reply);
+    } else if (strcmp(cmd->valuestring, "getSavedMatch") == 0) {
+      cJSON* val = cJSON_GetObjectItem(root, "val");
+      if (val && cJSON_IsNumber(val)) {
+        char* history_json = get_saved_match_json(val->valueint);
+        if (history_json) {
+          ble_send_json(history_json);
+          free(history_json);
+        }
+      }
+    } else if (strcmp(cmd->valuestring, "clearMatches") == 0) {
+      clear_saved_matches();
+      ESP_LOGI(TAG, "All stored matches cleared via BLE");
+    } else if (strcmp(cmd->valuestring, "button") == 0) {
+      cJSON* dev = cJSON_GetObjectItem(root, "dev");
+      cJSON* evt = cJSON_GetObjectItem(root, "evt");
+      if (dev && cJSON_IsNumber(dev) && evt && cJSON_IsNumber(evt)) {
+        handle_button_action_event((device_t)dev->valueint, (button_event_t)evt->valueint);
+      }
+    } else if (strcmp(cmd->valuestring, "goto") == 0) {
+      cJSON* val = cJSON_GetObjectItem(root, "val");
+      if (val && cJSON_IsNumber(val)) {
+        ble_goto_screen(val->valueint);
+        ESP_LOGI(TAG, "Navigated to screen %d via BLE UART", val->valueint);
+      }
+    } else if (strcmp(cmd->valuestring, "startGame") == 0) {
+      cJSON* sp = cJSON_GetObjectItem(root, "sp");
+      cJSON* m = cJSON_GetObjectItem(root, "m");
+      cJSON* max = cJSON_GetObjectItem(root, "max");
+      cJSON* pt = cJSON_GetObjectItem(root, "pt");
+      cJSON* pd = cJSON_GetObjectItem(root, "pd");
+      if (sp && m && max && pt && pd) {
+        start_new_match(sp->valueint, m->valueint, max->valueint, pt->valueint, pd->valueint);
+        ESP_LOGI(TAG, "Started new match via BLE UART. Sport: %d", sp->valueint);
+      }
+    } else if (strcmp(cmd->valuestring, "setServeBypass") == 0) {
+      cJSON* val = cJSON_GetObjectItem(root, "val");
+      if (val && cJSON_IsNumber(val)) {
+        settings_set_serve_bypass((int8_t)val->valueint, true);
+        ESP_LOGI(TAG, "Serve Bypass setting updated via BLE UART to %d", sys_serve_bypass);
+      }
+    } else if (strcmp(cmd->valuestring, "setShortcut") == 0) {
+      cJSON* btn = cJSON_GetObjectItem(root, "btn");
+      cJSON* en = cJSON_GetObjectItem(root, "en");
+      cJSON* sp = cJSON_GetObjectItem(root, "sp");
+      cJSON* m = cJSON_GetObjectItem(root, "m");
+      cJSON* max = cJSON_GetObjectItem(root, "max");
+      cJSON* pt = cJSON_GetObjectItem(root, "pt");
+      cJSON* pd = cJSON_GetObjectItem(root, "pd");
+      if (btn && en && sp && m && max && pt && pd) {
+        settings_set_shortcut((uint8_t)btn->valueint, (bool)en->valueint, (uint8_t)sp->valueint, (uint8_t)m->valueint, (uint8_t)max->valueint, (uint8_t)pt->valueint, (uint8_t)pd->valueint, true);
+        ESP_LOGI(TAG, "Set boot shortcut for button %d via BLE UART.", btn->valueint);
+      }
+    }
+  }
+  cJSON_Delete(root);
+}
+
+static void gatts_profile_a_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_if, esp_ble_gatts_cb_param_t* param) {
+  switch ((int)event) {
+    case ESP_GATTS_REG_EVT:
+      ESP_LOGI(TAG, "REGISTER_APP_EVT, status %d, app_id %d", param->reg.status, param->reg.app_id);
+      gatts_profile_tab[GATTS_PROFILE_A_APP_ID].service_id.is_primary = true;
+      gatts_profile_tab[GATTS_PROFILE_A_APP_ID].service_id.id.inst_id = 0x00;
+      gatts_profile_tab[GATTS_PROFILE_A_APP_ID].service_id.id.uuid.len = ESP_UUID_LEN_128;
+      memcpy(gatts_profile_tab[GATTS_PROFILE_A_APP_ID].service_id.id.uuid.uuid.uuid128, nus_service_uuid, 16);
+
+      esp_ble_gap_set_device_name(sys_ble_name);
+      esp_ble_gap_config_adv_data(&adv_data);
+      adv_config_done |= 1;
+      esp_ble_gap_config_adv_data(&scan_rsp_data);
+      adv_config_done |= 2;
+
+      esp_ble_gatts_create_service(gatts_if, &gatts_profile_tab[GATTS_PROFILE_A_APP_ID].service_id, GATTS_NUM_HANDLE);
+      break;
+    case ESP_GATTS_WRITE_EVT: {
+      if (param->write.handle == gatts_profile_tab[GATTS_PROFILE_A_APP_ID].char_rx_handle) {
+        char* json_str = (char*)malloc(param->write.len + 1);
+        if (json_str) {
+          memcpy(json_str, param->write.value, param->write.len);
+          json_str[param->write.len] = '\0';
+          ESP_LOGI(TAG, "RX: %s", json_str);
+          process_json_command(json_str);
+          free(json_str);
+        }
+      } else if (param->write.handle == gatts_profile_tab[GATTS_PROFILE_A_APP_ID].descr_handle) {
+        uint16_t descr_value = param->write.value[1] << 8 | param->write.value[0];
+        if (descr_value == 0x0001) {
+          ESP_LOGI(TAG, "Notify enabled");
+        } else if (descr_value == 0x0000) {
+          ESP_LOGI(TAG, "Notify disabled");
+        }
+      }
+      if (param->write.need_rsp) {
+        esp_ble_gatts_send_response(gatts_if, param->write.conn_id, param->write.trans_id, ESP_GATT_OK, NULL);
+      }
+      break;
+    }
+    case ESP_GATTS_MTU_EVT:
+      ESP_LOGI(TAG, "ESP_GATTS_MTU_EVT, MTU %d", param->mtu.mtu);
+      break;
+    case ESP_GATTS_CREATE_EVT: {
+      ESP_LOGI(TAG, "CREATE_SERVICE_EVT, status %d,  service_handle %d", param->create.status, param->create.service_handle);
+      gatts_profile_tab[GATTS_PROFILE_A_APP_ID].service_handle = param->create.service_handle;
+
+      esp_bt_uuid_t char_rx_uuid;
+      char_rx_uuid.len = ESP_UUID_LEN_128;
+      memcpy(char_rx_uuid.uuid.uuid128, nus_rx_uuid, 16);
+      esp_ble_gatts_add_char(gatts_profile_tab[GATTS_PROFILE_A_APP_ID].service_handle,
+                             &char_rx_uuid, ESP_GATT_PERM_WRITE,
+                             ESP_GATT_CHAR_PROP_BIT_WRITE | ESP_GATT_CHAR_PROP_BIT_WRITE_NR,
+                             NULL, NULL);
+
+      esp_bt_uuid_t char_tx_uuid;
+      char_tx_uuid.len = ESP_UUID_LEN_128;
+      memcpy(char_tx_uuid.uuid.uuid128, nus_tx_uuid, 16);
+      esp_ble_gatts_add_char(gatts_profile_tab[GATTS_PROFILE_A_APP_ID].service_handle,
+                             &char_tx_uuid, ESP_GATT_PERM_READ,
+                             ESP_GATT_CHAR_PROP_BIT_NOTIFY,
+                             NULL, NULL);
+      break;
+    }
+    case ESP_GATTS_ADD_CHAR_EVT: {
+      if (param->add_char.char_uuid.len == ESP_UUID_LEN_128) {
+        if (memcmp(param->add_char.char_uuid.uuid.uuid128, nus_rx_uuid, 16) == 0) {
+          gatts_profile_tab[GATTS_PROFILE_A_APP_ID].char_rx_handle = param->add_char.attr_handle;
+        } else if (memcmp(param->add_char.char_uuid.uuid.uuid128, nus_tx_uuid, 16) == 0) {
+          gatts_profile_tab[GATTS_PROFILE_A_APP_ID].char_tx_handle = param->add_char.attr_handle;
+
+          // Add CCCD for TX Notify
+          esp_ble_gatts_add_char_descr(gatts_profile_tab[GATTS_PROFILE_A_APP_ID].service_handle,
+                                       &notify_descr_uuid,
+                                       ESP_GATT_PERM_READ | ESP_GATT_PERM_WRITE,
+                                       NULL, NULL);
+        }
+      }
+      break;
+    }
+    case ESP_GATTS_ADD_CHAR_DESCR_EVT:
+      gatts_profile_tab[GATTS_PROFILE_A_APP_ID].descr_handle = param->add_char_descr.attr_handle;
+      esp_ble_gatts_start_service(gatts_profile_tab[GATTS_PROFILE_A_APP_ID].service_handle);
+      break;
+    case ESP_GATTS_CONNECT_EVT: {
+      esp_ble_conn_update_params_t conn_params = {};
+      memcpy(conn_params.bda, param->connect.remote_bda, sizeof(esp_bd_addr_t));
+      conn_params.latency = 0;
+      conn_params.max_int = 0x20;
+      conn_params.min_int = 0x10;
+      conn_params.timeout = 400;
+      gatts_profile_tab[GATTS_PROFILE_A_APP_ID].conn_id = param->connect.conn_id;
+      esp_ble_gap_update_conn_params(&conn_params);
+
+      // Throttle Wi-Fi TX power to 2 dBm while BLE is active to prevent brownouts
+      esp_wifi_set_max_tx_power(8);
+      is_ble_connected = true;
+      ESP_LOGI(TAG, "BLE Connected. Wi-Fi TX power reduced to 2 dBm.");
+      break;
+    }
+    case ESP_GATTS_DISCONNECT_EVT:
+      gatts_profile_tab[GATTS_PROFILE_A_APP_ID].conn_id = 0xFFFF;
+      esp_ble_gap_start_advertising(&adv_params);
+
+      // Restore Wi-Fi TX power to 8.5 dBm when BLE is disconnected
+      esp_wifi_set_max_tx_power(34);
+      is_ble_connected = false;
+      ESP_LOGI(TAG, "BLE Disconnected. Wi-Fi TX power restored to 8.5 dBm.");
+      break;
+    default:
+      break;
+  }
+}
+
+static void esp_gatts_cb(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_if, esp_ble_gatts_cb_param_t* param) {
+  if (event == ESP_GATTS_REG_EVT) {
+    if (param->reg.status == ESP_GATT_OK) {
+      gatts_profile_tab[param->reg.app_id].gatts_if = gatts_if;
+    } else {
+      return;
+    }
+  }
+
+  for (int idx = 0; idx < 1; idx++) {
+    if (gatts_if == ESP_GATT_IF_NONE || gatts_if == gatts_profile_tab[idx].gatts_if) {
+      if (gatts_profile_tab[idx].gatts_cb) {
+        gatts_profile_tab[idx].gatts_cb(event, gatts_if, param);
+      }
+    }
+  }
+}
+
 void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t* param);
 void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if, esp_ble_gattc_cb_param_t* param);
 
 void init_button_contexts() {
   for (int device = 0; device < 2; device++) {
     for (int button = 0; button < 3; button++) {
-      button_contexts[device][button].device_id = device + 1;  // DEVICE_1 or DEVICE_2
-      button_contexts[device][button].button_id = button;      // BUTTON / BUTTON_A or BUTTON_B
+      button_contexts[device][button].device_id = (device_t)(device + 1);  // DEVICE_1 or DEVICE_2
+      button_contexts[device][button].button_id = (button_t)button;        // BUTTON / BUTTON_A or BUTTON_B
       button_contexts[device][button].state = BUTTON_STATE_RELEASED;
     }
   }
@@ -62,6 +576,8 @@ void init_ble() {
   ESP_ERROR_CHECK(esp_bluedroid_enable());
 
   ESP_ERROR_CHECK(esp_ble_gap_register_callback(esp_gap_cb));
+  ESP_ERROR_CHECK(esp_ble_gatts_register_callback(esp_gatts_cb));
+  ESP_ERROR_CHECK(esp_ble_gatts_app_register(GATTS_PROFILE_A_APP_ID));
   ESP_ERROR_CHECK(esp_ble_gattc_register_callback(esp_gattc_cb));
   ESP_ERROR_CHECK(esp_ble_gattc_app_register(PROFILE_A_APP_ID));
   esp_ble_gatt_set_local_mtu(500);
@@ -74,6 +590,18 @@ void init_ble() {
       device_connections[i].device_id = (device_t)(i + 1);
     }
   }
+}
+
+void ble_disable() {
+  esp_ble_gap_stop_advertising();
+  esp_ble_gap_stop_scanning();
+  ESP_LOGI(TAG, "BLE implicitly disabled (Stopped Adv/Scan)");
+}
+
+void ble_enable() {
+  esp_ble_gap_start_advertising(&adv_params);
+  esp_ble_gap_start_scanning(0);
+  ESP_LOGI(TAG, "BLE implicitly enabled (Started Adv/Scan)");
 }
 
 char* bda2str(uint8_t* bda, char* str, size_t size) {
@@ -280,8 +808,9 @@ const uint8_t* find_ad_type(const uint8_t* adv_all, uint8_t adv_len, uint8_t sr_
 
 static void gattc_profile_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if, esp_ble_gattc_cb_param_t* param) {
   esp_ble_gattc_cb_param_t* p_data = (esp_ble_gattc_cb_param_t*)param;
+  conn_ctx_t* ctx;
 
-  switch (event) {
+  switch ((int)event) {
     case ESP_GATTC_REG_EVT:
       ESP_LOGI(TAG, "GATT client register, status %d, app_id %d, gattc_if %d", param->reg.status, param->reg.app_id, gattc_if);
       {
@@ -294,7 +823,7 @@ static void gattc_profile_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_
     case ESP_GATTC_CONNECT_EVT: {
       ESP_LOGI(TAG, "Connected, conn_id %d, remote " ESP_BD_ADDR_STR "", p_data->connect.conn_id,
                ESP_BD_ADDR_HEX(p_data->connect.remote_bda));
-      conn_ctx_t* ctx = alloc_ctx_for_bda(p_data->connect.remote_bda);
+      ctx = alloc_ctx_for_bda(p_data->connect.remote_bda);
       if (ctx) {
         ctx->conn_id = p_data->connect.conn_id;
         active_conn_count++;
@@ -328,7 +857,7 @@ static void gattc_profile_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_
       break;
     case ESP_GATTC_SEARCH_RES_EVT: {
       ESP_LOGI(TAG, "Service search result conn=%x primary=%d start=0x%04x end=0x%04x", p_data->search_res.conn_id, p_data->search_res.is_primary, p_data->search_res.start_handle, p_data->search_res.end_handle);
-      conn_ctx_t* ctx = get_ctx_by_conn(p_data->search_res.conn_id);
+      ctx = get_ctx_by_conn(p_data->search_res.conn_id);
       if (ctx && p_data->search_res.srvc_id.uuid.len == ESP_UUID_LEN_16) {
         uint16_t suuid = p_data->search_res.srvc_id.uuid.uuid.uuid16;
         if (suuid == UUID_SVC_IAS) {
@@ -356,7 +885,7 @@ static void gattc_profile_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_
       break;
     }
     case ESP_GATTC_SEARCH_CMPL_EVT: {
-      conn_ctx_t* ctx = get_ctx_by_conn(p_data->search_cmpl.conn_id);
+      ctx = get_ctx_by_conn(p_data->search_cmpl.conn_id);
       if (!ctx) break;
       if (p_data->search_cmpl.status != ESP_GATT_OK) {
         ESP_LOGE(TAG, "Service search failed, status %x", p_data->search_cmpl.status);
@@ -569,7 +1098,7 @@ static void gattc_profile_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_
         uint16_t count = 0;
         uint16_t notify_en = 1;
         // Choose proper service range for the characteristic we registered
-        conn_ctx_t* ctx = get_ctx_by_handle(p_data->reg_for_notify.handle);
+        ctx = get_ctx_by_handle(p_data->reg_for_notify.handle);
         uint16_t range_start = 0;
         uint16_t range_end = 0;
         if (ctx) {
@@ -597,7 +1126,7 @@ static void gattc_profile_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_
           break;
         }
         if (count > 0) {
-          descr_elem_result = malloc(sizeof(esp_gattc_descr_elem_t) * count);
+          descr_elem_result = (esp_gattc_descr_elem_t*)malloc(sizeof(esp_gattc_descr_elem_t) * count);
           if (!descr_elem_result) {
             ESP_LOGE(TAG, "malloc error, gattc no mem");
             break;
@@ -615,20 +1144,20 @@ static void gattc_profile_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_
               break;
             }
             if (count > 0 && descr_elem_result[0].uuid.len == ESP_UUID_LEN_16 && descr_elem_result[0].uuid.uuid.uuid16 == ESP_GATT_UUID_CHAR_CLIENT_CONFIG) {
-              ret_status = esp_ble_gattc_write_char_descr(gattc_if,
-                                                          ctx ? ctx->conn_id : gl_profile_tab[PROFILE_A_APP_ID].conn_id,
-                                                          descr_elem_result[0].handle,
-                                                          sizeof(notify_en),
-                                                          (uint8_t*)&notify_en,
-                                                          ESP_GATT_WRITE_TYPE_RSP,
-                                                          ESP_GATT_AUTH_REQ_NONE);
-              ESP_LOGI(TAG, "Enabled notifications for handle 0x%04x via CCCD 0x%04x", p_data->reg_for_notify.handle, descr_elem_result[0].handle);
+              esp_err_t err = esp_ble_gattc_write_char_descr(gattc_if,
+                                                             ctx ? ctx->conn_id : gl_profile_tab[PROFILE_A_APP_ID].conn_id,
+                                                             descr_elem_result[0].handle,
+                                                             sizeof(notify_en),
+                                                             (uint8_t*)&notify_en,
+                                                             ESP_GATT_WRITE_TYPE_RSP,
+                                                             ESP_GATT_AUTH_REQ_NONE);
+              if (err != ESP_OK) {
+                ESP_LOGE(TAG, "esp_ble_gattc_write_char_descr error: %d", err);
+              } else {
+                ESP_LOGI(TAG, "Enabled notifications for handle 0x%04x via CCCD 0x%04x", p_data->reg_for_notify.handle, descr_elem_result[0].handle);
+              }
             } else {
               ESP_LOGW(TAG, "CCCD not found for handle 0x%04x (descriptor count %u)", p_data->reg_for_notify.handle, count);
-            }
-
-            if (ret_status != ESP_GATT_OK) {
-              ESP_LOGE(TAG, "esp_ble_gattc_write_char_descr error");
             }
 
             free(descr_elem_result);
@@ -641,7 +1170,7 @@ static void gattc_profile_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_
     }
     case ESP_GATTC_NOTIFY_EVT:
       // Interpret iTag button press when coming from FFE1 (press-only behavior)
-      conn_ctx_t* ctx = get_ctx_by_conn(p_data->notify.conn_id);
+      ctx = get_ctx_by_conn(p_data->notify.conn_id);
       if (ctx && ctx->itag.ffe1_char && p_data->notify.handle == ctx->itag.ffe1_char) {
         if (p_data->notify.value_len >= 1) {
           uint8_t v = p_data->notify.value[0];
@@ -668,7 +1197,7 @@ static void gattc_profile_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_
       break;
     case ESP_GATTC_READ_CHAR_EVT:
       if (p_data->read.status == ESP_GATT_OK) {
-        conn_ctx_t* ctx = get_ctx_by_conn(p_data->read.conn_id);
+        ctx = get_ctx_by_conn(p_data->read.conn_id);
         if (ctx && ctx->itag.batt_level_char && p_data->read.handle == ctx->itag.batt_level_char && p_data->read.value_len >= 1) {
           uint8_t pct = p_data->read.value[0];
           ESP_LOGI(TAG, "[%02X:%02X:%02X:%02X:%02X:%02X] Battery Level: %u%% (0x%02x)",
@@ -710,7 +1239,7 @@ static void gattc_profile_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_
       ESP_LOGI(TAG, "Characteristic write successfully");
       break;
     case ESP_GATTC_DISCONNECT_EVT: {
-      conn_ctx_t* ctx = get_ctx_by_conn(p_data->disconnect.conn_id);
+      ctx = get_ctx_by_conn(p_data->disconnect.conn_id);
       if (ctx) {
         if (ctx->beep_off_timer) {
           esp_timer_stop(ctx->beep_off_timer);
@@ -762,7 +1291,24 @@ static void gattc_profile_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_
 }
 
 void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t* param) {
-  switch (event) {
+  conn_ctx_t* ctx;
+  switch ((int)event) {
+    case ESP_GAP_BLE_ADV_DATA_SET_COMPLETE_EVT:
+      adv_config_done &= (~1);
+      if (adv_config_done == 0) {
+        if (!is_ble_connected) {
+          esp_ble_gap_start_advertising(&adv_params);
+        }
+      }
+      break;
+    case ESP_GAP_BLE_SCAN_RSP_DATA_SET_COMPLETE_EVT:
+      adv_config_done &= (~2);
+      if (adv_config_done == 0) {
+        if (!is_ble_connected) {
+          esp_ble_gap_start_advertising(&adv_params);
+        }
+      }
+      break;
     case ESP_GAP_BLE_SCAN_PARAM_SET_COMPLETE_EVT: {
       uint32_t duration = 0;  // continuous scanning
       esp_ble_gap_start_scanning(duration);
@@ -777,7 +1323,7 @@ void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t* param) {
       break;
     case ESP_GAP_BLE_SCAN_RESULT_EVT: {
       esp_ble_gap_cb_param_t* scan_result = (esp_ble_gap_cb_param_t*)param;
-      switch (scan_result->scan_rst.search_evt) {
+      switch ((int)scan_result->scan_rst.search_evt) {
         case ESP_GAP_SEARCH_INQ_RES_EVT: {
           uint8_t adv_len = scan_result->scan_rst.adv_data_len;
           uint8_t sr_len = scan_result->scan_rst.scan_rsp_len;
@@ -835,7 +1381,7 @@ void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t* param) {
             }
           }
 
-          bool has_ffe0 = false, has_1802 = false;
+          bool has_ffe0 = false, has_1802 = false, has_1812 = false;
           uint8_t uu_len = 0;
           const uint8_t* uu = find_ad_type(adv_all, adv_len, sr_len, ESP_BLE_AD_TYPE_16SRV_CMPL, &uu_len);
           if (!uu || uu_len < 2) uu = find_ad_type(adv_all, adv_len, sr_len, ESP_BLE_AD_TYPE_16SRV_PART, &uu_len);
@@ -844,12 +1390,13 @@ void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t* param) {
               uint16_t uuid16 = uu[i] | (uu[i + 1] << 8);
               if (uuid16 == 0xFFE0) has_ffe0 = true;
               if (uuid16 == 0x1802) has_1802 = true;
+              if (uuid16 == 0x1812) has_1812 = true;
             }
           }
 
-          // Combine all heuristics (explicit MAC, AB Shutter name, iTag patterns/services)
+          // Combine all heuristics (explicit MAC, AB Shutter name, iTag patterns/services, HID)
           bool connect_candidate = is_explicit_target;
-          connect_candidate = connect_candidate || name_is_ab_shutter || name_is_itag || has_ffe0 || has_1802;
+          connect_candidate = connect_candidate || name_is_ab_shutter || name_is_itag || has_ffe0 || has_1802 || has_1812;
 
           // Conditional logging: only before first connection OR if this adv is a candidate
           if (active_conn_count == 0 || connect_candidate) {
@@ -865,7 +1412,7 @@ void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t* param) {
             ESP_LOGI(TAG, "Target candidate at " ESP_BD_ADDR_STR " (explicit:%d ab_shutter:%d itag_name:%d FFE0:%d IAS:%d)",
                      ESP_BD_ADDR_HEX(scan_result->scan_rst.bda), is_explicit_target, name_is_ab_shutter, name_is_itag, has_ffe0, has_1802);
             if (active_conn_count < MAX_CONN) {
-              conn_ctx_t* ctx = alloc_ctx_for_bda(scan_result->scan_rst.bda);
+              ctx = alloc_ctx_for_bda(scan_result->scan_rst.bda);
               if (ctx && ctx->conn_id == 0) {
                 ESP_LOGI(TAG, "Connecting (slot available: %d/%d)", active_conn_count, MAX_CONN);
                 esp_ble_gap_stop_scanning();
@@ -986,7 +1533,7 @@ bool reconnect_device(device_connection_t* conn) {
 
   esp_err_t er = esp_ble_gattc_open(gl_profile_tab[PROFILE_A_APP_ID].gattc_if,
                                     conn->bda,
-                                    conn->addr_type,
+                                    (esp_ble_addr_type_t)conn->addr_type,
                                     true);
   if (er == ESP_OK) {
     ESP_LOGI(TAG, "Reconnect initiated successfully (esp_ble_gattc_open)");
@@ -1026,7 +1573,7 @@ static uint8_t device_battery_levels[MAX_DEVICES] = {0};
 void handle_button_status_event(device_t device_id, status_event_t status, device_type_t device_type) {
   ESP_LOGI(TAG, "Button %d Status: %d", device_id, status);
 
-  switch (status) {
+  switch ((int)status) {
     case CONNECTED:
       if (device_id == DEVICE_1 || device_id == DEVICE_2) {
         g_paired[device_id - 1].paired = true;
@@ -1098,7 +1645,7 @@ void hold_timer_callback(void* arg) {
 }
 
 void start_hold_timer(button_context_t* ctx) {
-  hold_timer_args_t* timer_args = malloc(sizeof(hold_timer_args_t));
+  hold_timer_args_t* timer_args = (hold_timer_args_t*)malloc(sizeof(hold_timer_args_t));
   if (timer_args == NULL) {
     ESP_LOGE(TAG, "Failed to allocate memory for timer arguments");
     return;
@@ -1106,11 +1653,11 @@ void start_hold_timer(button_context_t* ctx) {
 
   timer_args->context = ctx;
 
-  esp_timer_create_args_t create_args = {
-      .callback = &hold_timer_callback,
-      .arg = timer_args,
-      .dispatch_method = ESP_TIMER_TASK,
-      .name = "hold_timer"};
+  esp_timer_create_args_t create_args = {};
+  create_args.callback = &hold_timer_callback;
+  create_args.arg = timer_args;
+  create_args.dispatch_method = ESP_TIMER_TASK;
+  create_args.name = "hold_timer";
 
   esp_timer_create(&create_args, &ctx->timer);
   ctx->press_time = esp_timer_get_time();
@@ -1132,7 +1679,7 @@ void process_button_event(device_t device_id, button_code_t button_state) {
   button_context_t* ctx = NULL;
 
   // Determine which button context to use
-  switch (button_state) {
+  switch ((int)button_state) {
     case BUTTON_PRESS_CODE:
       ctx = &button_contexts[device_idx][BUTTON];
       break;
@@ -1158,7 +1705,7 @@ void process_button_event(device_t device_id, button_code_t button_state) {
 
   if (!ctx) return;
 
-  switch (button_state) {
+  switch ((int)button_state) {
     case BUTTON_PRESS_CODE:
     case BUTTON_A_PRESS_CODE:
     case BUTTON_B_PRESS_CODE:
@@ -1238,6 +1785,7 @@ static conn_ctx_t* find_active_connection_by_bda(const uint8_t* bda) {
 
 void ble_command_task(void* pvParameters) {
   ble_cmd_t cmd;
+  conn_ctx_t* ctx;
   while (1) {
     if (xQueueReceive(ble_cmd_queue, &cmd, portMAX_DELAY) == pdTRUE) {
       ESP_LOGI(TAG, "BLE Cmd: %d Dev: %d Param: %ld", (int)cmd.cmd_type, (int)cmd.device_id, (long)cmd.param);
@@ -1247,10 +1795,10 @@ void ble_command_task(void* pvParameters) {
         dc = &device_connections[cmd.device_id - 1];
       }
 
-      switch (cmd.cmd_type) {
+      switch ((int)cmd.cmd_type) {
         case BLE_CMD_BEEP:
           if (dc) {
-            conn_ctx_t* ctx = find_active_connection_by_bda(dc->bda);
+            ctx = find_active_connection_by_bda(dc->bda);
             if (ctx) {
               itag_beep(ctx, cmd.param);
               ESP_LOGI(TAG, "Beeping device %d", cmd.device_id);
@@ -1262,7 +1810,7 @@ void ble_command_task(void* pvParameters) {
 
         case BLE_CMD_SILENCE:
           if (dc) {
-            conn_ctx_t* ctx = find_active_connection_by_bda(dc->bda);
+            ctx = find_active_connection_by_bda(dc->bda);
             if (ctx) {
               itag_set_button_silence(ctx, cmd.param);
               ESP_LOGI(TAG, "Set silence %d for device %d", (int)cmd.param, (int)cmd.device_id);

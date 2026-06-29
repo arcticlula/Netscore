@@ -26,7 +26,7 @@ void ab_shutter_handle_hid_report(conn_ctx_t* ctx, esp_ble_gattc_cb_param_t* p_d
     ESP_LOGI(TAG, "[%02X:%02X:%02X:%02X:%02X:%02X] BUTTON ACTIVITY (len %d)",
              ctx->bda[0], ctx->bda[1], ctx->bda[2], ctx->bda[3], ctx->bda[4], ctx->bda[5], p_data->notify.value_len);
 
-    button_event_t evt = BUTTON_PRESS_CODE;
+    button_code_t evt = BUTTON_PRESS_CODE;
     if (p_data->notify.value_len >= 1) {
       uint8_t code = p_data->notify.value[0];
       switch (code) {
@@ -86,7 +86,7 @@ void ab_shutter_handle_multi_reports(conn_ctx_t* ctx, esp_ble_gattc_cb_param_t* 
       if (nonzero && p_data->notify.value_len >= 1) {
         uint8_t code = p_data->notify.value[0];
         const char* btn_name;
-        button_event_t evt;
+        button_code_t evt;
 
         switch (code) {
           case 0x00:

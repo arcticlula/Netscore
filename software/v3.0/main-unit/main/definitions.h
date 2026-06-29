@@ -125,45 +125,82 @@ typedef enum {
   // Sport screen
   SPORT_SCR,
   // Set play parameters screen
+  SET_SPORT_MODE_SCR,
   SET_MAX_SCORE_SCR,
   SET_PADEL_GAME_TYPE_SCR,
   SET_PADEL_DEUCE_TYPE_SCR,
   // Play screens
+  PLAY_SERVE_SELECT_SCR,
   PLAY_SCR,
-  PLAY_HOME_WIN_SCR,
-  PLAY_AWAY_WIN_SCR,
+  PLAY_MENU_SCR,
+  PLAY_MENU_PAINEL_SCR,
+  PLAY_WIN_SCR,
   // Practice screens
-  PRACTICE_SCR,
-  PRACTICE_HOME_WIN_SCR,
-  PRACTICE_AWAY_WIN_SCR,
   PRACTICE_TRANSITION_SCR,
   // Settings screens
+  CONNECTING_SCR,
   BRILHO_SCR,
   BATT_SCR,
-  TEST_SCR,
+  CLOCK_SCR,
+  TEST_MENU_SCR,
+  TEST_COUNTER_SCR,
+  TEST_ALL_SCR,
+  TEST_BOMB_SCR,
   // Off screens
   OFF_SCR,
   OFF_2_SCR,
   SLEEP_SCR,
-  SLEEP_2_SCR
+  SLEEP_2_SCR,
+  BRILHO_OVERLAY_SCR,
+  VOLUME_OVERLAY_SCR,
+  OOPS_SCR
 } screen_t;
 
+#define MENU_OPTIONS_COUNT 8
+#define SPORTS_COUNT 6
+#define SPORTS_MODE_COUNT 3
+#define PLAY_MENU_OPTIONS_COUNT 4
+#define TEST_MENU_OPTIONS_COUNT 3
+
 typedef enum {
-  SPORT_PRACTICE = 0,
-  SPORT_VOLLEY,
+  SPORT_VOLLEY = 0,
   SPORT_PADEL,
   SPORT_PING_PONG,
-  SPORT_TENNIS
+  SPORT_TENNIS,
+  SPORT_FOOTBALL,
+  SPORT_BASKETBALL,
+  SPORT_UNKNOWN
 } sport_menu_options_t;
 
 typedef enum {
   MENU_PLAY = 0,
+  MENU_MIRROR_MODE,
   MENU_BRIGHTNESS,
   MENU_DISPLAY_MODE,
   MENU_BATTERY,
+  MENU_CLOCK,
   MENU_OFF,
   MENU_TEST
 } menu_options_t;
+
+typedef enum {
+  PLAY_MENU_SWAP = 0,
+  PLAY_MENU_TIME,
+  PLAY_MENU_PAINEL,
+  PLAY_MENU_EXIT
+} play_menu_options_t;
+
+typedef enum {
+  TEST_COUNTER = 0,
+  TEST_ALL,
+  TEST_BOMB
+} test_menu_options_t;
+
+typedef enum {
+  MODE_PRACTICE = 0,
+  MODE_NORMAL,
+  MODE_TOURNAMENT
+} sport_mode_t;
 
 typedef enum {
   SIDE_A = 0,
@@ -206,18 +243,22 @@ typedef enum {
   BUTTON_CENTER_DOUBLE_PRESS,
   BUTTON_CENTER_HOLD,
   BUTTON_CENTER_REPEAT,
+  BUTTON_CENTER_RELEASE,
   BUTTON_UP_PRESS,
   BUTTON_UP_DOUBLE_PRESS,
   BUTTON_UP_HOLD,
   BUTTON_UP_REPEAT,
+  BUTTON_UP_RELEASE,
   BUTTON_DOWN_PRESS,
   BUTTON_DOWN_DOUBLE_PRESS,
   BUTTON_DOWN_HOLD,
   BUTTON_DOWN_REPEAT,
+  BUTTON_DOWN_RELEASE,
   BUTTON_POWER_PRESS,
   BUTTON_POWER_DOUBLE_PRESS,
   BUTTON_POWER_HOLD,
-  BUTTON_POWER_REPEAT
+  BUTTON_POWER_REPEAT,
+  BUTTON_POWER_RELEASE
 } button_event_t;
 
 typedef enum {
@@ -264,6 +305,9 @@ typedef struct {
   uint8_t away_sets;
   uint8_t home_games;
   uint8_t away_games;
+  uint8_t current_max_score;
+  uint8_t home_sets_practice;
+  uint8_t away_sets_practice;
 } __attribute__((packed)) mirror_state_t;
 
 typedef struct {
@@ -337,11 +381,11 @@ typedef struct {
   uint8_t current;
 } option_string_10_t;
 
-extern uint8_t menu_options[8][10];
-extern uint8_t menu_options_digits[8][10];
+extern uint8_t menu_options[MENU_OPTIONS_COUNT][10];
+extern uint8_t menu_options_digits[MENU_OPTIONS_COUNT][10];
 
-extern uint8_t sport_options[5][10];
-extern uint8_t sport_options_digits[5][10];
+extern uint8_t sport_options[SPORTS_COUNT][10];
+extern uint8_t sport_options_digits[SPORTS_COUNT][10];
 
 extern option_string_2_t padel_game_type_option;
 extern option_string_2_t padel_deuce_option;
@@ -367,3 +411,49 @@ extern display_mode_t last_display_mode;
 
 #define DISPLAY_A_LAYOUT BIG_GREEN_RED, TIME_BLUE, SETS_GREEN_RED
 #define DISPLAY_B_LAYOUT BIG_GREEN_RED, TIME_BLUE, SETS_GREEN_RED
+// Current screen
+extern int8_t window;
+extern bool overlay_window_active;
+extern int8_t overlay_window;
+
+// Screen brightness vector
+#define MAX_BRIGHTNESS_LEVELS 6
+extern uint8_t brightness_levels[MAX_BRIGHTNESS_LEVELS];
+extern uint8_t brightness_index;
+extern uint8_t brightness_animated_index;
+extern uint8_t brightness_percent;
+
+#define MAX_VOLUME_LEVELS 5
+extern uint8_t volume_levels[MAX_VOLUME_LEVELS];
+extern uint8_t volume_index;
+extern uint8_t volume_percent;
+
+extern int8_t sport;
+extern int8_t menu;
+extern sport_mode_t game_mode;
+
+typedef struct {
+  play_menu_options_t current;
+  uint8_t count;
+} play_menu_option_t;
+
+typedef struct {
+  test_menu_options_t current;
+  uint8_t count;
+} test_menu_option_t;
+
+extern play_menu_option_t play_menu;
+extern test_menu_option_t test_menu_option;
+extern uint8_t clock_mode;
+extern display_mode_t display_mode;
+extern display_mode_t last_display_mode;
+
+extern uint8_t sport_mode_options[SPORTS_MODE_COUNT][10];
+extern uint8_t sport_mode_options_digits[SPORTS_MODE_COUNT][10];
+
+extern uint8_t play_menu_options[PLAY_MENU_OPTIONS_COUNT][10];
+extern uint8_t play_menu_options_digits[PLAY_MENU_OPTIONS_COUNT][10];
+
+extern option_string_2_t padel_game_type_option;
+extern option_string_2_t padel_deuce_option;
+extern option_string_10_t practice_option;
