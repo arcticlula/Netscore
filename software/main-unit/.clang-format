@@ -1,0 +1,7 @@
+BasedOnStyle: Google
+ColumnLimit: 0
+AllowShortFunctionsOnASingleLine: All
+AllowShortBlocksOnASingleLine: Always
+AllowShortIfStatementsOnASingleLine: Always
+AllowShortLoopsOnASingleLine: true
+BreakBeforeBraces: Attach
