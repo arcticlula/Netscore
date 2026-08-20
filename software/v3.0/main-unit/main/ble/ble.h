@@ -130,7 +130,7 @@ bool reconnect_device(device_connection_t* conn);
 // Update device connection status
 void process_button_event(device_t device_id, button_code_t button_state);
 
-void handle_button_action_event(device_t device_id, button_event_t button_state);
+void handle_button_action_event(device_t device_id, button_event_t button_state, bool remote = false);
 void handle_button_status_event(device_t device_id, status_event_t status, device_type_t device_type);
 void handle_device_battery_event(device_t device_id, uint8_t battery_level);
 

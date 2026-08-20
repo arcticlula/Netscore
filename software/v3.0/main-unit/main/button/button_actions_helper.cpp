@@ -36,7 +36,9 @@ void go_back() {
   switch (window) {
     case CONNECTING_SCR:
       sys_mirror_mode = false;
+      mirror_reset_runtime();
       ble_enable();
+      update_main_board_led(false);
       init_menu_scr();
       break;
     case MENU_SCR:
@@ -103,6 +105,12 @@ void go_back() {
     case PLAY_WIN_SCR:
     case PRACTICE_TRANSITION_SCR:
       play_undo_point(DEVICE_NONE);
+      init_play_scr();
+      break;
+    case TEST_COUNTER_SCR:
+    case TEST_ALL_SCR:
+    case TEST_BOMB_SCR:
+      init_test_menu_scr();
       break;
     default:
       init_oops_scr();
@@ -258,14 +266,32 @@ void navigate_sport_mode(uint8_t button) {
 }
 
 void populate_sport_mode_options() {
-  if (sport == SPORT_VOLLEY) {
-    if (game_mode == MODE_PRACTICE) {
-      const uint8_t options[] = {12, 15};
-      set_max_score_options(options, 2, 0);
-    } else {
-      uint8_t options[] = {12, 15, 21, 25};
-      set_max_score_options(options, 4, 3);
-    }
+  switch (sport) {
+    case SPORT_VOLLEY:
+      if (game_mode == MODE_PRACTICE) {
+        const uint8_t options[] = {12, 15};
+        set_max_score_options(options, 2, 0);
+      } else {
+        const uint8_t options[] = {12, 15, 21, 25};
+        set_max_score_options(options, 4, 3);
+      }
+      break;
+    case SPORT_PING_PONG:
+      if (game_mode == MODE_NORMAL) {
+        const uint8_t options[] = {11, 21};
+        set_max_score_options(options, 2, 0);
+      }
+      break;
+    case SPORT_PADEL:
+      break;
+    case SPORT_TENNIS:
+      break;
+    case SPORT_FOOTBALL:
+      break;
+    case SPORT_BASKETBALL:
+      break;
+    default:
+      break;
   }
 }
 
@@ -433,11 +459,8 @@ void enter_play_next() {
 }
 
 void play_add_point(uint8_t device_id, bool reverse, bool is_fast) {
-  if (device_id == DEVICE_1) {
-    add_point(reverse ? AWAY : HOME, is_fast);
-  } else if (device_id == DEVICE_2) {
-    add_point(reverse ? HOME : AWAY, is_fast);
-  }
+  team_t team = (device_id == DEVICE_1) ? (reverse ? AWAY : HOME) : (reverse ? HOME : AWAY);
+  add_point(team, is_fast);
   if (window == PLAY_SCR) {
     re_init_play_scr();
   }
@@ -445,7 +468,7 @@ void play_add_point(uint8_t device_id, bool reverse, bool is_fast) {
 
 void play_sync_after_fast_add(uint8_t device_id, bool reverse) {
   team_t team = (device_id == DEVICE_1) ? (reverse ? AWAY : HOME) : (reverse ? HOME : AWAY);
-  play_add_point_sound();
+  play_add_point_sound(team);
   init_bar_led_wave_transition(2000, team);
   if (window == PLAY_SCR) {
     re_init_play_scr();
@@ -467,7 +490,7 @@ void play_undo_point(uint8_t device_id, bool reverse) {
 
   // send_beep(DEVICE_1, BUTTON_DOUBLE_BEEP);
   // send_beep(DEVICE_2, BUTTON_DOUBLE_BEEP);
-  if (window == PLAY_WIN_SCR) {
+  if (window == PLAY_WIN_SCR || window == PRACTICE_TRANSITION_SCR) {
     init_play_scr();
   } else {
     re_init_play_scr();

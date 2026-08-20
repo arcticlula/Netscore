@@ -16,6 +16,8 @@
 #include "settings/settings.h"
 #include "storage.h"
 #include "tasks.h"
+#include "wifi/esp-now.h"
+#include "wifi/mirror_actions.h"
 
 // static const char *TAG = "ScoreBoard";
 
@@ -70,11 +72,36 @@ void Match::init_match(sport_menu_options_t sport) {
   } else {
     volley_serve_confirmed = false;
   }
+
+  // Announce the new match (config-only sync chunk) to the passive unit
+  if (unit_is_authority()) {
+    send_full_sync();
+  }
 }
 
 void Match::addPoint(team_t team, bool fast) {
   GameEvent event = {team, (uint64_t)time(NULL), EventType::PointScored, game_mode};
+  applyEvent(event, fast, true);
+}
+
+void Match::applyEvent(const GameEvent &event, bool fast, bool publish) {
+  if (event.type == EventType::PointUndone) {
+    if (history.empty()) return;
+    history.push_back(event);
+    if (publish) send_match_event(event, (uint16_t)history.size(), fast);
+
+    if (sport == SPORT_PADEL) {
+      padel_score = getPadelScore();
+    } else {
+      score = getScore();
+    }
+    point_undone(event.team);
+    return;
+  }
+
+  team_t team = event.team;
   history.push_back(event);
+  if (publish) send_match_event(event, (uint16_t)history.size(), fast);
 
   bool home_set_won = false;
   bool away_set_won = false;
@@ -82,7 +109,7 @@ void Match::addPoint(team_t team, bool fast) {
 
   switch (sport) {
     case SPORT_VOLLEY:
-      if (game_mode == MODE_PRACTICE) {
+      if (event.game_mode == MODE_PRACTICE) {
         old_h_sets = score.home_sets_practice;
         old_a_sets = score.away_sets_practice;
         applyPoint(score, event);
@@ -123,17 +150,8 @@ void Match::addPoint(team_t team, bool fast) {
 }
 
 void Match::undoPoint(team_t team) {
-  if (!history.empty()) {
-    GameEvent event = {team, (uint64_t)time(NULL), EventType::PointUndone, game_mode};
-    history.push_back(event);
-
-    if (sport == SPORT_PADEL) {
-      padel_score = getPadelScore();
-    } else {
-      score = getScore();
-    }
-    point_undone(team);
-  }
+  GameEvent event = {team, (uint64_t)time(NULL), EventType::PointUndone, game_mode};
+  applyEvent(event, false, true);
 }
 
 void Match::undoLastPoint() {
@@ -359,7 +377,7 @@ void set_padel_deuce_type() {
 }
 
 void point_win(team_t team) {
-  play_add_point_sound();
+  play_add_point_sound(team);
   init_bar_led_wave_transition(2000, team);
 }
 

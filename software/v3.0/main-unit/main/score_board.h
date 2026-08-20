@@ -92,6 +92,11 @@ class Match {
   void undoLastPoint();
   void reset();
 
+  // Apply an already-built event (used both locally and when replaying
+  // events received from the peer unit). When publish is true the event is
+  // also sent over the mirror link.
+  void applyEvent(const GameEvent &event, bool fast, bool publish);
+
   score_t getScore() const;
   padel_score_t getPadelScore() const;
   MatchRecord getRecord() const;

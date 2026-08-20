@@ -11,6 +11,7 @@
 typedef struct {
   device_t device_id;
   button_event_t button_event;
+  uint8_t remote;  // 1 = forwarded from the peer unit over ESP-NOW
 } btn_action_t;
 
 extern QueueHandle_t ble_event_queue;

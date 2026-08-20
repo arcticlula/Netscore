@@ -280,6 +280,10 @@ void init_off_scr() {
 }
 
 void init_off_2_scr() {
+  // Mute the mirror link / BLE first: on USB power the LDO cut below has no
+  // effect (VBUS keeps the MCU running), so this is what actually makes the
+  // unit look "gone" to a paired peer.
+  go_to_sleep();
   gpio_set_level((gpio_num_t)LDO_LATCH, LOW);
   window = OFF_2_SCR;
 }

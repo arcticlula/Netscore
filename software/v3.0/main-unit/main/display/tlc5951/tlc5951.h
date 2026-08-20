@@ -21,7 +21,7 @@ class Tlc5951 {
  public:
   void init(
       uint8_t gssin = DEFAULT_GSSIN_PIN,
-      uint8_t dcsin = DEFAULT_DCSIN_PIN,
+      int dcsin = DEFAULT_DCSIN_PIN,  // signed: <0 means "no DCSIN chain" (v3.0)
       uint8_t sclk = DEFAULT_TLC_SCK_PIN,
       uint8_t xlat = DEFAULT_XLAT_PIN,
       uint8_t blank = DEFAULT_BLANK_PIN,

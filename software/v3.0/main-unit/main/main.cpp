@@ -19,6 +19,7 @@
 #include "tasks.h"
 #include "time/app_time.h"
 #include "wifi/esp-now.h"
+#include "wifi/mirror_actions.h"
 
 extern "C" void app_main(void) {
   // Initialize NVS
@@ -33,6 +34,7 @@ extern "C" void app_main(void) {
   Storage::loadSettings();
 
   init_gpio();
+  init_main_board_led();
 
   init_power();
   set_main_board_led(true);
@@ -52,6 +54,9 @@ extern "C" void app_main(void) {
 
   init_adc();
   init_display();
+  // Role is settled by now (init_display() enters mirror mode if configured
+  // to boot as passive) -- reflect it: solid if passive, breathing if main.
+  update_main_board_led(false);
 
   init_buttons();
   vTaskDelay(pdMS_TO_TICKS(10));  // Allow pullups to settle

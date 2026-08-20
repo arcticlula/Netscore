@@ -1,5 +1,5 @@
 idf_component_register(
-    SRCS 
+    SRCS
         "main.cpp"
         "button/button.cpp"
         "button/button_actions.cpp"
@@ -37,6 +37,9 @@ idf_component_register(
         esp_netif 
         esp_wifi
         driver
+        esp_driver_pcnt
+        esp_driver_gptimer
+        esp_driver_sdm
         esp_timer
         esp_adc
         esp_hid

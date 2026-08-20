@@ -8,8 +8,10 @@
 #include "misc.h"
 #include "power/power.h"
 #include "score_board.h"
+#include "settings/settings.h"
 #include "storage.h"
 #include "wifi/esp-now.h"
+#include "wifi/mirror_actions.h"
 
 device_t last_device_pressed = DEVICE_1;
 
@@ -26,9 +28,63 @@ void button_action_task(void *arg) {
         last_device_pressed = device_id;
       }
 
-      if (window == SLEEP_SCR || window == SLEEP_2_SCR) {
-        init_menu_scr();
+      // OFF_SCR/OFF_2_SCR only get here at all when USB power kept the MCU
+      // alive through the "off" transition (see init_off_2_scr) -- on a real
+      // hardware power-off there's nothing left running to receive this.
+      if (window == SLEEP_SCR || window == SLEEP_2_SCR ||
+          window == OFF_SCR || window == OFF_2_SCR) {
+        wake_up();
         continue;
+      }
+
+      // ------------------------------------------------------------------
+      // Passive role: local buttons act as a full remote for the authority
+      // -- every event is forwarded and the resulting state is mirrored
+      // back. Exceptions kept local:
+      //   - power-hold (turn this unit off)
+      //   - the exit-mirror gesture on the connecting screen
+      //   - SWAP / TIME in the play menu are per-unit display preferences:
+      //     they toggle here, and the forwarded confirm only closes the
+      //     menu on the authority (see remote check below).
+      // ------------------------------------------------------------------
+      if (!unit_is_authority()) {
+        if (button_event == BUTTON_POWER_HOLD) {
+          init_off_scr();
+          continue;
+        }
+        if (window == CONNECTING_SCR) {
+          if (button_event == BUTTON_CENTER_HOLD || button_event == BUTTON_UP_HOLD) {
+            go_back();  // exits mirror mode
+          }
+          continue;
+        }
+        // Painel screen is per-unit: while it's open, buttons act on THIS
+        // unit's display mode (fall through to the normal handling below).
+        if (window != PLAY_MENU_PAINEL_SCR) {
+          if (mirror_link_active()) {
+            if (window == MENU_SCR && button_event == BUTTON_CENTER_PRESS &&
+                menu == MENU_DISPLAY_MODE) {
+              // Per-unit: toggle our own faces, leave the main unit alone
+              play_enter_sound();
+              toggle_display_mode();
+              continue;
+            }
+            if (window == PLAY_MENU_SCR && button_event == BUTTON_CENTER_PRESS) {
+              if (play_menu.current == PLAY_MENU_SWAP) {
+                sys_swap_teams = !sys_swap_teams;
+              } else if (play_menu.current == PLAY_MENU_TIME) {
+                show_match_time = !show_match_time;
+              } else if (play_menu.current == PLAY_MENU_PAINEL) {
+                // Open our own painel screen; the forwarded confirm only
+                // closes the menu on the main unit
+                play_enter_sound();
+                init_play_menu_painel_scr();
+              }
+            }
+            send_remote_button(device_id, button_event);
+          }
+          continue;
+        }
       }
 
       switch (button_event) {
@@ -39,6 +95,8 @@ void button_action_task(void *arg) {
             else
               volume_index = 0;
             set_volume();
+            vTaskDelay(pdMS_TO_TICKS(150));
+            send_mirror_state(device_id, button_event);
             continue;
           }
           overlay_window = BRILHO_OVERLAY_SCR;
@@ -48,6 +106,8 @@ void button_action_task(void *arg) {
           else
             brightness_index = 0;
           set_brightness();
+          vTaskDelay(pdMS_TO_TICKS(150));
+          send_mirror_state(device_id, button_event);
           continue;
 
         case BUTTON_POWER_DOUBLE_PRESS:
@@ -58,6 +118,8 @@ void button_action_task(void *arg) {
           else
             volume_index = 0;
           set_volume();
+          vTaskDelay(pdMS_TO_TICKS(150));
+          send_mirror_state(device_id, button_event);
           continue;
 
         case BUTTON_POWER_HOLD:
@@ -84,6 +146,9 @@ void button_action_task(void *arg) {
             case BLE_BTN_HOLD:
             case BLE_BTN_A_HOLD:
             case ITAG_DOUBLE_PRESS:
+              // Never let the mirror remotely turn this unit into a mirror
+              // too -- that would leave both units without an authority.
+              if (event.remote && menu == MENU_MIRROR_MODE) break;
               enter_menu_option();
               break;
             case BUTTON_UP_HOLD:
@@ -333,7 +398,16 @@ void button_action_task(void *arg) {
             case BLE_BTN_HOLD:
             case BLE_BTN_A_HOLD:
             case ITAG_DOUBLE_PRESS:
-              enter_play_menu_option();
+              if (event.remote &&
+                  (play_menu.current == PLAY_MENU_SWAP || play_menu.current == PLAY_MENU_TIME ||
+                   play_menu.current == PLAY_MENU_PAINEL)) {
+                // Per-unit preference: the mirror already handled it on its
+                // side; here we only close the menu.
+                play_enter_sound();
+                re_init_play_scr();
+              } else {
+                enter_play_menu_option();
+              }
               break;
             case BUTTON_CENTER_HOLD:
             case BUTTON_UP_HOLD:
@@ -382,7 +456,6 @@ void button_action_task(void *arg) {
             case BLE_BTN_B_PRESS:
               enter_play_next();
               break;
-            case BUTTON_UP_HOLD:
             case BUTTON_CENTER_HOLD:
             case BLE_BTN_HOLD:
             case BLE_BTN_A_HOLD:
@@ -411,7 +484,6 @@ void button_action_task(void *arg) {
             case ITAG_DOUBLE_PRESS:
               enter_practice_transition();
               break;
-            case BUTTON_UP_HOLD:
             case BUTTON_CENTER_HOLD:
             case BLE_BTN_B_HOLD:
               go_back();
@@ -515,6 +587,8 @@ void button_action_task(void *arg) {
             case ITAG_DOUBLE_PRESS:
               enter_test_menu();
               break;
+            case BUTTON_UP_HOLD:
+            case BUTTON_CENTER_HOLD:
             case BLE_BTN_B_HOLD:
               go_back();
               break;
@@ -526,12 +600,13 @@ void button_action_task(void *arg) {
         case TEST_ALL_SCR:
         case TEST_BOMB_SCR:
           switch (button_event) {
+            case BUTTON_UP_HOLD:
             case BUTTON_CENTER_HOLD:
             case BLE_BTN_HOLD:
             case BLE_BTN_B_HOLD:
             case BLE_BTN_A_HOLD:
             case ITAG_DOUBLE_PRESS:
-              init_test_menu_scr();
+              go_back();
               break;
             default:
               break;
@@ -539,7 +614,9 @@ void button_action_task(void *arg) {
           break;
       }
 
-      if (button_event != BUTTON_UP_REPEAT && button_event != BUTTON_DOWN_REPEAT) {
+      // Only the authority broadcasts UI state
+      if (unit_is_authority() &&
+          button_event != BUTTON_UP_REPEAT && button_event != BUTTON_DOWN_REPEAT) {
         // Delay ESP-NOW transmission to avoid peak current overlap with buzzer/display
         vTaskDelay(pdMS_TO_TICKS(150));
         send_mirror_state(device_id, button_event);

@@ -28,7 +28,12 @@ extern uint8_t boot_shortcut_triggered;
 extern side_t slots;
 
 void init_gpio();
+void init_main_board_led();
 void set_main_board_led(bool enable);
+// Solid while passive, breathing (hardware LEDC fade, no polling) while this
+// unit holds match authority ("main"), off while asleep/powered off. Call
+// once whenever role or sleep state actually changes.
+void update_main_board_led(bool asleep);
 
 /**void get_preferences();
 void reset_preferences();

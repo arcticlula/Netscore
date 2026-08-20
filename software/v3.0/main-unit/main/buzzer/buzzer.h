@@ -5,6 +5,8 @@
 #include <freertos/queue.h>
 #include <stdint.h>
 
+#include <cstdint>
+
 #include "definitions.h"
 
 typedef enum {
@@ -42,6 +44,7 @@ void init_buzzer();
 void init_melody_timer(void);
 void set_buzzer_volume(uint16_t volume_percent);
 uint16_t calculate_buzzer_volume(uint16_t local_volume_percent);
+uint16_t adjust_volume_for_frequency(uint16_t raw_volume, uint16_t frequency);
 
 void buzzer_play(uint8_t buzzer, note_t note, uint8_t octave, int16_t duration_ms, uint8_t volume);
 void buzzer_stop(uint8_t side);
@@ -57,7 +60,7 @@ void play_small_beep();
 void play_nav_sound(uint8_t button, bool is_fast = false);
 void play_enter_sound();
 void play_go_back_sound();
-void play_add_point_sound();
+void play_add_point_sound(team_t team);
 void play_undo_point_sound();
 void play_win_sound();
 void play_bomb_tick();

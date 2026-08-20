@@ -4,14 +4,14 @@
 #include <cstdint>
 
 #include "driver/gpio.h"
-#include "driver/ledc.h"
+#include "driver/gptimer.h"
+#include "driver/sdm.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 #include "esp_log.h"
-#include "esp_rom_gpio.h"
 #include "esp_timer.h"
 #include "misc.h"
 #include "settings/settings.h"
-#include "soc/gpio_sig_map.h"
-#include "soc/gpio_struct.h"
 #include "tasks.h"
 
 static const char* TAG = "BUZZER";
@@ -41,67 +41,112 @@ esp_timer_handle_t timer_stop_buzzer_b_handle;
 
 esp_timer_handle_t melody_timer_handle;
 
-#define BUZZER_A_NEG_LEDC_CHN LEDC_CHANNEL_4
-#define BUZZER_B_NEG_LEDC_CHN LEDC_CHANNEL_5
+// ---------------------------------------------------------------------------
+// Tone hardware: DRV8662 piezo driver fed by a sigma-delta (SDM) stream on
+// BUZZER_OUT_PIN, amplitude-scaled sine synthesized in a GPTimer tick.
+// See hardware/docs/audio.md for the analog side: 2-pole RC reconstruction
+// filter and EN sequencing per DRV8662 datasheet 7.4.1.
+// ---------------------------------------------------------------------------
+
+#define SDM_SAMPLE_RATE_HZ 1000000  // SDM output pulse rate (spread to MHz, killed by the RC filter)
+#define TONE_UPDATE_HZ 32000        // sine sample rate into the SDM density register
+
+static sdm_channel_handle_t sdm_chan = NULL;
+static gptimer_handle_t tone_timer = NULL;
+
+// tone state shared with the timer callback
+static volatile uint32_t phase_inc = 0;  // fixed-point: 2^32 = one sine period
+static volatile uint16_t tone_amp = 0;   // 0..4096
+static uint32_t phase_acc = 0;
+
+// quarter-wave-symmetric would be smaller; a full 256-entry table is simpler
+static const int8_t sine_lut[256] = {
+    0, 3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36, 39, 42, 45, 48, 51, 54, 57,
+    59, 62, 65, 67, 70, 73, 75, 78, 80, 82, 85, 87, 89, 91, 94, 96, 98, 100,
+    102, 103, 105, 107, 108, 110, 112, 113, 114, 116, 117, 118, 119, 120, 121,
+    122, 123, 123, 124, 125, 125, 126, 126, 126, 126, 126, 127, 126, 126, 126,
+    126, 126, 125, 125, 124, 123, 123, 122, 121, 120, 119, 118, 117, 116, 114,
+    113, 112, 110, 108, 107, 105, 103, 102, 100, 98, 96, 94, 91, 89, 87, 85,
+    82, 80, 78, 75, 73, 70, 67, 65, 62, 59, 57, 54, 51, 48, 45, 42, 39, 36, 33,
+    30, 27, 24, 21, 18, 15, 12, 9, 6, 3, 0, -3, -6, -9, -12, -15, -18, -21,
+    -24, -27, -30, -33, -36, -39, -42, -45, -48, -51, -54, -57, -59, -62, -65,
+    -67, -70, -73, -75, -78, -80, -82, -85, -87, -89, -91, -94, -96, -98, -100,
+    -102, -103, -105, -107, -108, -110, -112, -113, -114, -116, -117, -118,
+    -119, -120, -121, -122, -123, -123, -124, -125, -125, -126, -126, -126,
+    -126, -126, -127, -126, -126, -126, -126, -126, -125, -125, -124, -123,
+    -123, -122, -121, -120, -119, -118, -117, -116, -114, -113, -112, -110,
+    -108, -107, -105, -103, -102, -100, -98, -96, -94, -91, -89, -87, -85, -82,
+    -80, -78, -75, -73, -70, -67, -65, -62, -59, -57, -54, -51, -48, -45, -42,
+    -39, -36, -33, -30, -27, -24, -21, -18, -15, -12, -9, -6, -3};
+
+static bool tone_tick(gptimer_handle_t timer, const gptimer_alarm_event_data_t* edata, void* user_ctx) {
+  phase_acc += phase_inc;
+  int32_t s = sine_lut[phase_acc >> 24];
+  // amplitude 0..4096 -> density -127..127
+  sdm_channel_set_pulse_density(sdm_chan, (int8_t)((s * (int32_t)tone_amp) >> 12));
+  return false;
+}
+
+static void drv8662_init(void) {
+  sdm_config_t cfg = {};
+  cfg.gpio_num = BUZZER_OUT_PIN;
+  cfg.clk_src = SDM_CLK_SRC_DEFAULT;
+  cfg.sample_rate_hz = SDM_SAMPLE_RATE_HZ;
+  ESP_ERROR_CHECK(sdm_new_channel(&cfg, &sdm_chan));
+  ESP_ERROR_CHECK(sdm_channel_enable(sdm_chan));
+  sdm_channel_set_pulse_density(sdm_chan, 0);  // mid-scale = silence
+
+  gptimer_config_t tcfg = {};
+  tcfg.clk_src = GPTIMER_CLK_SRC_DEFAULT;
+  tcfg.direction = GPTIMER_COUNT_UP;
+  tcfg.resolution_hz = 1000000;
+  ESP_ERROR_CHECK(gptimer_new_timer(&tcfg, &tone_timer));
+
+  gptimer_alarm_config_t acfg = {};
+  acfg.alarm_count = 1000000 / TONE_UPDATE_HZ;
+  acfg.reload_count = 0;
+  acfg.flags.auto_reload_on_alarm = true;
+  ESP_ERROR_CHECK(gptimer_set_alarm_action(tone_timer, &acfg));
+
+  gptimer_event_callbacks_t cbs = {};
+  cbs.on_alarm = tone_tick;
+  ESP_ERROR_CHECK(gptimer_register_event_callbacks(tone_timer, &cbs, NULL));
+  ESP_ERROR_CHECK(gptimer_enable(tone_timer));
+
+  gpio_set_direction((gpio_num_t)DRV_EN_PIN, GPIO_MODE_OUTPUT);
+  gpio_set_level((gpio_num_t)DRV_EN_PIN, 0);  // disabled until first note (R4 pulldown backs this up)
+}
+
+static void drv8662_wake(void) {
+  // DRV8662 datasheet 7.4.1: input at mid-scale, then EN high, then wait for
+  // boost + amplifier settle (startup 1.5 ms typ) before playing.
+  tone_amp = 0;
+  sdm_channel_set_pulse_density(sdm_chan, 0);
+  gpio_set_level((gpio_num_t)DRV_EN_PIN, 1);
+  gptimer_start(tone_timer);
+  vTaskDelay(pdMS_TO_TICKS(2));
+}
+
+static void drv8662_sleep(void) {
+  tone_amp = 0;
+  gptimer_stop(tone_timer);
+  sdm_channel_set_pulse_density(sdm_chan, 0);  // end at mid-scale (no pop)
+  gpio_set_level((gpio_num_t)DRV_EN_PIN, 0);   // shutdown = 13 uA
+}
+
+static void drv8662_tone(uint8_t side, uint32_t freq_hz, uint16_t amplitude) {
+  (void)side;  // single driver feeds both piezos on v3.0
+  phase_inc = (uint32_t)(((uint64_t)freq_hz << 32) / TONE_UPDATE_HZ);
+  tone_amp = (amplitude > 4096) ? 4096 : amplitude;
+}
+
+static void drv8662_off(uint8_t side) {
+  (void)side;
+  tone_amp = 0;
+}
 
 void init_buzzer() {
-  // Configure LEDC timer for both channels
-  ledc_timer_config_t ledc_timer = {};
-  ledc_timer.speed_mode = LEDC_LOW_SPEED_MODE;
-  ledc_timer.duty_resolution = LEDC_TIMER_13_BIT;  // 13-bit resolution
-  ledc_timer.timer_num = LEDC_TIMER_1;             // Use timer 1 for both channels
-  ledc_timer.freq_hz = 1000;                       // 1 kHz PWM frequency
-  ledc_timer.clk_cfg = LEDC_USE_APB_CLK;           // Default clock source
-  ledc_timer_config(&ledc_timer);
-
-  // Configure LEDC channel for buzzer A POS
-  ledc_channel_config_t ledc_channel_a = {};
-  ledc_channel_a.gpio_num = BUZZER_A_POS_PIN;
-  ledc_channel_a.speed_mode = LEDC_LOW_SPEED_MODE;
-  ledc_channel_a.channel = BUZZER_A_LEDC_CHN;
-  ledc_channel_a.intr_type = LEDC_INTR_DISABLE;
-  ledc_channel_a.timer_sel = LEDC_TIMER_1;
-  ledc_channel_a.duty = 0;
-  ledc_channel_a.hpoint = 0;  // POS starts at 0 degrees
-  ledc_channel_config(&ledc_channel_a);
-
-  // Configure LEDC channel for buzzer A NEG
-  ledc_channel_config_t ledc_channel_a_neg = {};
-  ledc_channel_a_neg.gpio_num = BUZZER_A_NEG_PIN;
-  ledc_channel_a_neg.speed_mode = LEDC_LOW_SPEED_MODE;
-  ledc_channel_a_neg.channel = BUZZER_A_NEG_LEDC_CHN;
-  ledc_channel_a_neg.intr_type = LEDC_INTR_DISABLE;
-  ledc_channel_a_neg.timer_sel = LEDC_TIMER_1;
-  ledc_channel_a_neg.duty = 0;
-  ledc_channel_a_neg.hpoint = 4096;  // NEG starts at 180 degrees (half of 8192)
-  ledc_channel_config(&ledc_channel_a_neg);
-
-  // Configure LEDC channel for buzzer B POS
-  ledc_channel_config_t ledc_channel_b = {};
-  ledc_channel_b.gpio_num = BUZZER_B_POS_PIN;
-  ledc_channel_b.speed_mode = LEDC_LOW_SPEED_MODE;
-  ledc_channel_b.channel = BUZZER_B_LEDC_CHN;
-  ledc_channel_b.intr_type = LEDC_INTR_DISABLE;
-  ledc_channel_b.timer_sel = LEDC_TIMER_1;
-  ledc_channel_b.duty = 0;
-  ledc_channel_b.hpoint = 0;
-  ledc_channel_config(&ledc_channel_b);
-
-  // Configure LEDC channel for buzzer B NEG
-  ledc_channel_config_t ledc_channel_b_neg = {};
-  ledc_channel_b_neg.gpio_num = BUZZER_B_NEG_PIN;
-  ledc_channel_b_neg.speed_mode = LEDC_LOW_SPEED_MODE;
-  ledc_channel_b_neg.channel = BUZZER_B_NEG_LEDC_CHN;
-  ledc_channel_b_neg.intr_type = LEDC_INTR_DISABLE;
-  ledc_channel_b_neg.timer_sel = LEDC_TIMER_1;
-  ledc_channel_b_neg.duty = 0;
-  ledc_channel_b_neg.hpoint = 4096;
-  ledc_channel_config(&ledc_channel_b_neg);
-
-  // Initialize DRV_SLEEP_PIN for buzzer driver sleep control
-  gpio_set_direction((gpio_num_t)DRV_SLEEP_PIN, GPIO_MODE_OUTPUT);
-  gpio_set_level((gpio_num_t)DRV_SLEEP_PIN, 0);  // Keep driver asleep initially
-
+  drv8662_init();
   set_buzzer_volume(volume_levels[volume_index]);
   init_melody_timer();
 }
@@ -125,20 +170,9 @@ void play_note(uint8_t side, uint16_t frequency, uint8_t octave, uint8_t volume_
   }
 
   uint16_t adjusted_volume = calculate_buzzer_volume(volume_percent);
-  ledc_set_freq(LEDC_LOW_SPEED_MODE, LEDC_TIMER_1, adjusted_frequency);
+  adjusted_volume = adjust_volume_for_frequency(adjusted_volume, adjusted_frequency);
 
-  if (side == SIDE_A || side == SIDE_BOTH) {
-    ledc_set_duty(LEDC_LOW_SPEED_MODE, BUZZER_A_LEDC_CHN, adjusted_volume);
-    ledc_update_duty(LEDC_LOW_SPEED_MODE, BUZZER_A_LEDC_CHN);
-    ledc_set_duty(LEDC_LOW_SPEED_MODE, BUZZER_A_NEG_LEDC_CHN, adjusted_volume);
-    ledc_update_duty(LEDC_LOW_SPEED_MODE, BUZZER_A_NEG_LEDC_CHN);
-  }
-  if (side == SIDE_B || side == SIDE_BOTH) {
-    ledc_set_duty(LEDC_LOW_SPEED_MODE, BUZZER_B_LEDC_CHN, adjusted_volume);
-    ledc_update_duty(LEDC_LOW_SPEED_MODE, BUZZER_B_LEDC_CHN);
-    ledc_set_duty(LEDC_LOW_SPEED_MODE, BUZZER_B_NEG_LEDC_CHN, adjusted_volume);
-    ledc_update_duty(LEDC_LOW_SPEED_MODE, BUZZER_B_NEG_LEDC_CHN);
-  }
+  drv8662_tone(side, adjusted_frequency, adjusted_volume);
 }
 
 void set_buzzer_volume(uint16_t volume) {
@@ -148,13 +182,26 @@ void set_buzzer_volume(uint16_t volume) {
 uint16_t calculate_buzzer_volume(uint16_t local_volume_percent) {
   if (global_buzzer_volume == 0 || local_volume_percent == 0) return 0;
 
-  float local_factor = (float)local_volume_percent / 100.0f;
-  float global_factor = (float)global_buzzer_volume / 4095.0f;
+  // Exponential mapping (audio taper) from user percent (1-100) to global duty factor (0.0006 to 1.000)
+  // Formula: factor = 0.000557 * exp(0.07493 * volume)
+  float global_factor = 0.000557f * expf(0.07493f * (float)global_buzzer_volume);
+  ESP_LOGI(TAG, "Global factor: %f", global_factor);
 
-  // 50% duty cycle is 4096 (13-bit timer) which corresponds to maximum AC amplitude across the H-bridge without DC bias
+  float local_factor = (float)local_volume_percent / 100.0f;
   uint16_t cmp = (uint16_t)(local_factor * global_factor * 4096.0f);
+  ESP_LOGI(TAG, "Duty: %d", cmp);
+
+  // Enforce a minimum duty cycle so subtle clicks are still audible at low volumes
+  if (cmp < 2) cmp = 2;
   if (cmp > 4096) cmp = 4096;
   return cmp;
+}
+
+uint16_t adjust_volume_for_frequency(uint16_t raw_volume, uint16_t frequency) {
+  // The DRV8662 has no minimum switching pulse width to work around (the v2.0
+  // DRV8833 H-bridge did), so the requested amplitude passes through as-is.
+  (void)frequency;
+  return raw_volume;
 }
 
 void buzzer_play(uint8_t buzzer, note_t note, uint8_t octave, int16_t duration_ms, uint8_t volume) {
@@ -223,18 +270,7 @@ void buzzer_enqueue_melody(uint8_t index, uint8_t volume) {
 }
 
 void buzzer_stop(uint8_t side) {
-  if (side == SIDE_A || side == SIDE_BOTH) {
-    ledc_set_duty(LEDC_LOW_SPEED_MODE, BUZZER_A_LEDC_CHN, 0);
-    ledc_update_duty(LEDC_LOW_SPEED_MODE, BUZZER_A_LEDC_CHN);
-    ledc_set_duty(LEDC_LOW_SPEED_MODE, BUZZER_A_NEG_LEDC_CHN, 0);
-    ledc_update_duty(LEDC_LOW_SPEED_MODE, BUZZER_A_NEG_LEDC_CHN);
-  }
-  if (side == SIDE_B || side == SIDE_BOTH) {
-    ledc_set_duty(LEDC_LOW_SPEED_MODE, BUZZER_B_LEDC_CHN, 0);
-    ledc_update_duty(LEDC_LOW_SPEED_MODE, BUZZER_B_LEDC_CHN);
-    ledc_set_duty(LEDC_LOW_SPEED_MODE, BUZZER_B_NEG_LEDC_CHN, 0);
-    ledc_update_duty(LEDC_LOW_SPEED_MODE, BUZZER_B_NEG_LEDC_CHN);
-  }
+  drv8662_off(side);
 }
 
 melody_note_t* get_melody(uint8_t index, uint8_t* size) {
@@ -259,7 +295,7 @@ void timer_melody_callback(void* arg) {
 }
 
 void play_small_beep() {
-  buzzer_enqueue_note(NOTE_C, 4, 100, 100);
+  buzzer_enqueue_note(NOTE_C, 4, 100, 50);
 }
 
 void play_nav_sound(uint8_t button, bool is_fast) {
@@ -277,8 +313,8 @@ void play_go_back_sound() {
   buzzer_enqueue_note(NOTE_G, 5, 200, 20);
 }
 
-void play_add_point_sound() {
-  buzzer_enqueue_note(NOTE_C, 8, 200, 100);
+void play_add_point_sound(team_t team) {
+  buzzer_enqueue_note(team == HOME ? NOTE_C : NOTE_Cs, 8, 200, 100);
 }
 
 void play_undo_point_sound() {
@@ -302,8 +338,7 @@ void melody_task(void* arg) {
   while (1) {
     if (xQueueReceive(melody_queue, &current_note, drv_awake ? pdMS_TO_TICKS(50) : portMAX_DELAY) == pdTRUE) {
       if (!drv_awake) {
-        gpio_set_level((gpio_num_t)DRV_SLEEP_PIN, 1);
-        esp_rom_delay_us(1000);  // DRV8833 requires at least 1ms to wake up
+        drv8662_wake();  // per-revision enable + settle time
         drv_awake = true;
       }
 
@@ -345,17 +380,8 @@ void melody_task(void* arg) {
           uint32_t start_time = esp_timer_get_time() / 1000;
 
           uint16_t adjusted_volume = calculate_buzzer_volume(current_note.volume);
-          ledc_set_freq(LEDC_LOW_SPEED_MODE, LEDC_TIMER_1, freq1);
-
-          ledc_set_duty(LEDC_LOW_SPEED_MODE, BUZZER_A_LEDC_CHN, adjusted_volume);
-          ledc_update_duty(LEDC_LOW_SPEED_MODE, BUZZER_A_LEDC_CHN);
-          ledc_set_duty(LEDC_LOW_SPEED_MODE, BUZZER_A_NEG_LEDC_CHN, adjusted_volume);
-          ledc_update_duty(LEDC_LOW_SPEED_MODE, BUZZER_A_NEG_LEDC_CHN);
-
-          ledc_set_duty(LEDC_LOW_SPEED_MODE, BUZZER_B_LEDC_CHN, adjusted_volume);
-          ledc_update_duty(LEDC_LOW_SPEED_MODE, BUZZER_B_LEDC_CHN);
-          ledc_set_duty(LEDC_LOW_SPEED_MODE, BUZZER_B_NEG_LEDC_CHN, adjusted_volume);
-          ledc_update_duty(LEDC_LOW_SPEED_MODE, BUZZER_B_NEG_LEDC_CHN);
+          uint16_t vol1 = adjust_volume_for_frequency(adjusted_volume, freq1);
+          drv8662_tone(SIDE_BOTH, freq1, vol1);
 
           while (1) {
             uint32_t now = esp_timer_get_time() / 1000;
@@ -364,8 +390,9 @@ void melody_task(void* arg) {
 
             float progress = (float)elapsed / play_duration;
             uint16_t current_freq = freq1 + (freq2 - freq1) * progress;
+            uint16_t current_volume = adjust_volume_for_frequency(adjusted_volume, current_freq);
 
-            ledc_set_freq(LEDC_LOW_SPEED_MODE, LEDC_TIMER_1, current_freq);
+            drv8662_tone(SIDE_BOTH, current_freq, current_volume);
 
             vTaskDelay(pdMS_TO_TICKS(10));
           }
@@ -383,7 +410,7 @@ void melody_task(void* arg) {
     } else {
       // Timeout occurred, queue is empty, put driver to sleep
       if (drv_awake) {
-        gpio_set_level((gpio_num_t)DRV_SLEEP_PIN, 0);
+        drv8662_sleep();
         drv_awake = false;
       }
     }

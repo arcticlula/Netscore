@@ -168,9 +168,9 @@ void show_play_tennis();
 void show_play_football();
 void show_play_ping_pong();
 void show_play_basketball();
-void show_play_result(uint8_t team);
-void show_play_result_default(uint8_t team);
-void show_play_result_padel(uint8_t team);
+void show_play_result();
+void show_play_result_default();
+void show_play_result_padel();
 void show_sets(uint8_t side);
 void show_practice_transition_scr();
 

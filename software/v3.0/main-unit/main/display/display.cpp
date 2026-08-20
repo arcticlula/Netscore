@@ -110,7 +110,7 @@ void show_display() {
       break;
     case PLAY_WIN_SCR:
       show_time();
-      show_play_result(AWAY);
+      show_play_result();
       break;
     case CONNECTING_SCR:
       show_connecting();
@@ -931,24 +931,15 @@ void show_play_ping_pong() {
   show_number(SIDE_B, POINTS_AWAY_2, score.home_points % 10, 50);
 }
 
-void show_play_result(uint8_t team) {
-  /* if (esp_timer_get_time() - last_interaction_time > 10000000LL && !overlay_window_active) {
-     int8_t original_window = window;
-     init_test_bomb_scr();
-     overlay_window = window;
-     window = original_window;
-     overlay_window_active = true;
-     return;
-   }*/
-
+void show_play_result() {
   if (sport == SPORT_PADEL) {
-    show_play_result_padel(team);
+    show_play_result_padel();
   } else {
-    show_play_result_default(team);
+    show_play_result_default();
   }
 }
 
-void show_play_result_default(uint8_t team) {
+void show_play_result_default() {
   uint8_t set_idx = score.home_sets + score.away_sets + score.home_sets_practice + score.away_sets_practice;
   if (set_idx > 0) set_idx--;  // Get the last played set
 
@@ -957,15 +948,9 @@ void show_play_result_default(uint8_t team) {
   uint8_t away_points_1 = score.set_points_away[set_idx] / 10;
   uint8_t away_points_2 = score.set_points_away[set_idx] % 10;
 
-  if (team == HOME) {
-    set_number(&dw[POINTS_GP_1].c, home_points_1);
-    set_number(&dw[POINTS_GP_2].c, home_points_2);
-  } else {
-    set_number(&dw[POINTS_GP_1].c, away_points_1);
-    set_number(&dw[POINTS_GP_2].c, away_points_2);
-  }
+  bool home_won = score.set_points_home[set_idx] > score.set_points_away[set_idx];
 
-  if (team == HOME) {
+  if (home_won) {
     show_wave(SIDE_A, POINTS_HOME_1, &dw[POINTS_GP_1]);
     show_wave(SIDE_A, POINTS_HOME_2, &dw[POINTS_GP_2]);
     show_number(SIDE_A, POINTS_AWAY_1, away_points_1, 50);
@@ -984,7 +969,7 @@ void show_play_result_default(uint8_t team) {
 
   if (slots == SIDE_A || slots == SIDE_B) return;
 
-  if (team == HOME) {
+  if (home_won) {
     show_number(SIDE_B, POINTS_HOME_1, away_points_1, 50);
     show_number(SIDE_B, POINTS_HOME_2, away_points_2, 50);
     show_wave(SIDE_B, POINTS_AWAY_1, &dw[POINTS_GP_1]);
@@ -1002,7 +987,7 @@ void show_play_result_default(uint8_t team) {
   show_sets(SIDE_B);
 }
 
-void show_play_result_padel(uint8_t team) {
+void show_play_result_padel() {
   uint8_t set_idx = padel_score.home_sets + padel_score.away_sets;
   if (set_idx > 0) set_idx--;  // Get the last played set
 
@@ -1014,8 +999,10 @@ void show_play_result_padel(uint8_t team) {
   uint8_t home_sets = padel_score.home_sets;
   uint8_t away_sets = padel_score.away_sets;
 
+  bool home_won = padel_score.set_games_home[set_idx] > padel_score.set_games_away[set_idx];
+
   // Side A
-  if (team == HOME) {
+  if (home_won) {
     show_wave(SIDE_A, POINTS_HOME_1, &dw[POINTS_GP_1]);
     show_wave(SIDE_A, POINTS_HOME_2, &dw[POINTS_GP_2]);
     show_wave(SIDE_A, SETS_HOME, &dw[SETS_GP]);
@@ -1034,7 +1021,9 @@ void show_play_result_padel(uint8_t team) {
   }
 
   // Side B
-  if (team == HOME) {
+  if (slots == SIDE_A || slots == SIDE_B) return;
+
+  if (home_won) {
     show_number(SIDE_B, POINTS_HOME_1, away_games_1, 50);
     show_number(SIDE_B, POINTS_HOME_2, away_games_2, 50);
     show_number(SIDE_B, SETS_HOME, away_sets, 50);

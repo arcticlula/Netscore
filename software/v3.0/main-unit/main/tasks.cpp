@@ -28,7 +28,7 @@ TaskHandle_t save_task_handle = NULL;
 
 void init_tasks(void) {
   button_action_queue = xQueueCreate(15, sizeof(btn_action_t));
-  mirror_action_queue = xQueueCreate(10, sizeof(mirror_state_t));
+  mirror_action_queue = xQueueCreate(10, sizeof(esp_now_msg_t));
   ble_cmd_queue = xQueueCreate(10, sizeof(ble_cmd_t));
   melody_queue = xQueueCreate(MELODY_QUEUE_LENGTH, sizeof(melody_note_t));
   espnow_queue = xQueueCreate(10, sizeof(esp_now_msg_t));
@@ -36,9 +36,15 @@ void init_tasks(void) {
 
   xTaskCreate(display_logic_task, "display_logic_task", 4096, NULL, 6, &display_logic_task_handle);
   xTaskCreate(button_action_task, "button_action_task", 4096, NULL, 5, &button_action_task_handle);
-  xTaskCreate(mirror_action_task, "mirror_action_task", 4096, NULL, 5, &mirror_action_task_handle);
+  xTaskCreate(mirror_action_task, "mirror_action_task", 6144, NULL, 5, &mirror_action_task_handle);
+  xTaskCreate(espnow_tx_task, "espnow_tx_task", 3072, NULL, 7, NULL);
   xTaskCreate(button_task, "button_task", 4096, NULL, 5, &button_task_handle);
   xTaskCreate(melody_task, "melody_task", 8192, NULL, 4, &melody_task_handle);
+
+  // Board input beyond plain buttons (v3.0 rotary encoder). Started here,
+  // after button_action_queue exists, because the encoder task posts to it.
+  // No-op on v2.0.
+  init_encoder();
   xTaskCreate(connection_monitor_task, "conn_monitor", 4 * 1024, NULL, 1, &conn_monitor_task_handle);
   xTaskCreate(ble_command_task, "ble_cmd_task", 4 * 1024, NULL, 3, &ble_cmd_task_handle);
   xTaskCreate(espnow_task, "espnow_task", 4096, NULL, 8, &espnow_task_handle);

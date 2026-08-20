@@ -6,10 +6,12 @@
 #include "button/button_actions_helper.h"
 #include "buzzer/buzzer.h"
 #include "cJSON.h"
+#include "button/button.h"
 #include "definitions.h"
 #include "display/display_helper.h"
 #include "display/display_init.h"
 #include "driver/gpio.h"
+#include "driver/ledc.h"
 #include "esp_adc/adc_cali.h"
 #include "esp_adc/adc_cali_scheme.h"
 #include "esp_adc/adc_oneshot.h"
@@ -27,7 +29,8 @@ bool show_match_time = false;
 uint8_t boot_shortcut_triggered = 0;
 
 void init_gpio() {
-  gpio_set_direction((gpio_num_t)LED_PIN, GPIO_MODE_OUTPUT);
+  // LED_PIN is driven via LEDC (see init_main_board_led) for the breathing
+  // main/authority indicator, not a plain digital output.
   gpio_set_direction((gpio_num_t)LDO_LATCH, GPIO_MODE_OUTPUT);
   gpio_set_direction((gpio_num_t)LDO_CTRL_EN, GPIO_MODE_OUTPUT);
   gpio_set_direction((gpio_num_t)VCC_CTRL_EN, GPIO_MODE_OUTPUT);
@@ -38,8 +41,82 @@ void init_gpio() {
   gpio_pullup_en(gpio_num_t(SLOT_B_DETECT_PIN));
 }
 
+#define BOARD_LED_DUTY_RES LEDC_TIMER_10_BIT
+#define BOARD_LED_MAX_DUTY 1023
+#define BOARD_LED_MIN_DUTY 40  // never fully off while breathing -- stays visibly "alive"
+#define BOARD_LED_BREATH_HALF_MS 1600  // one direction (dim->bright or back) of the pulse
+
+// Breathing is entirely hardware fades (LEDC's own timer ramps the duty) --
+// nothing polls this every display frame. A fade-end interrupt just wakes a
+// task that's blocked the rest of the time to queue up the next leg.
+static QueueHandle_t s_led_fade_queue = NULL;
+static bool s_led_breathing = false;
+
+static bool IRAM_ATTR board_led_fade_end_cb(const ledc_cb_param_t *param, void *user_arg) {
+  BaseType_t task_woken = pdFALSE;
+  if (param->event == LEDC_FADE_END_EVT && s_led_fade_queue) {
+    uint8_t dummy = 0;
+    xQueueSendFromISR(s_led_fade_queue, &dummy, &task_woken);
+  }
+  return task_woken == pdTRUE;
+}
+
+static void board_led_breath_task(void *arg) {
+  uint8_t dummy;
+  int8_t next_dir = 1;  // 1 = head to MIN next, -1 = head to MAX next
+  while (1) {
+    xQueueReceive(s_led_fade_queue, &dummy, portMAX_DELAY);
+    if (!s_led_breathing) continue;
+    uint32_t target = (next_dir == 1) ? BOARD_LED_MIN_DUTY : BOARD_LED_MAX_DUTY;
+    next_dir = -next_dir;
+    ledc_set_fade_time_and_start(LEDC_LOW_SPEED_MODE, BOARD_LED_LEDC_CHN, target,
+                                  BOARD_LED_BREATH_HALF_MS, LEDC_FADE_NO_WAIT);
+  }
+}
+
+void init_main_board_led() {
+  ledc_timer_config_t timer_conf = {};
+  timer_conf.speed_mode = LEDC_LOW_SPEED_MODE;
+  timer_conf.duty_resolution = BOARD_LED_DUTY_RES;
+  timer_conf.timer_num = BOARD_LED_LEDC_TIMER;
+  timer_conf.freq_hz = 5000;
+  timer_conf.clk_cfg = LEDC_USE_APB_CLK;
+  ledc_timer_config(&timer_conf);
+
+  ledc_channel_config_t channel_conf = {};
+  channel_conf.gpio_num = LED_PIN;
+  channel_conf.speed_mode = LEDC_LOW_SPEED_MODE;
+  channel_conf.channel = BOARD_LED_LEDC_CHN;
+  channel_conf.intr_type = LEDC_INTR_DISABLE;
+  channel_conf.timer_sel = BOARD_LED_LEDC_TIMER;
+  channel_conf.duty = BOARD_LED_MAX_DUTY;  // solid on by default, matches previous behavior
+  channel_conf.hpoint = 0;
+  ledc_channel_config(&channel_conf);
+
+  ledc_fade_func_install(0);
+  s_led_fade_queue = xQueueCreate(1, sizeof(uint8_t));
+  ledc_cbs_t callbacks = {.fade_cb = board_led_fade_end_cb};
+  ledc_cb_register(LEDC_LOW_SPEED_MODE, BOARD_LED_LEDC_CHN, &callbacks, NULL);
+  xTaskCreate(board_led_breath_task, "board_led_breath", 2048, NULL, 1, NULL);
+}
+
 void set_main_board_led(bool enable) {
-  gpio_set_level((gpio_num_t)LED_PIN, enable);
+  ledc_set_duty(LEDC_LOW_SPEED_MODE, BOARD_LED_LEDC_CHN, enable ? BOARD_LED_MAX_DUTY : 0);
+  ledc_update_duty(LEDC_LOW_SPEED_MODE, BOARD_LED_LEDC_CHN);
+}
+
+// Call once whenever role or sleep state actually changes (become_authority,
+// become_passive, go_to_sleep, wake_up) -- never on a timer/poll.
+void update_main_board_led(bool asleep) {
+  s_led_breathing = !asleep && unit_is_authority();
+
+  if (s_led_breathing) {
+    ledc_set_fade_time_and_start(LEDC_LOW_SPEED_MODE, BOARD_LED_LEDC_CHN, BOARD_LED_MIN_DUTY,
+                                  BOARD_LED_BREATH_HALF_MS, LEDC_FADE_NO_WAIT);
+  } else {
+    ledc_fade_stop(LEDC_LOW_SPEED_MODE, BOARD_LED_LEDC_CHN);
+    set_main_board_led(!asleep);
+  }
 }
 
 void set_brightness() {
@@ -222,9 +299,7 @@ void check_slot_status() {
 }
 
 void check_boot_shortcuts() {
-  if (gpio_get_level((gpio_num_t)BUTTON_UP_PIN) == 0) boot_shortcut_triggered = 1;
-  else if (gpio_get_level((gpio_num_t)BUTTON_DOWN_PIN) == 0)
-    boot_shortcut_triggered = 2;
-  else if (gpio_get_level((gpio_num_t)BUTTON_CENTER_PIN) == 0)
-    boot_shortcut_triggered = 3;
+  // 0 = none, 1 = up, 2 = down, 3 = center. On v3.0 only the encoder push
+  // (center) is a hold-able control at boot, so 1/2 never fire there.
+  boot_shortcut_triggered = read_boot_shortcut();
 }

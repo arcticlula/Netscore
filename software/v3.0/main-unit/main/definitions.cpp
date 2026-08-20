@@ -39,7 +39,7 @@ uint8_t volume_percent = volume_levels[volume_index];
 
 test_menu_option_t test_menu_option = {TEST_ALL, TEST_MENU_OPTIONS_COUNT};
 option_string_2_t padel_game_type_option = {{O, O}, {t, b}, LAST};
-option_string_2_t padel_deuce_option = {{G, P}, {A, D}, LAST};
+option_string_2_t padel_deuce_option = {{G, P}, {A, d}, LAST};
 option_string_10_t practice_option = {{C, O, N, t, I, N, U, E}, {P, L, A, Y}, FIRST};
 uint8_t clock_mode = 0;
 

@@ -5,6 +5,10 @@
 #include <freertos/queue.h>
 #include <freertos/task.h>
 
+#include <stdlib.h>
+
+#include "driver/gpio.h"
+#include "driver/pulse_cnt.h"
 #include "button_actions.h"
 #include "definitions.h"
 #include "power/power.h"
@@ -14,6 +18,28 @@
 
 // static const char* TAG = "BUTTONS";
 
+// Physical button roles, mapped to events by role_events() below.
+typedef enum {
+  BOARD_BTN_UP = 0,
+  BOARD_BTN_DOWN,
+  BOARD_BTN_CENTER,
+  BOARD_BTN_POWER,
+} board_button_role_t;
+
+typedef struct {
+  gpio_num_t pin;
+  uint8_t role;
+  bool internal_pullup;
+} board_button_def_t;
+
+// v3.0 has only two physical buttons: the encoder push and power. UP/DOWN are
+// synthesized from encoder rotation (see encoder_task), so role_events() still
+// handles those roles even though no entry here uses them.
+static const board_button_def_t board_button_table[] = {
+    {(gpio_num_t)ENC_SW_PIN, BOARD_BTN_CENTER, true},
+    {(gpio_num_t)BUTTON_POWER_PIN, BOARD_BTN_POWER, true},
+};
+
 typedef enum {
   MODE_NORMAL_AND_LONG_CLICK,
   MODE_AUTO_FIRE_AND_DOUBLE_CLICK,
@@ -22,12 +48,14 @@ typedef enum {
 
 struct polling_btn_state_t {
   gpio_num_t pin;
+  uint8_t role;  // board_button_role_t
   button_event_t press_event;
   button_event_t hold_event;
   button_event_t double_press_event;
   button_event_t repeat_event;
   button_event_t release_event;
   button_mode_t mode;
+  bool internal_pullup;
   bool is_pressed;
   uint32_t press_time;
   uint32_t release_time;
@@ -38,11 +66,51 @@ struct polling_btn_state_t {
   uint16_t repeat_count;
 };
 
-static polling_btn_state_t buttons[4] = {
-    {(gpio_num_t)BUTTON_UP_PIN, BUTTON_UP_PRESS, BUTTON_UP_HOLD, BUTTON_UP_DOUBLE_PRESS, BUTTON_UP_REPEAT, BUTTON_UP_RELEASE, MODE_NORMAL_AND_LONG_CLICK, false, 0, 0, 0, false, 0, 0, 0},
-    {(gpio_num_t)BUTTON_DOWN_PIN, BUTTON_DOWN_PRESS, BUTTON_DOWN_HOLD, BUTTON_DOWN_DOUBLE_PRESS, BUTTON_DOWN_REPEAT, BUTTON_DOWN_RELEASE, MODE_NORMAL_AND_LONG_CLICK, false, 0, 0, 0, false, 0, 0, 0},
-    {(gpio_num_t)BUTTON_CENTER_PIN, BUTTON_CENTER_PRESS, BUTTON_CENTER_HOLD, BUTTON_CENTER_DOUBLE_PRESS, BUTTON_CENTER_REPEAT, BUTTON_CENTER_RELEASE, MODE_NORMAL_AND_LONG_CLICK, false, 0, 0, 0, false, 0, 0, 0},
-    {(gpio_num_t)BUTTON_POWER_PIN, BUTTON_POWER_PRESS, BUTTON_POWER_HOLD, BUTTON_POWER_DOUBLE_PRESS, BUTTON_POWER_PRESS, BUTTON_POWER_PRESS, MODE_POWER_BUTTON, false, 0, 0, 0, false, 0, 0, 0}};
+// Populated at init from board_button_table above: ENC_SW (as CENTER) and
+// POWER. UP/DOWN come from the encoder driver straight onto
+// button_action_queue and never appear here.
+#define MAX_BUTTONS 4
+static polling_btn_state_t buttons[MAX_BUTTONS];
+static int button_count = 0;
+
+// Map a board button role to its event set + interaction mode.
+static void role_events(uint8_t role, polling_btn_state_t* b) {
+  switch (role) {
+    case BOARD_BTN_UP:
+      b->press_event = BUTTON_UP_PRESS;
+      b->hold_event = BUTTON_UP_HOLD;
+      b->double_press_event = BUTTON_UP_DOUBLE_PRESS;
+      b->repeat_event = BUTTON_UP_REPEAT;
+      b->release_event = BUTTON_UP_RELEASE;
+      b->mode = MODE_NORMAL_AND_LONG_CLICK;
+      break;
+    case BOARD_BTN_DOWN:
+      b->press_event = BUTTON_DOWN_PRESS;
+      b->hold_event = BUTTON_DOWN_HOLD;
+      b->double_press_event = BUTTON_DOWN_DOUBLE_PRESS;
+      b->repeat_event = BUTTON_DOWN_REPEAT;
+      b->release_event = BUTTON_DOWN_RELEASE;
+      b->mode = MODE_NORMAL_AND_LONG_CLICK;
+      break;
+    case BOARD_BTN_CENTER:
+      b->press_event = BUTTON_CENTER_PRESS;
+      b->hold_event = BUTTON_CENTER_HOLD;
+      b->double_press_event = BUTTON_CENTER_DOUBLE_PRESS;
+      b->repeat_event = BUTTON_CENTER_REPEAT;
+      b->release_event = BUTTON_CENTER_RELEASE;
+      b->mode = MODE_NORMAL_AND_LONG_CLICK;
+      break;
+    case BOARD_BTN_POWER:
+    default:
+      b->press_event = BUTTON_POWER_PRESS;
+      b->hold_event = BUTTON_POWER_HOLD;
+      b->double_press_event = BUTTON_POWER_DOUBLE_PRESS;
+      b->repeat_event = BUTTON_POWER_PRESS;
+      b->release_event = BUTTON_POWER_PRESS;
+      b->mode = MODE_POWER_BUTTON;
+      break;
+  }
+}
 
 static QueueHandle_t button_isr_queue;
 static volatile int active_button_idx = -1;
@@ -84,8 +152,8 @@ void button_task(void* arg) {
 
         // Dynamically determine the effective mode
         button_mode_t effective_mode = b->mode;
-        if (window == PLAY_SCR || window == PLAY_WIN_SCR || window == BRILHO_SCR) {
-          if (b->pin != BUTTON_POWER_PIN && b->pin != BUTTON_CENTER_PIN) {
+        if (window == PLAY_SCR || window == BRILHO_SCR) {
+          if (b->role != BOARD_BTN_POWER && b->role != BOARD_BTN_CENTER) {
             effective_mode = MODE_AUTO_FIRE_AND_DOUBLE_CLICK;
           }
         }
@@ -218,30 +286,132 @@ void button_task(void* arg) {
   }
 }
 
+
+// ---------------------------------------------------------------------------
+// Nav input: rotary encoder (PCNT quadrature) + push switch. Rotation is
+// translated into the same BUTTON_UP/DOWN press events the state machine
+// above emits for physical buttons.
+// ---------------------------------------------------------------------------
+
+static const char* ENC_TAG = "ENCODER";
+
+// SIQ-02FVS3 thumbwheel: one detent per full quadrature cycle at 4x decode.
+// If rotation feels double/half-stepped on real hardware, tune this.
+#define ENC_COUNTS_PER_DETENT 4
+#define ENC_POLL_MS 20
+
+static pcnt_unit_handle_t enc_unit = NULL;
+
+static void encoder_task(void* arg) {
+  int last = 0;
+  int residual = 0;
+  while (1) {
+    int count = 0;
+    pcnt_unit_get_count(enc_unit, &count);
+    int delta = count - last;
+    last = count;
+
+    residual += delta;
+    while (abs(residual) >= ENC_COUNTS_PER_DETENT) {
+      bool up = residual > 0;
+      residual += up ? -ENC_COUNTS_PER_DETENT : ENC_COUNTS_PER_DETENT;
+      btn_action_t action = {DEVICE_1, up ? BUTTON_UP_PRESS : BUTTON_DOWN_PRESS};
+      xQueueSend(button_action_queue, &action, 0);
+    }
+    vTaskDelay(pdMS_TO_TICKS(ENC_POLL_MS));
+  }
+}
+
+void init_encoder(void) {
+  pcnt_unit_config_t ucfg = {};
+  ucfg.high_limit = 32767;
+  ucfg.low_limit = -32768;
+  ucfg.flags.accum_count = true;
+  ESP_ERROR_CHECK(pcnt_new_unit(&ucfg, &enc_unit));
+
+  pcnt_glitch_filter_config_t fcfg = {};
+  fcfg.max_glitch_ns = 1000;
+  ESP_ERROR_CHECK(pcnt_unit_set_glitch_filter(enc_unit, &fcfg));
+
+  pcnt_chan_config_t c1cfg = {};
+  c1cfg.edge_gpio_num = ENC_A_PIN;
+  c1cfg.level_gpio_num = ENC_B_PIN;
+  pcnt_channel_handle_t chan_a = NULL;
+  ESP_ERROR_CHECK(pcnt_new_channel(enc_unit, &c1cfg, &chan_a));
+  pcnt_channel_set_edge_action(chan_a, PCNT_CHANNEL_EDGE_ACTION_DECREASE, PCNT_CHANNEL_EDGE_ACTION_INCREASE);
+  pcnt_channel_set_level_action(chan_a, PCNT_CHANNEL_LEVEL_ACTION_KEEP, PCNT_CHANNEL_LEVEL_ACTION_INVERSE);
+
+  pcnt_chan_config_t c2cfg = {};
+  c2cfg.edge_gpio_num = ENC_B_PIN;
+  c2cfg.level_gpio_num = ENC_A_PIN;
+  pcnt_channel_handle_t chan_b = NULL;
+  ESP_ERROR_CHECK(pcnt_new_channel(enc_unit, &c2cfg, &chan_b));
+  pcnt_channel_set_edge_action(chan_b, PCNT_CHANNEL_EDGE_ACTION_INCREASE, PCNT_CHANNEL_EDGE_ACTION_DECREASE);
+  pcnt_channel_set_level_action(chan_b, PCNT_CHANNEL_LEVEL_ACTION_KEEP, PCNT_CHANNEL_LEVEL_ACTION_INVERSE);
+
+  // encoder common pin is GND; A/B need pull-ups
+  gpio_set_pull_mode((gpio_num_t)ENC_A_PIN, GPIO_PULLUP_ONLY);
+  gpio_set_pull_mode((gpio_num_t)ENC_B_PIN, GPIO_PULLUP_ONLY);
+
+  ESP_ERROR_CHECK(pcnt_unit_enable(enc_unit));
+  ESP_ERROR_CHECK(pcnt_unit_clear_count(enc_unit));
+  ESP_ERROR_CHECK(pcnt_unit_start(enc_unit));
+
+  xTaskCreate(encoder_task, "encoder", 2048, NULL, 5, NULL);
+  ESP_LOGI(ENC_TAG, "encoder input ready (A=%d B=%d SW=%d)", ENC_A_PIN, ENC_B_PIN, ENC_SW_PIN);
+}
+
 void init_buttons() {
   button_isr_queue = xQueueCreate(10, sizeof(int));
 
-  for (int i = 0; i < 4; i++) {
+  const board_button_def_t* defs = board_button_table;
+  int n = sizeof(board_button_table) / sizeof(board_button_table[0]);
+  if (n > MAX_BUTTONS) n = MAX_BUTTONS;
+  button_count = n;
+
+  for (int i = 0; i < button_count; i++) {
+    polling_btn_state_t* b = &buttons[i];
+    *b = {};
+    b->pin = defs[i].pin;
+    b->role = defs[i].role;
+    b->internal_pullup = defs[i].internal_pullup;
+    role_events(defs[i].role, b);
+
     gpio_config_t io_conf = {};
-    io_conf.pin_bit_mask = (1ULL << buttons[i].pin);
+    io_conf.pin_bit_mask = (1ULL << b->pin);
     io_conf.mode = GPIO_MODE_INPUT;
-    io_conf.pull_up_en = (buttons[i].pin == BUTTON_POWER_PIN) ? GPIO_PULLUP_ENABLE : GPIO_PULLUP_DISABLE;
+    io_conf.pull_up_en = b->internal_pullup ? GPIO_PULLUP_ENABLE : GPIO_PULLUP_DISABLE;
     io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
     io_conf.intr_type = GPIO_INTR_NEGEDGE;
     gpio_config(&io_conf);
 
-    gpio_isr_handler_add(buttons[i].pin, button_isr_handler, (void*)i);
+    gpio_isr_handler_add(b->pin, button_isr_handler, (void*)i);
   }
+  // Note: init_encoder() is started later, from
+  // init_tasks(), because the encoder pushes onto button_action_queue which
+  // doesn't exist yet at init_buttons() time. The encoder's push switch
+  // (ENC_SW) is a plain button in the table above, so boot-shortcut probing
+  // still works before the encoder task exists.
 }
 
 void set_button_pullups(bool internal) {
-  for (int i = 0; i < 4; i++) {
+  for (int i = 0; i < button_count; i++) {
     gpio_set_pull_mode(buttons[i].pin, internal ? GPIO_PULLUP_ONLY : GPIO_FLOATING);
   }
+  // Encoder A/B are not in the button table but still need their pulls set.
+  gpio_set_pull_mode((gpio_num_t)ENC_A_PIN, internal ? GPIO_PULLUP_ONLY : GPIO_FLOATING);
+  gpio_set_pull_mode((gpio_num_t)ENC_B_PIN, internal ? GPIO_PULLUP_ONLY : GPIO_FLOATING);
 }
 
 uint16_t hold_time_ms = 300;
 
 void set_hold_time_ms(uint16_t time_ms) {
   hold_time_ms = time_ms;
+}
+
+uint8_t read_boot_shortcut(void) {
+  // Only the encoder push is a hold-able control at boot on v3.0, so this
+  // returns either 3 ("center") or 0 (none) -- never 1/2 ("up"/"down").
+  if (gpio_get_level((gpio_num_t)ENC_SW_PIN) == 0) return 3;
+  return 0;
 }

@@ -155,7 +155,7 @@ void ble_send_json(const char* json_str) {
 
 #include "cJSON.h"
 
-void handle_button_action_event(device_t device_id, button_event_t button_event);
+void handle_button_action_event(device_t device_id, button_event_t button_event, bool remote);
 
 static void process_json_command(const char* json_str) {
   cJSON* root = cJSON_Parse(json_str);
@@ -1551,12 +1551,13 @@ void set_ble_hold_time_ms(uint16_t time_ms) {
   ble_hold_time_ms = time_ms;
 }
 
-void handle_button_action_event(device_t device_id, button_event_t button_event) {
+void handle_button_action_event(device_t device_id, button_event_t button_event, bool remote) {
   btn_action_t btn_action_event;
 
-  ESP_LOGI(TAG, "Button %d Action: %d", device_id, button_event);
+  ESP_LOGI(TAG, "Button %d Action: %d (remote: %d)", device_id, button_event, remote);
   btn_action_event.device_id = device_id;
   btn_action_event.button_event = button_event;
+  btn_action_event.remote = remote ? 1 : 0;
   xQueueSend(button_action_queue, &btn_action_event, portMAX_DELAY);
 }
 

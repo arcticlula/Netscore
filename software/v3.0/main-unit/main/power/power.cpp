@@ -12,8 +12,11 @@
 #include "esp_wifi.h"
 #include "hal/gpio_types.h"
 #include "misc.h"
+#include "settings/settings.h"
 #include "spi/spi.h"
 #include "tasks.h"
+#include "wifi/esp-now.h"
+#include "wifi/mirror_actions.h"
 
 static bool system_is_sleeping = false;
 
@@ -69,49 +72,39 @@ void set_vcc_ctrl(bool enable) {
   gpio_set_level((gpio_num_t)VCC_CTRL_EN, enable);
 }
 
-void set_buzzer_sleep(bool enable) {
-  gpio_set_level((gpio_num_t)DRV_SLEEP_PIN, !enable);
-}
-
 bool is_usb_connected() {
   return gpio_get_level((gpio_num_t)VBUS_DETECT_PIN);
 }
 
+// Real power-down happens by cutting LDO_LATCH -- but that only works
+// running off battery. On USB power VBUS feeds the regulator directly, so
+// the MCU keeps running through "off"/sleep with the display just blanked.
+// Without this, the unit stayed fully live on the mirror link (still
+// sending heartbeats/hellos, still BLE-paired) while looking off, which
+// broke failover testing on the peer unit. Go radio-silent in software
+// instead, whether or not the hardware cut actually took effect.
 void go_to_sleep() {
   if (system_is_sleeping) return;
   system_is_sleeping = true;
 
-  /*ESP_ERROR_CHECK(esp_wifi_stop());
-
-  ESP_ERROR_CHECK(esp_bluedroid_disable());
-  ESP_ERROR_CHECK(esp_bt_controller_disable());
-
-  // 2. Suspend non-critical tasks
-  if (display_logic_task_handle) vTaskSuspend(display_logic_task_handle);
-  if (melody_task_handle) vTaskSuspend(melody_task_handle);
-  if (conn_monitor_task_handle) vTaskSuspend(conn_monitor_task_handle);
-  if (ble_cmd_task_handle) vTaskSuspend(ble_cmd_task_handle);
-  if (espnow_task_handle) vTaskSuspend(espnow_task_handle);*/
+  ble_disable();
+  esp_now_link_mute();
+  update_main_board_led(true);
 }
 
 void wake_up() {
-  if (!system_is_sleeping) return;
-
-  /*ESP_ERROR_CHECK(esp_bt_controller_enable(ESP_BT_MODE_BLE));
-  ESP_ERROR_CHECK(esp_bluedroid_enable());
-  ble_restart_scan();
-  ESP_ERROR_CHECK(esp_wifi_start());
-
-  // 3. Resume Tasks
-  if (display_logic_task_handle) vTaskResume(display_logic_task_handle);
-  if (button_action_task_handle) vTaskResume(button_action_task_handle);
-  if (melody_task_handle) vTaskResume(melody_task_handle);
-  if (conn_monitor_task_handle) vTaskResume(conn_monitor_task_handle);
-  if (ble_cmd_task_handle) vTaskResume(ble_cmd_task_handle);
-  if (espnow_task_handle) vTaskResume(espnow_task_handle);
-  */
-
-  system_is_sleeping = false;
+  if (system_is_sleeping) {
+    system_is_sleeping = false;
+    esp_now_link_unmute();
+    mirror_reset_runtime();
+    if (sys_mirror_mode) {
+      init_mirror_mode();  // re-enters as passive, sets its own screen
+    } else {
+      ble_enable();
+    }
+    update_main_board_led(false);
+    if (sys_mirror_mode) return;  // init_mirror_mode() already set its screen
+  }
   init_menu_scr();
 }
 

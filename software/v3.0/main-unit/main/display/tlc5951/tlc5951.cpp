@@ -48,7 +48,7 @@ static void (*user_callback)() = NULL;
 
 Tlc5951 Tlc;
 
-void Tlc5951::init(uint8_t gssin, uint8_t dcsin, uint8_t sclk, uint8_t xlat, uint8_t blank, uint8_t gsclk) {
+void Tlc5951::init(uint8_t gssin, int dcsin, uint8_t sclk, uint8_t xlat, uint8_t blank, uint8_t gsclk) {
   if (spi_mutex == NULL) {
     spi_mutex = xSemaphoreCreateMutex();
   }
@@ -77,9 +77,15 @@ void Tlc5951::init(uint8_t gssin, uint8_t dcsin, uint8_t sclk, uint8_t xlat, uin
   // the SPI transaction will clock 288 bits of whatever state DCSIN is currently at.
   // If DCSIN is LOW, the DC/BC registers fill with 0s and the 3ms auto-latch timeout
   // kills the output current completely. Setting it HIGH fills DC/BC with 1s (max brightness).
-  gpio_reset_pin(dcsin_pin);
-  gpio_set_direction(dcsin_pin, GPIO_MODE_OUTPUT);
-  gpio_set_level(dcsin_pin, HIGH);
+  //
+  // On v3.0 the DCSIN chain was removed from the slot connector (dcsin < 0):
+  // the display board straps its local DCSIN high on its own, so the main board
+  // drives nothing here.
+  if (dcsin >= 0) {
+    gpio_reset_pin(dcsin_pin);
+    gpio_set_direction(dcsin_pin, GPIO_MODE_OUTPUT);
+    gpio_set_level(dcsin_pin, HIGH);
+  }
 
   // Clear buffers
   clear();
