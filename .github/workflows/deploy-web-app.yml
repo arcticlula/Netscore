@@ -29,7 +29,9 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          # Match the npm that generated package-lock.json (node 24 ships npm 11).
+          # npm 10 rejects this lock over optional @emnapi peer deps.
+          node-version: '24'
           cache: npm
           cache-dependency-path: 'software/web/web app/package-lock.json'
 
