@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Keep the wasm simulator bundle shipped from public/ (root .gitignore has **/build)
+!public/netscore/component/build/
