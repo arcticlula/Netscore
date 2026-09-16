@@ -27,13 +27,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Pinned to the toolchain that generates package-lock.json. npm 11 omits
+      # the optional @emnapi peer deps by design; npm 10 and npm 12 both reject
+      # the resulting lock in `npm ci`. Bump these together with the local npm.
       - uses: actions/setup-node@v4
         with:
-          # Match the npm that generated package-lock.json (node 24 ships npm 11).
-          # npm 10 rejects this lock over optional @emnapi peer deps.
-          node-version: '24'
+          node-version: '24.12.0'
           cache: npm
           cache-dependency-path: 'software/web/web app/package-lock.json'
+
+      - run: npm install -g npm@11.6.2
+
+      - run: npm --version
 
       - run: npm ci
 
